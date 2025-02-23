@@ -15,11 +15,14 @@ function Login() {
 
     try {
       const response = await API.post("/login/", { username, password });
-      localStorage.setItem("access", response.data.access);
-      localStorage.setItem("refresh", response.data.refresh);
+      console.log("Login Response:", response.data);  // Debugging
+      localStorage.setItem("access", response.data.access);  // Store access token
+      localStorage.setItem("refresh", response.data.refresh);  // Store refresh token
+      localStorage.setItem("username", username);  // Store username
       alert("Login Successful!");
-      navigate("/");
+      navigate("/dashboard");
     } catch (err) {
+      console.error("Login Error:", err.response?.data || err.message);  // Debugging
       setError("Invalid credentials! Please try again.");
     }
   };

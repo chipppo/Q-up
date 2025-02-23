@@ -42,6 +42,29 @@ class MyUser(AbstractUser):
     def __str__(self):
         return self.username  # Display the username in admin or when printed
 
+class Game(models.Model):
+    name = models.CharField(max_length=255, unique=True)
+    description = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return self.name
+
+# backend/base/models.py
+class GameStats(models.Model):
+    user = models.ForeignKey(MyUser, on_delete=models.CASCADE, related_name='game_stats')
+    game = models.ForeignKey(Game, on_delete=models.CASCADE, related_name='stats')
+    hours_played = models.IntegerField(default=0)
+    rank = models.CharField(max_length=255, blank=True, null=True)
+    achievements = models.JSONField(default=list, blank=True, null=True)
+    goals = models.TextField(blank=True, null=True)
+
+    class Meta:
+        unique_together = ('user', 'game')  # Ensure each user has only one entry per game
+
+    def __str__(self):
+        return f"{self.user.username} - {self.game.name}"
+
+
     class Meta:
         verbose_name = 'User'
         verbose_name_plural = 'Users'
