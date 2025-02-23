@@ -1,16 +1,16 @@
+# backend/base/urls.py
 from django.urls import path
-from .views import UserDetailView, RegisterUserView, LoginUserView, RefreshTokenView
+from .views import (
+    UserDetailView, RegisterUserView, LoginUserView,
+    RefreshTokenView, UpdateProfileView, GameStatsListView, GameStatsUpdateView
+)
 
 urlpatterns = [
-    # Endpoint for user profile retrieval by username
     path('user_data/<str:username>/', UserDetailView.as_view(), name='user-detail'),
-    
-    # Endpoint for user registration
+    path('user_data/<str:username>/update/', UpdateProfileView.as_view(), name='update-profile'),
+    path('user_data/<str:username>/game_stats/', GameStatsListView.as_view(), name='game-stats-list'),  # Add this
+    path('user_data/<str:username>/game_stats/<int:game_id>/', GameStatsUpdateView.as_view(), name='update-game-stats'),  # Add this
     path('register/', RegisterUserView.as_view(), name='register'),
-    
-    # Endpoint for user login (JWT token generation)
     path('login/', LoginUserView.as_view(), name='login'),
-    
-    # Endpoint for refreshing JWT access token using refresh token
     path('refresh_token/', RefreshTokenView.as_view(), name='refresh_token'),
 ]

@@ -1,5 +1,6 @@
 from rest_framework import serializers
-from .models import MyUser
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from .models import MyUser, Game, GameStats
 
 class UserSerializer(serializers.ModelSerializer):
     followers_count = serializers.SerializerMethodField()
@@ -40,22 +41,12 @@ class RegisterUserSerializer(serializers.ModelSerializer):
         return user
 
 
-class MyTokenObtainPairSerializer(serializers.Serializer):
-    username = serializers.CharField()
-    password = serializers.CharField()
-
+class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
-        username = attrs.get('username')
-        password = attrs.get('password')
-
-        if not username or not password:
-            raise serializers.ValidationError('Username and password are required')
-
-        user = MyUser.objects.filter(username=username).first()
-
-        if user and user.check_password(password):
-            return {'user': user}
-        raise serializers.ValidationError('Invalid credentials')
+        data = super().validate(attrs)  # Use the parent class's validation logic
+        # Add custom data to the response if needed
+        data['username'] = self.user.username
+        return data
 
 
 class MyTokenRefreshSerializer(serializers.Serializer):
@@ -63,9 +54,20 @@ class MyTokenRefreshSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         refresh_token = attrs.get('refresh')
-
         if not refresh_token:
             raise serializers.ValidationError('Refresh token is required')
-
-        # Implement the validation logic for refresh token if needed
         return attrs
+
+
+class GameSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Game
+        fields = ['id', 'name', 'description']
+
+
+class GameStatsSerializer(serializers.ModelSerializer):
+    game = GameSerializer(read_only=True)
+
+    class Meta:
+        model = GameStats
+        fields = ['id', 'game', 'hours_played', 'rank', 'achievements', 'goals']
