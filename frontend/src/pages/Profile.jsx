@@ -10,6 +10,7 @@ function Profile() {
   const [gameStats, setGameStats] = useState([]);
   const [isEditing, setIsEditing] = useState(false);
   const [error, setError] = useState("");
+  const loggedInUsername = localStorage.getItem("username"); // Get the logged-in user's username
 
   // Fetch user data
   useEffect(() => {
@@ -40,15 +41,19 @@ function Profile() {
   if (error) return <p>{error}</p>;
   if (!user) return <p>Loading...</p>;
 
+  const isCurrentUser = username === loggedInUsername; // Check if the profile belongs to the logged-in user
+
   return (
     <div className="profile-container">
       <h1>{user.display_name || user.username}</h1>
       <img src={user.avatar_url || "https://via.placeholder.com/150"} alt="Profile" />
       <p>Followers: {user.followers_count}</p>
       <p>Following: {user.following_count}</p>
-      <button onClick={() => setIsEditing(!isEditing)}>
-        {isEditing ? "Cancel" : "Edit Profile"}
-      </button>
+      {isCurrentUser && ( // Only show the Edit Profile button for the logged-in user
+        <button onClick={() => setIsEditing(!isEditing)}>
+          {isEditing ? "Cancel" : "Edit Profile"}
+        </button>
+      )}
 
       {isEditing ? (
         <EditProfile user={user} setUser={setUser} />

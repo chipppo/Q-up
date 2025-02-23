@@ -81,7 +81,7 @@ class UpdateProfileView(APIView):
     def patch(self, request, username, format=None):
         try:
             user = MyUser.objects.get(username=username)
-            if user != request.user:
+            if user != request.user:  # Ensure the logged-in user is updating their own profile
                 return Response({"detail": "You can only edit your own profile."}, status=status.HTTP_403_FORBIDDEN)
             serializer = UserSerializer(user, data=request.data, partial=True)
             if serializer.is_valid():
@@ -90,6 +90,7 @@ class UpdateProfileView(APIView):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         except MyUser.DoesNotExist:
             return Response({"detail": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+
 
 
 class GameStatsListView(APIView):
