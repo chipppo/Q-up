@@ -1,17 +1,24 @@
 // src/pages/Profile.jsx
 import { useState, useEffect, useContext } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom"; // Import useNavigate
 import API from "../api/axios";
-import { AuthContext } from "../context/AuthContext.jsx"; // Import AuthContext
+import { AuthContext } from "../context/AuthContext.jsx";
 import "./Profile.css";
 
 function Profile() {
-  const { username } = useParams(); // Get username from the URL
+  const { username } = useParams();
   const [user, setUser] = useState(null);
   const [gameStats, setGameStats] = useState([]);
   const [isEditing, setIsEditing] = useState(false);
   const [error, setError] = useState("");
-  const { isLoggedIn, username: loggedInUsername } = useContext(AuthContext); // Get logged-in user info
+  const { isLoggedIn, username: loggedInUsername, logout } = useContext(AuthContext);
+  const navigate = useNavigate(); // Use the useNavigate hook
+
+  const handleLogout = () => {
+    logout(() => {
+      navigate("/"); // Navigate to the Home page after logout
+    });
+  };
 
   // Fetch user data
   useEffect(() => {
@@ -42,7 +49,7 @@ function Profile() {
   if (error) return <p>{error}</p>;
   if (!user) return <p>Loading...</p>;
 
-  const isCurrentUser = username === loggedInUsername; // Check if the profile belongs to the logged-in user
+  const isCurrentUser = username === loggedInUsername;
 
   return (
     <div className="profile-container">
@@ -51,11 +58,14 @@ function Profile() {
       <p>Followers: {user.followers_count}</p>
       <p>Following: {user.following_count}</p>
 
-      {isCurrentUser ? ( // Show Edit Profile button for the logged-in user
-        <button onClick={() => setIsEditing(!isEditing)}>
-          {isEditing ? "Cancel" : "Edit Profile"}
-        </button>
-      ) : ( // Show Add Friend and Message buttons for other profiles
+      {isCurrentUser ? (
+        <>
+          <button onClick={() => setIsEditing(!isEditing)}>
+            {isEditing ? "Cancel" : "Edit Profile"}
+          </button>
+          <button onClick={handleLogout}>Logout</button> {/* Add Logout button */}
+        </>
+      ) : (
         <div>
           <button>Add Friend</button>
           <button>Message</button>
