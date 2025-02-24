@@ -2,7 +2,8 @@
 from django.urls import path
 from .views import (
     UserDetailView, RegisterUserView, LoginUserView,
-    RefreshTokenView, UpdateProfileView, GameStatsListView, GameStatsUpdateView
+    RefreshTokenView, UpdateProfileView, GameStatsListView, GameStatsUpdateView,
+    SearchView,
 )
 
 urlpatterns = [
@@ -13,4 +14,5 @@ urlpatterns = [
     path('register/', RegisterUserView.as_view(), name='register'),
     path('login/', LoginUserView.as_view(), name='login'),
     path('refresh_token/', RefreshTokenView.as_view(), name='refresh_token'),
+    path("search/", SearchView.as_view(), name="search")
 ]

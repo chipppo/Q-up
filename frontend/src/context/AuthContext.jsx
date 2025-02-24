@@ -27,12 +27,13 @@ const AuthProvider = ({ children }) => {
   };
 
   // Logout function
-  const logout = () => {
+  const logout = (callback) => {
     localStorage.removeItem("access");
     localStorage.removeItem("refresh");
     localStorage.removeItem("username");
     setIsLoggedIn(false);
     setUsername("");
+    if (callback) callback(); // Call the callback (e.g., navigate to Home)
   };
 
   return (
@@ -42,4 +43,4 @@ const AuthProvider = ({ children }) => {
   );
 };
 
-export { AuthContext, AuthProvider }; // Export both AuthContext and AuthProvider
+export { AuthContext, AuthProvider };

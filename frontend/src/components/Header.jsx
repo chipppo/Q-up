@@ -1,11 +1,18 @@
 // src/components/Header.jsx
 import React, { useContext } from "react";
-import { Link } from "react-router-dom";
-import { AuthContext } from "../context/AuthContext.jsx"; // Correct import
+import { Link, useNavigate } from "react-router-dom"; // Import useNavigate
+import { AuthContext } from "../context/AuthContext.jsx";
 import "./Header.css";
 
 const Header = () => {
   const { isLoggedIn, username, logout } = useContext(AuthContext);
+  const navigate = useNavigate(); // Use the useNavigate hook
+
+  const handleLogout = () => {
+    logout(() => {
+      navigate("/"); // Navigate to the Home page after logout
+    });
+  };
 
   return (
     <header>
@@ -16,7 +23,7 @@ const Header = () => {
             <span>Welcome, {username}!</span>
             <Link to={`/profile/${username}`}>Profile</Link>
             <Link to="/dashboard">Dashboard</Link>
-            <button onClick={logout}>Logout</button>
+            <button onClick={handleLogout}>Logout</button> {/* Use handleLogout */}
           </>
         ) : (
           <>

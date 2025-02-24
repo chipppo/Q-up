@@ -3,6 +3,7 @@ from rest_framework.response import Response
 from rest_framework import status, permissions
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import RefreshToken
+from django.db.models import Q
 from .models import Game, MyUser, GameStats
 from .serializers import (
     UserSerializer,
@@ -129,3 +130,12 @@ class GameStatsUpdateView(APIView):
             return Response(serializer.data)
         except (MyUser.DoesNotExist, Game.DoesNotExist):
             return Response({"detail": "User or game not found."}, status=status.HTTP_404_NOT_FOUND)
+        
+class SearchView(APIView):
+    def get(self, request, format=None):
+        query = request.query_params.get("q", "")
+        users = MyUser.objects.filter(
+            Q(username__icontains=query) | Q(display_name__icontains=query)
+        )
+        serializer = UserSerializer(users, many=True)
+        return Response(serializer.data)
