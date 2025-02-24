@@ -1,11 +1,16 @@
-import { Navigate } from "react-router-dom"
+// src/components/ProtectedRoute.jsx
+import { useContext } from "react";
+import { Navigate } from "react-router-dom";
+import { AuthContext } from "../context/AuthContext.jsx"; // Correct import
 
 const ProtectedRoute = ({ children }) => {
-    const token = localStorage.getItem("access");
-    if (!token) {
-      return <Navigate to="/login" replace />;
-    }
-    return children;
-  };
-  
+  const { isLoggedIn } = useContext(AuthContext);
+
+  if (!isLoggedIn) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return children;
+};
+
 export default ProtectedRoute;
