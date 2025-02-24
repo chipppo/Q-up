@@ -1,7 +1,8 @@
 // src/pages/Profile.jsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, useContext } from "react";
 import { useParams } from "react-router-dom";
 import API from "../api/axios";
+import { AuthContext } from "../context/AuthContext.jsx"; // Import AuthContext
 import "./Profile.css";
 
 function Profile() {
@@ -10,7 +11,7 @@ function Profile() {
   const [gameStats, setGameStats] = useState([]);
   const [isEditing, setIsEditing] = useState(false);
   const [error, setError] = useState("");
-  const loggedInUsername = localStorage.getItem("username"); // Get the logged-in user's username
+  const { isLoggedIn, username: loggedInUsername } = useContext(AuthContext); // Get logged-in user info
 
   // Fetch user data
   useEffect(() => {
@@ -49,10 +50,16 @@ function Profile() {
       <img src={user.avatar_url || "https://via.placeholder.com/150"} alt="Profile" />
       <p>Followers: {user.followers_count}</p>
       <p>Following: {user.following_count}</p>
-      {isCurrentUser && ( // Only show the Edit Profile button for the logged-in user
+
+      {isCurrentUser ? ( // Show Edit Profile button for the logged-in user
         <button onClick={() => setIsEditing(!isEditing)}>
           {isEditing ? "Cancel" : "Edit Profile"}
         </button>
+      ) : ( // Show Add Friend and Message buttons for other profiles
+        <div>
+          <button>Add Friend</button>
+          <button>Message</button>
+        </div>
       )}
 
       {isEditing ? (

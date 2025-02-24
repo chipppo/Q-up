@@ -1,6 +1,8 @@
-import { useState } from "react";
+// src/pages/Login.jsx
+import { useState, useContext } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import API from "../api/axios";
+import { AuthContext } from "../context/AuthContext.jsx"; // Correct import
 import "./Login.css";
 
 function Login() {
@@ -8,6 +10,7 @@ function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const navigate = useNavigate();
+  const { login } = useContext(AuthContext);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -15,14 +18,10 @@ function Login() {
 
     try {
       const response = await API.post("/login/", { username, password });
-      console.log("Login Response:", response.data);  // Debugging
-      localStorage.setItem("access", response.data.access);  // Store access token
-      localStorage.setItem("refresh", response.data.refresh);  // Store refresh token
-      localStorage.setItem("username", username);  // Store username
+      login(response.data.access, response.data.refresh, username);
       alert("Login Successful!");
       navigate("/dashboard");
     } catch (err) {
-      console.error("Login Error:", err.response?.data || err.message);  // Debugging
       setError("Invalid credentials! Please try again.");
     }
   };
