@@ -4,7 +4,8 @@ from django.contrib.auth.models import AbstractUser
 class MyUser(AbstractUser):
     
     # Profile fields
-    avatar_url = models.URLField(max_length=255, blank=True, null=True)  # For storing the URL of the profile picture.
+    avatar = models.ImageField(upload_to='profile_pics/', blank=True, null=True)
+    bio = models.TextField(blank=True, null=True)
     display_name = models.CharField(max_length=150, blank=True, null=True)  # Display name field
     email = models.EmailField(unique=True)  # Email must be unique for each user
     password = models.CharField(max_length=255)  # Password field (Django handles it securely)

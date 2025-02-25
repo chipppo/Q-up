@@ -1,41 +1,31 @@
-/* src/pages/Profile.css */
-.profile-container {
-  padding: 20px;
-  max-width: 600px;
-  margin: 0 auto;
-  text-align: center;
+/* Profile.css */
+
+.add-game-form {
+  display: flex;
+  flex-direction: column;
+  margin-top: 20px;
 }
 
-.profile-container img {
-  width: 150px;
-  height: 150px;
-  border-radius: 50%;
-  margin-bottom: 20px;
+.add-game-form label {
+  margin-bottom: 10px;
 }
 
-.profile-container button {
-  margin: 10px;
+.add-game-form input {
+  padding: 8px;
+  margin-bottom: 10px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+}
+
+.add-game-form button {
   padding: 10px 20px;
-  background-color: #007bff;
+  background-color: #28a745;
   color: white;
   border: none;
   border-radius: 5px;
   cursor: pointer;
 }
 
-.profile-container button:hover {
-  background-color: #0056b3;
-}
-
-form label {
-  display: block;
-  margin: 10px 0;
-}
-
-form input, form textarea {
-  width: 100%;
-  padding: 10px;
-  margin: 5px 0;
-  border-radius: 5px;
-  border: 1px solid #ddd;
+.add-game-form button:hover {
+  background-color: #218838;
 }

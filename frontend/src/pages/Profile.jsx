@@ -1,16 +1,24 @@
-// src/pages/Profile.jsx
 import { useState, useEffect, useContext } from "react";
-import { useParams, useNavigate } from "react-router-dom"; // Import useNavigate
+import { useParams, useNavigate } from "react-router-dom";
 import API from "../api/axios";
 import { AuthContext } from "../context/AuthContext.jsx";
 import "./Profile.css";
 
 function Profile() {
   const { username } = useParams();
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(null); // Initialize user as null
   const [gameStats, setGameStats] = useState([]);
   const [isEditing, setIsEditing] = useState(false);
+  const [isAddingGame, setIsAddingGame] = useState(false);
+  const [gameFormData, setGameFormData] = useState({
+    game_name: "",
+    hours_played: "",
+    rank: "",
+    achievements: "",
+    goals: "",
+  });
   const [error, setError] = useState("");
+  const [avatarFile, setAvatarFile] = useState(null); // Store the avatar file
   const { isLoggedIn, username: loggedInUsername, logout } = useContext(AuthContext);
   const navigate = useNavigate(); // Use the useNavigate hook
 
@@ -46,34 +54,97 @@ function Profile() {
     fetchGameStats();
   }, [username]);
 
-  if (error) return <p>{error}</p>;
-  if (!user) return <p>Loading...</p>;
+  // Handle file upload for avatar
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setAvatarFile(file);
+    }
+  };
+
+  const handleAvatarUpload = async (e) => {
+    e.preventDefault();
+
+    if (!avatarFile) {
+      alert("Please choose a file to upload.");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("avatar", avatarFile);
+
+    try {
+      const response = await API.post(`/user_data/${username}/upload_avatar/`, formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+      setUser((prevState) => ({
+        ...prevState,
+        avatar_url: response.data.avatar_url, // Update the avatar URL with the new image
+      }));
+      alert("Profile picture updated successfully!");
+    } catch (err) {
+      alert("Failed to upload avatar.");
+    }
+  };
 
   const isCurrentUser = username === loggedInUsername;
 
+  // Conditional rendering to handle user data being null
+  if (!user) {
+    return <div>Loading...</div>; // Show loading indicator until user data is available
+  }
+
   return (
     <div className="profile-container">
-      <h1>{user.display_name || user.username}</h1>
-      <img src={user.avatar_url || "https://via.placeholder.com/150"} alt="Profile" />
-      <p>Followers: {user.followers_count}</p>
-      <p>Following: {user.following_count}</p>
-
-      {isCurrentUser ? (
-        <>
-          <button onClick={() => setIsEditing(!isEditing)}>
-            {isEditing ? "Cancel" : "Edit Profile"}
-          </button>
-          <button onClick={handleLogout}>Logout</button> {/* Add Logout button */}
-        </>
-      ) : (
-        <div>
-          <button>Add Friend</button>
-          <button>Message</button>
+      <div className="profile-header">
+        <img
+          src={user.avatar_url || "https://via.placeholder.com/150"}
+          alt="Profile"
+          className="avatar"
+        />
+        <div className="profile-info">
+          <h1>{user.display_name || user.username}</h1>
+          <p>@{user.username}</p>
+          <p>Followers: {user.followers_count} | Following: {user.following_count}</p>
         </div>
-      )}
+      </div>
+
+      <div className="profile-actions">
+        {isCurrentUser ? (
+          <>
+            <button onClick={() => setIsEditing(!isEditing)}>
+              {isEditing ? "Cancel" : "Edit Profile"}
+            </button>
+            <button onClick={handleLogout}>Logout</button>
+            <button onClick={() => setIsAddingGame(!isAddingGame)}>
+              {isAddingGame ? "Cancel" : "Add Game Info"}
+            </button>
+            <form onSubmit={handleAvatarUpload}>
+              <label>
+                Upload New Profile Picture:
+                <input type="file" accept="image/*" onChange={handleFileChange} />
+              </label>
+              <button type="submit">Upload Avatar</button>
+            </form>
+          </>
+        ) : (
+          <div className="profile-actions-buttons">
+            <button>Add Friend</button>
+            <button>Message</button>
+          </div>
+        )}
+      </div>
 
       {isEditing ? (
         <EditProfile user={user} setUser={setUser} />
+      ) : isAddingGame ? (
+        <AddGameStatsForm
+          gameFormData={gameFormData}
+          setGameFormData={setGameFormData}
+          handleGameSubmit={handleGameSubmit}
+        />
       ) : (
         <ViewProfile user={user} gameStats={gameStats} />
       )}
@@ -81,22 +152,72 @@ function Profile() {
   );
 }
 
+// Add Game Stats Form Component
+function AddGameStatsForm({ gameFormData, setGameFormData, handleGameSubmit }) {
+  return (
+    <form onSubmit={handleGameSubmit} className="add-game-form">
+      <label>
+        Game Name:
+        <input
+          type="text"
+          value={gameFormData.game_name}
+          onChange={(e) => setGameFormData({ ...gameFormData, game_name: e.target.value })}
+        />
+      </label>
+      <label>
+        Hours Played:
+        <input
+          type="number"
+          value={gameFormData.hours_played}
+          onChange={(e) => setGameFormData({ ...gameFormData, hours_played: e.target.value })}
+        />
+      </label>
+      <label>
+        Rank:
+        <input
+          type="text"
+          value={gameFormData.rank}
+          onChange={(e) => setGameFormData({ ...gameFormData, rank: e.target.value })}
+        />
+      </label>
+      <label>
+        Achievements:
+        <input
+          type="text"
+          value={gameFormData.achievements}
+          onChange={(e) => setGameFormData({ ...gameFormData, achievements: e.target.value })}
+        />
+      </label>
+      <label>
+        Goals:
+        <input
+          type="text"
+          value={gameFormData.goals}
+          onChange={(e) => setGameFormData({ ...gameFormData, goals: e.target.value })}
+        />
+      </label>
+      <button type="submit">Add Game</button>
+    </form>
+  );
+}
+
 // View Profile Component
 function ViewProfile({ user, gameStats }) {
   return (
-    <div>
-      <p>Email: {user.email}</p>
-      <p>Timezone: {user.timezone}</p>
+    <div className="view-profile">
+      <p>Email: {user.email || "N/A"}</p>
+      <p>Timezone: {user.timezone || "Not set"}</p>
       <p>Bio: {user.bio || "No bio yet."}</p>
+
       <h2>Game Stats</h2>
       {gameStats.length > 0 ? (
         gameStats.map((stats) => (
-          <div key={stats.id}>
-            <h3>{stats.game.name}</h3>
+          <div key={stats.id} className="game-stats">
+            <h3>{stats.game_name}</h3>
             <p>Hours Played: {stats.hours_played}</p>
             <p>Rank: {stats.rank}</p>
-            <p>Achievements: {JSON.stringify(stats.achievements)}</p>
-            <p>Goals: {stats.goals}</p>
+            <p>Achievements: {stats.achievements || "None"}</p>
+            <p>Goals: {stats.goals || "None"}</p>
           </div>
         ))
       ) : (
@@ -126,7 +247,7 @@ function EditProfile({ user, setUser }) {
   };
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form onSubmit={handleSubmit} className="edit-profile-form">
       <label>
         Display Name:
         <input
