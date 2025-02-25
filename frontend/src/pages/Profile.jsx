@@ -79,12 +79,20 @@ function Profile() {
           "Content-Type": "multipart/form-data",
         },
       });
-      setUser((prevState) => ({
-        ...prevState,
-        avatar_url: response.data.avatar_url, // Update the avatar URL with the new image
-      }));
-      alert("Profile picture updated successfully!");
+
+      // Check if the response contains the updated avatar data
+      if (response.data && response.data.avatar) {
+        setUser((prevState) => ({
+          ...prevState,
+          avatar: response.data.avatar, // Update with new avatar URL
+        }));
+
+        alert("Profile picture updated successfully!");
+      } else {
+        alert("Failed to update avatar.");
+      }
     } catch (err) {
+      console.error("Failed to upload avatar:", err);
       alert("Failed to upload avatar.");
     }
   };
@@ -100,7 +108,7 @@ function Profile() {
     <div className="profile-container">
       <div className="profile-header">
         <img
-          src={user.avatar_url || "https://via.placeholder.com/150"}
+          src={user.avatar || "https://via.placeholder.com/150"} // Use the updated avatar URL
           alt="Profile"
           className="avatar"
         />
@@ -231,7 +239,7 @@ function ViewProfile({ user, gameStats }) {
 function EditProfile({ user, setUser }) {
   const [formData, setFormData] = useState({
     display_name: user.display_name || "",
-    avatar_url: user.avatar_url || "",
+    avatar: user.avatar || "",
     bio: user.bio || "",
   });
 
@@ -260,8 +268,8 @@ function EditProfile({ user, setUser }) {
         Avatar URL:
         <input
           type="url"
-          value={formData.avatar_url}
-          onChange={(e) => setFormData({ ...formData, avatar_url: e.target.value })}
+          value={formData.avatar}
+          onChange={(e) => setFormData({ ...formData, avatar: e.target.value })}
         />
       </label>
       <label>
