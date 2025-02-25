@@ -28,7 +28,7 @@ function App() {
               </ProtectedRoute>
             }
           />
-            <Route path="/search" element={<Search />} />
+            {/* <Route path="/search" element={<Search />} /> */}
           <Route path="/profile/:username" element={<Profile />} /> {/* Public route */}
         </Routes>
         <Footer />

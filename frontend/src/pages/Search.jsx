@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import API from "../api/axios";
-import "./Search.css";
+// import "./Search.css";
 
 function Search() {
   const [query, setQuery] = useState("");

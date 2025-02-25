@@ -9,7 +9,7 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = MyUser
         fields = [
-            'id', 'username', 'display_name', 'email', 'avatar_url', 'followers_count', 
+            'id', 'username', 'display_name', 'email', 'avatar', 'followers_count', 
             'following_count', 'active_hours', 'language_preference', 'platforms',
             'mic_available', 'social_links', 'created_at', 'is_active', 'timezone', 
             'date_of_birth'
