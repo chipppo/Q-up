@@ -29,3 +29,204 @@
 .add-game-form button:hover {
   background-color: #218838;
 }
+
+.profile-container {
+  max-width: 935px;
+  margin: 0 auto;
+  padding: 30px 20px;
+}
+
+.profile-header {
+  display: flex;
+  margin-bottom: 44px;
+}
+
+.profile-avatar {
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  margin-right: 30px;
+  object-fit: cover;
+}
+
+.profile-info {
+  flex: 1;
+}
+
+.profile-info h1 {
+  font-size: 28px;
+  font-weight: 300;
+  margin-bottom: 12px;
+}
+
+.profile-actions {
+  margin-top: 20px;
+  display: flex;
+  gap: 8px;
+}
+
+.action-button {
+  padding: 6px 16px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.edit-button {
+  background-color: transparent;
+  border: 1px solid #dbdbdb;
+  color: #262626;
+  text-decoration: none;
+  display: inline-block;
+  text-align: center;
+}
+
+.follow-button {
+  background-color: #0095f6;
+  border: none;
+  color: white;
+}
+
+.follow-button.following {
+  background-color: transparent;
+  border: 1px solid #dbdbdb;
+  color: #262626;
+}
+
+.message-button {
+  background-color: transparent;
+  border: 1px solid #dbdbdb;
+  color: #262626;
+}
+
+.profile-stats {
+  display: flex;
+  margin: 20px 0;
+  gap: 40px;
+}
+
+.stat {
+  display: flex;
+  gap: 5px;
+}
+
+.stat-value {
+  font-weight: 600;
+}
+
+.profile-bio {
+  margin-top: 20px;
+}
+
+.display-name {
+  font-weight: 600;
+  margin-bottom: 5px;
+}
+
+.profile-tabs {
+  display: flex;
+  border-top: 1px solid #dbdbdb;
+  margin-bottom: 20px;
+}
+
+.tab-button {
+  flex: 1;
+  background: none;
+  border: none;
+  padding: 15px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #8e8e8e;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.tab-button.active {
+  color: #262626;
+  border-top: 1px solid #262626;
+  margin-top: -1px;
+}
+
+.profile-content {
+  min-height: 200px;
+}
+
+.posts-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 28px;
+}
+
+.post-item {
+  aspect-ratio: 1/1;
+  overflow: hidden;
+}
+
+.post-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.game-stats-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 20px;
+}
+
+.game-stat-card {
+  border: 1px solid #dbdbdb;
+  border-radius: 4px;
+  padding: 15px;
+}
+
+.game-stat-card h3 {
+  margin-top: 0;
+  margin-bottom: 10px;
+}
+
+.empty-content {
+  text-align: center;
+  color: #8e8e8e;
+  padding: 40px 0;
+}
+
+.loading, .error, .not-found {
+  text-align: center;
+  padding: 40px 0;
+  font-size: 18px;
+}
+
+.error {
+  color: #ed4956;
+}
+
+@media (max-width: 768px) {
+  .profile-header {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+  
+  .profile-avatar {
+    margin-right: 0;
+    margin-bottom: 20px;
+  }
+  
+  .profile-stats {
+    justify-content: center;
+  }
+  
+  .posts-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .posts-grid {
+    grid-template-columns: 1fr;
+  }
+}

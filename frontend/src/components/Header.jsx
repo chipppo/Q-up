@@ -14,14 +14,16 @@ const Header = () => {
     });
   };
 
+  console.log("Header - Current username:", username); // Debugging
+
   return (
     <header>
       <nav>
         <Link to="/">Home</Link>
         {isLoggedIn ? (
           <>
-            <span>Welcome, {username}!</span>
-            <Link to={`/profile/${username}`}>Profile</Link>
+            <span>Welcome, {username || "User"}!</span>
+            {username && <Link to={`/profile/${username}`}>Profile</Link>}
             <Link to="/dashboard">Dashboard</Link>
             <button onClick={handleLogout}>Logout</button> {/* Use handleLogout */}
           </>

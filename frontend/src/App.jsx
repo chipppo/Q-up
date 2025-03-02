@@ -10,30 +10,56 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
 import "./App.css";
+import { ThemeProvider, createTheme } from '@mui/material';
+import EditProfileForm from "./components/EditProfileForm";
+
+const theme = createTheme({
+  palette: {
+    primary: {
+      main: '#1976d2',
+    },
+    secondary: {
+      main: '#dc004e',
+    },
+  },
+  typography: {
+    fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
+  },
+});
 
 function App() {
   return (
-    <AuthProvider>
-      <Router>
-        <Header />
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            }
-          />
-            {/* <Route path="/search" element={<Search />} /> */}
-          <Route path="/profile/:username" element={<Profile />} /> {/* Public route */}
-        </Routes>
-        <Footer />
-      </Router>
-    </AuthProvider>
+    <ThemeProvider theme={theme}>
+      <AuthProvider>
+        <Router>
+          <Header />
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+              {/* <Route path="/search" element={<Search />} /> */}
+            <Route path="/profile/:username" element={<Profile />} /> {/* Public route */}
+            <Route 
+              path="/profile/:username/edit" 
+              element={
+                <ProtectedRoute>
+                  <EditProfileForm />
+                </ProtectedRoute>
+              } 
+            />
+          </Routes>
+          <Footer />
+        </Router>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 
