@@ -16,6 +16,8 @@ from .serializers import (
     GameSerializer,
     GameStatsSerializer,
 )
+import json
+from django.core.validators import validate_email
 
 class UserDetailView(APIView):
     """
@@ -81,19 +83,53 @@ class RefreshTokenView(APIView):
 
 class UpdateProfileView(APIView):
     permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
 
-    def patch(self, request, username, format=None):
+    def patch(self, request, username):
         try:
             user = MyUser.objects.get(username=username)
-            if user != request.user:  # Ensure the logged-in user is updating their own profile
-                return Response({"detail": "You can only edit your own profile."}, status=status.HTTP_403_FORBIDDEN)
-            serializer = UserSerializer(user, data=request.data, partial=True)
-            if serializer.is_valid():
-                serializer.save()
-                return Response(serializer.data)
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            if user != request.user:
+                return Response(
+                    {"detail": "You can only edit your own profile."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+            # Handle all editable fields
+            editable_fields = [
+                'display_name', 'bio', 'timezone', 'date_of_birth',
+                'language_preference', 'platforms', 'mic_available',
+                'social_links', 'active_hours'
+            ]
+
+            for field in editable_fields:
+                if field in request.data:
+                    # Handle list fields
+                    if field in ['language_preference', 'platforms', 'social_links']:
+                        if isinstance(request.data[field], str):
+                            try:
+                                value = json.loads(request.data[field])
+                                setattr(user, field, value)
+                            except json.JSONDecodeError:
+                                pass
+                        else:
+                            setattr(user, field, request.data[field])
+                    else:
+                        setattr(user, field, request.data[field])
+
+            user.save()
+            serializer = UserSerializer(user)
+            return Response(serializer.data)
+
         except MyUser.DoesNotExist:
-            return Response({"detail": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"detail": "User not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except ValidationError as e:
+            return Response(
+                {"detail": str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
 
 class GameStatsListView(APIView):
@@ -112,27 +148,28 @@ class GameStatsListView(APIView):
 class GameStatsUpdateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    def patch(self, request, username, game_id, format=None):
+    def patch(self, request, username, game_id):
         try:
-            user = MyUser.objects.get(username=username)
-            if user != request.user:
-                return Response({"detail": "You can only update your own game stats."}, status=status.HTTP_403_FORBIDDEN)
+            if request.user.username != username:
+                return Response(
+                    {"detail": "You can only update your own game stats."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+            game_stats = GameStats.objects.get(user=request.user, game_id=game_id)
+            serializer = GameStatsSerializer(game_stats, data=request.data, partial=True)
             
-            game = Game.objects.get(id=game_id)
-            game_stats, created = GameStats.objects.get_or_create(user=user, game=game)
-            
-            # Update fields
-            game_stats.hours_played = request.data.get('hours_played', game_stats.hours_played)
-            game_stats.rank = request.data.get('rank', game_stats.rank)
-            game_stats.achievements = request.data.get('achievements', game_stats.achievements)
-            game_stats.goals = request.data.get('goals', game_stats.goals)
-            game_stats.save()
-            
-            serializer = GameStatsSerializer(game_stats)
-            return Response(serializer.data)
-        except (MyUser.DoesNotExist, Game.DoesNotExist):
-            return Response({"detail": "User or game not found."}, status=status.HTTP_404_NOT_FOUND)
-        
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        except GameStats.DoesNotExist:
+            return Response(
+                {"detail": "Game stats not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
 
 class SearchView(APIView):
     def get(self, request, format=None):
@@ -145,31 +182,96 @@ class SearchView(APIView):
 
 class UploadAvatarView(APIView):
     permission_classes = [permissions.IsAuthenticated]
-    parser_classes = [MultiPartParser, FormParser]  # Use this to handle file uploads
+    parser_classes = [MultiPartParser, FormParser]
 
-    def post(self, request, username, format=None):
+    def post(self, request, username):
         try:
             user = MyUser.objects.get(username=username)
-            if user != request.user:  # Ensure the user is updating their own avatar
-                return Response({"detail": "You can only upload your own avatar."}, status=status.HTTP_403_FORBIDDEN)
+            if user != request.user:
+                return Response({"detail": "You can only upload your own avatar."},
+                             status=status.HTTP_403_FORBIDDEN)
 
-            avatar = request.FILES.get("avatar")  # Getting the file from the request
+            avatar = request.FILES.get("avatar")
+            if not avatar:
+                return Response({"detail": "No avatar file provided."},
+                             status=status.HTTP_400_BAD_REQUEST)
 
-            if avatar:
-                # Save the avatar (using the correct field name: avatar)
-                user.avatar = avatar
-                user.save()
+            # Validate file type
+            allowed_types = ['image/jpeg', 'image/png', 'image/gif']
+            if avatar.content_type not in allowed_types:
+                return Response({"detail": "Invalid file type. Please upload a JPEG, PNG, or GIF."},
+                             status=status.HTTP_400_BAD_REQUEST)
 
-                # Now we can get the URL of the avatar
-                avatar_url = user.avatar.url  # This will give the URL of the avatar file
+            # Delete old avatar if it exists
+            if user.avatar:
+                user.avatar.delete(save=False)
 
-                return Response({"avatar_url": avatar_url})
-            return Response({"detail": "No avatar file provided."}, status=status.HTTP_400_BAD_REQUEST)
+            # Save new avatar
+            user.avatar = avatar
+            user.save()
+
+            return Response({
+                "detail": "Avatar updated successfully",
+                "avatar_url": request.build_absolute_uri(user.avatar.url)
+            })
+
         except MyUser.DoesNotExist:
-            return Response({"detail": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"detail": "User not found."},
+                          status=status.HTTP_404_NOT_FOUND)
 
 
-class UpdateProfileView(APIView):
+class FollowUserView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, username):
+        try:
+            to_follow = MyUser.objects.get(username=username)
+            if to_follow == request.user:
+                return Response(
+                    {"detail": "You cannot follow yourself."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            request.user.following.add(to_follow)
+            return Response({"detail": f"You are now following {username}"})
+
+        except MyUser.DoesNotExist:
+            return Response(
+                {"detail": "User not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+class UnfollowUserView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, username):
+        try:
+            to_unfollow = MyUser.objects.get(username=username)
+            request.user.following.remove(to_unfollow)
+            return Response({"detail": f"You have unfollowed {username}"})
+
+        except MyUser.DoesNotExist:
+            return Response(
+                {"detail": "User not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+class FollowersListView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, username):
+        try:
+            user = MyUser.objects.get(username=username)
+            followers = user.followers.all()
+            serializer = UserSerializer(followers, many=True)
+            return Response(serializer.data)
+        except MyUser.DoesNotExist:
+            return Response(
+                {"detail": "User not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+class FollowingListView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def patch(self, request, username, format=None):
@@ -184,3 +286,35 @@ class UpdateProfileView(APIView):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         except MyUser.DoesNotExist:
             return Response({"detail": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+
+class ChangePasswordView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, username):
+        if request.user.username != username:
+            return Response(
+                {"detail": "You can only change your own password."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        old_password = request.data.get('old_password')
+        new_password = request.data.get('new_password')
+
+        if not old_password or not new_password:
+            return Response(
+                {"detail": "Both old and new passwords are required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Verify old password
+        if not request.user.check_password(old_password):
+            return Response(
+                {"detail": "Current password is incorrect."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Set new password
+        request.user.set_password(new_password)
+        request.user.save()
+
+        return Response({"detail": "Password successfully updated."})

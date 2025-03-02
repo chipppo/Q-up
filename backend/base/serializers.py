@@ -70,4 +70,4 @@ class GameStatsSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = GameStats
-        fields = ['id', 'game', 'hours_played', 'rank', 'achievements', 'goals']
+        fields = ['id', 'user', 'game', 'hours_played', 'rank', 'goals', 'achievements']

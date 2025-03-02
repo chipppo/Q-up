@@ -52,17 +52,13 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ],
-    'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.IsAuthenticated',  # Make sure users are authenticated to access certain views
-    ],
 }
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),  # Adjust as needed
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),  # Refresh token lifespan
-    'ROTATE_REFRESH_TOKENS': True,  # Rotate refresh tokens
-    'BLACKLIST_AFTER_ROTATION': True,  # Blacklist old refresh tokens
-    'UPDATE_LAST_LOGIN': True,
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=5),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
 }
 
 

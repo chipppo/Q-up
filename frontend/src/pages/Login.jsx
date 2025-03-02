@@ -18,11 +18,16 @@ function Login() {
 
     try {
       const response = await API.post("/login/", { username, password });
-      login(response.data.access, response.data.refresh, username);
-      alert("Login Successful!");
+      const { access, refresh } = response.data;
+      
+      // Store username and tokens
+      login(access, refresh, username);
+      console.log("Login successful for:", username);
+      
       navigate("/dashboard");
-    } catch (err) {
-      setError("Invalid credentials! Please try again.");
+    } catch (error) {
+      console.error('Login error:', error);
+      setError(error.response?.data?.detail || 'Login failed. Please try again.');
     }
   };
 
