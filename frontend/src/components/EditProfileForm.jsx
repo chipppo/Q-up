@@ -33,9 +33,18 @@ const DAYS_OF_WEEK = [
 ];
 
 const TIMEZONES = [
-  'UTC', 'America/New_York', 'Europe/London', 'Asia/Tokyo',
-  'America/Los_Angeles', 'Europe/Paris', 'Asia/Shanghai'
+  { value: 'UTC', offset: 0 },
+  { value: 'America/New_York', offset: -4 },
+  { value: 'Europe/London', offset: 1 },
+  { value: 'Asia/Tokyo', offset: 9 },
+  { value: 'America/Los_Angeles', offset: -7 },
+  { value: 'Europe/Paris', offset: 2 },
+  { value: 'Asia/Shanghai', offset: 8 }
 ];
+
+const HOURS = Array.from({ length: 24 }, (_, i) => 
+  `${i.toString().padStart(2, '0')}:00`
+);
 
 const LANGUAGES = [
   'English', 'Spanish', 'French', 'German', 'Japanese', 'Korean', 'Chinese',
@@ -55,18 +64,13 @@ const EditProfileForm = () => {
     display_name: '',
     bio: '',
     timezone: '',
+    timezone_offset: 0,
     date_of_birth: null,
     language_preference: [],
     platforms: [],
     mic_available: false,
     social_links: [],
-    active_hours: {},
-  });
-
-  const [activeHoursTemp, setActiveHoursTemp] = useState({
-    day: 'Monday',
-    start: '09:00',
-    end: '17:00'
+    active_hours: [],
   });
 
   const [avatar, setAvatar] = useState(null);
@@ -76,18 +80,68 @@ const EditProfileForm = () => {
   useEffect(() => {
     const fetchUserData = async () => {
       try {
-        const response = await API.get(`/user_data/${username}/`);
+        const response = await API.get(`/users/${username}/`);
         const userData = response.data;
+        
+        console.log('Raw active_hours:', userData.active_hours);
+        console.log('Type of active_hours:', typeof userData.active_hours);
+
+        // Ensure active_hours is always an array
+        let parsedActiveHours = [];
+        try {
+          if (userData.active_hours) {
+            if (typeof userData.active_hours === 'string') {
+              parsedActiveHours = JSON.parse(userData.active_hours);
+            } else if (Array.isArray(userData.active_hours)) {
+              parsedActiveHours = userData.active_hours;
+            } else if (typeof userData.active_hours === 'object') {
+              // If it's an empty object or has hour entries
+              parsedActiveHours = Object.keys(userData.active_hours).length === 0 
+                ? [] 
+                : Object.entries(userData.active_hours)
+                    .map(([hour]) => hour)
+                    .sort();
+            }
+          }
+          // Ensure parsedActiveHours is an array
+          parsedActiveHours = Array.isArray(parsedActiveHours) ? parsedActiveHours : [];
+        } catch (e) {
+          console.error('Error parsing active_hours:', e);
+          parsedActiveHours = [];
+        }
+
+        // Ensure other arrays are properly parsed
+        const parsedLanguagePreference = Array.isArray(userData.language_preference) 
+          ? userData.language_preference 
+          : typeof userData.language_preference === 'string'
+            ? JSON.parse(userData.language_preference || '[]')
+            : [];
+        
+        const parsedPlatforms = Array.isArray(userData.platforms)
+          ? userData.platforms
+          : typeof userData.platforms === 'string'
+            ? JSON.parse(userData.platforms || '[]')
+            : [];
+        
+        const parsedSocialLinks = Array.isArray(userData.social_links)
+          ? userData.social_links
+          : typeof userData.social_links === 'string'
+            ? JSON.parse(userData.social_links || '[]')
+            : [];
+
+        console.log('Parsed active_hours:', parsedActiveHours);
+
         setFormData({
           display_name: userData.display_name || '',
           bio: userData.bio || '',
           timezone: userData.timezone || '',
-          date_of_birth: userData.date_of_birth ? dayjs(userData.date_of_birth) : null,
-          language_preference: userData.language_preference || [],
-          platforms: userData.platforms || [],
+          timezone_offset: userData.timezone_offset || 0,
+          date_of_birth: userData.date_of_birth ? dayjs(userData.date_of_birth, 'DD/MM/YYYY') : null,
+          language_preference: parsedLanguagePreference,
+          platforms: parsedPlatforms,
           mic_available: userData.mic_available || false,
-          social_links: userData.social_links || [],
-          active_hours: userData.active_hours || {},
+          social_links: parsedSocialLinks,
+          active_hours: parsedActiveHours,
         });
       } catch (error) {
         toast.error('Failed to load user data');
@@ -126,23 +180,22 @@ const EditProfileForm = () => {
     }));
   };
 
-  const handleActiveHoursAdd = () => {
-    const { day, start, end } = activeHoursTemp;
+  const handleTimezoneChange = (e) => {
+    const selectedTimezone = TIMEZONES.find(tz => tz.value === e.target.value);
     setFormData(prev => ({
       ...prev,
-      active_hours: {
-        ...prev.active_hours,
-        [day]: { start, end }
-      }
+      timezone: e.target.value,
+      timezone_offset: selectedTimezone ? selectedTimezone.offset : 0
     }));
   };
 
-  const handleActiveHoursRemove = (day) => {
-    setFormData(prev => {
-      const newActiveHours = { ...prev.active_hours };
-      delete newActiveHours[day];
-      return { ...prev, active_hours: newActiveHours };
-    });
+  const handleActiveHoursChange = (hour) => {
+    setFormData(prev => ({
+      ...prev,
+      active_hours: prev.active_hours.includes(hour)
+        ? prev.active_hours.filter(h => h !== hour)
+        : [...prev.active_hours, hour].sort()
+    }));
   };
 
   const handleArrayAdd = (field, value) => {
@@ -164,22 +217,33 @@ const EditProfileForm = () => {
     e.preventDefault();
     
     try {
-      const dataToSubmit = {
+      const formDataToSend = new FormData();
+      
+      // Add the JSON data
+      const jsonData = {
         ...formData,
-        date_of_birth: formData.date_of_birth?.format('YYYY-MM-DD'),
+        date_of_birth: formData.date_of_birth?.format('DD/MM/YYYY'),
+        language_preference: JSON.stringify(formData.language_preference),
+        platforms: JSON.stringify(formData.platforms),
+        social_links: JSON.stringify(formData.social_links),
+        active_hours: JSON.stringify(formData.active_hours)
       };
 
       // Remove any undefined or null values
-      Object.keys(dataToSubmit).forEach(key => {
-        if (dataToSubmit[key] === undefined || dataToSubmit[key] === null) {
-          delete dataToSubmit[key];
+      Object.keys(jsonData).forEach(key => {
+        if (jsonData[key] !== undefined && jsonData[key] !== null) {
+          formDataToSend.append(key, jsonData[key]);
         }
       });
 
-      // Add proper headers to the request
-      const response = await API.patch(`/user_data/${username}/update/`, dataToSubmit, {
+      // Add the avatar if it exists
+      if (avatar) {
+        formDataToSend.append('avatar', avatar);
+      }
+
+      const response = await API.patch(`/users/${username}/update/`, formDataToSend, {
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'multipart/form-data',
         }
       });
       
@@ -194,6 +258,47 @@ const EditProfileForm = () => {
       setError(errorMessage);
     }
   };
+
+  const activeHoursSection = (
+    <Grid item xs={12}>
+      <Typography variant="h6" gutterBottom>Active Hours</Typography>
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+        {HOURS.map(hour => {
+          // Ensure active_hours is an array before calling includes
+          const isActive = Array.isArray(formData.active_hours) && formData.active_hours.includes(hour);
+          return (
+            <Chip
+              key={hour}
+              label={hour}
+              onClick={() => handleActiveHoursChange(hour)}
+              color={isActive ? "primary" : "default"}
+              sx={{ m: 0.5 }}
+            />
+          );
+        })}
+      </Box>
+    </Grid>
+  );
+
+  const timezoneSection = (
+    <Grid item xs={12} sm={6}>
+      <FormControl fullWidth>
+        <InputLabel>Timezone</InputLabel>
+        <Select
+          name="timezone"
+          value={formData.timezone}
+          onChange={handleTimezoneChange}
+          label="Timezone"
+        >
+          {TIMEZONES.map(tz => (
+            <MenuItem key={tz.value} value={tz.value}>
+              {tz.value} (UTC{tz.offset >= 0 ? '+' : ''}{tz.offset})
+            </MenuItem>
+          ))}
+        </Select>
+      </FormControl>
+    </Grid>
+  );
 
   return (
     <Paper elevation={3} sx={{ p: 4, maxWidth: 800, mx: 'auto', my: 4 }}>
@@ -247,21 +352,7 @@ const EditProfileForm = () => {
           </Grid>
 
           {/* Timezone and Date of Birth */}
-          <Grid item xs={12} sm={6}>
-            <FormControl fullWidth>
-              <InputLabel>Timezone</InputLabel>
-              <Select
-                name="timezone"
-                value={formData.timezone || ''}
-                onChange={handleInputChange}
-                label="Timezone"
-              >
-                {TIMEZONES.map(tz => (
-                  <MenuItem key={tz} value={tz}>{tz}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Grid>
+          {timezoneSection}
 
           <Grid item xs={12} sm={6}>
             <LocalizationProvider dateAdapter={AdapterDayjs}>
@@ -269,7 +360,7 @@ const EditProfileForm = () => {
                 label="Date of Birth"
                 value={formData.date_of_birth}
                 onChange={handleDateChange}
-                renderInput={(params) => <TextField {...params} fullWidth />}
+                slotProps={{ textField: { fullWidth: true } }}
               />
             </LocalizationProvider>
           </Grid>
@@ -348,53 +439,7 @@ const EditProfileForm = () => {
           </Grid>
 
           {/* Active Hours */}
-          <Grid item xs={12}>
-            <Typography variant="h6" gutterBottom>Active Hours</Typography>
-            <Box sx={{ mb: 2, display: 'flex', gap: 2, alignItems: 'flex-end' }}>
-              <FormControl sx={{ minWidth: 120 }}>
-                <InputLabel>Day</InputLabel>
-                <Select
-                  value={activeHoursTemp.day}
-                  onChange={(e) => setActiveHoursTemp(prev => ({ ...prev, day: e.target.value }))}
-                  label="Day"
-                >
-                  {DAYS_OF_WEEK.map(day => (
-                    <MenuItem key={day} value={day}>{day}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-              <TextField
-                label="Start Time"
-                type="time"
-                value={activeHoursTemp.start}
-                onChange={(e) => setActiveHoursTemp(prev => ({ ...prev, start: e.target.value }))}
-                InputLabelProps={{ shrink: true }}
-              />
-              <TextField
-                label="End Time"
-                type="time"
-                value={activeHoursTemp.end}
-                onChange={(e) => setActiveHoursTemp(prev => ({ ...prev, end: e.target.value }))}
-                InputLabelProps={{ shrink: true }}
-              />
-              <Button
-                variant="contained"
-                onClick={handleActiveHoursAdd}
-              >
-                Add Hours
-              </Button>
-            </Box>
-            <Box>
-              {Object.entries(formData.active_hours).map(([day, hours]) => (
-                <Chip
-                  key={day}
-                  label={`${day}: ${hours.start} - ${hours.end}`}
-                  onDelete={() => handleActiveHoursRemove(day)}
-                  sx={{ m: 0.5 }}
-                />
-              ))}
-            </Box>
-          </Grid>
+          {activeHoursSection}
 
           {/* Social Links */}
           <Grid item xs={12}>
