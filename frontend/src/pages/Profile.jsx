@@ -187,18 +187,18 @@ function Profile() {
         setLoading(true);
         console.log("Fetching data for:", profileUsername);
         
-        const userResponse = await API.get(`/user_data/${profileUsername}/`);
+        const userResponse = await API.get(`/users/${profileUsername}/`);
         setUserData(userResponse.data);
         setFollowersCount(userResponse.data.followers_count || 0);
         setFollowingCount(userResponse.data.following_count || 0);
         
-        const statsResponse = await API.get(`/user_data/${profileUsername}/game_stats/`);
+        const statsResponse = await API.get(`/users/${profileUsername}/game-stats/`);
         setGameStats(statsResponse.data);
         
         // Check if logged-in user is following this profile
         if (isLoggedIn && loggedInUsername && profileUsername !== loggedInUsername) {
           try {
-            const followersResponse = await API.get(`/user_data/${profileUsername}/followers/`);
+            const followersResponse = await API.get(`/users/${profileUsername}/followers/`);
             setIsFollowing(followersResponse.data.some(
               follower => follower.username === loggedInUsername
             ));
@@ -219,8 +219,8 @@ function Profile() {
 
   const handleFollowToggle = async () => {
     try {
-      const endpoint = isFollowing ? '/unfollow' : '/follow';
-      await API.post(`${endpoint}/${profileUsername}/`);
+      const endpoint = isFollowing ? `/users/${profileUsername}/unfollow/` : `/users/${profileUsername}/follow/`;
+      await API.post(endpoint);
       setIsFollowing(!isFollowing);
       toast.success(isFollowing ? 'Unfollowed successfully' : 'Followed successfully');
     } catch (error) {

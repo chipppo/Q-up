@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import axios from 'axios';
+import API from '../api/axios';
 import {
   Paper,
   TextField,
@@ -38,7 +38,7 @@ const ChangePasswordForm = ({ username }) => {
     }
 
     try {
-      await axios.post(`/api/user_data/${username}/change_password/`, {
+      await API.post(`/users/${username}/change-password/`, {
         old_password: passwords.old_password,
         new_password: passwords.new_password,
       });

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import API from '../api/axios';
 import {
   Paper,
   TextField,
@@ -40,7 +40,7 @@ const GameStatsForm = ({ username, gameId, initialStats }) => {
     setSuccess('');
 
     try {
-      await axios.patch(`/api/user_data/${username}/game_stats/${gameId}/`, stats);
+      await API.patch(`/users/${username}/game-stats/${gameId}/`, stats);
       setSuccess('Game statistics updated successfully!');
     } catch (err) {
       setError(err.response?.data?.detail || 'Error updating game statistics');
