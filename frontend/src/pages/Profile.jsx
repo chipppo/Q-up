@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import API from "../api/axios";
-import { AuthContext } from "../context/AuthContext.jsx";
+import { useAuth } from "../context/AuthContext.jsx";
 import "./Profile.css";
 import { toast } from 'react-toastify';
 import {
@@ -18,6 +18,7 @@ import {
   Alert,
   IconButton,
   Chip,
+  Divider,
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
@@ -26,9 +27,11 @@ import MicIcon from '@mui/icons-material/Mic';
 import EditProfileForm from '../components/EditProfileForm';
 import ChangePasswordForm from '../components/ChangePasswordForm';
 import GameStatsForm from '../components/GameStatsForm';
+import CreatePostForm from '../components/CreatePostForm';
+import PostCard from '../components/PostCard';
 
 // ViewProfile Component - moved outside of Profile component
-function ViewProfile({ user, gameStats, isFollowing, onFollowToggle, isLoggedIn, loggedInUsername, followersCount }) {
+function ViewProfile({ user, gameStats, isFollowing, onFollowToggle, isLoggedIn, loggedInUsername, followersCount, posts }) {
   const isOwnProfile = loggedInUsername === user?.username;
   
   const handleSendMessage = () => {
@@ -185,6 +188,25 @@ function ViewProfile({ user, gameStats, isFollowing, onFollowToggle, isLoggedIn,
             <Typography sx={{ mt: 1 }}>No game statistics available</Typography>
           )}
         </Grid>
+
+        {/* Posts Section */}
+        <Grid item xs={12}>
+          <Divider sx={{ my: 3 }} />
+          <Typography variant="h6" gutterBottom>Posts</Typography>
+          
+          {posts && posts.length > 0 ? (
+            posts.map(post => (
+              <PostCard 
+                key={post.id} 
+                post={post} 
+              />
+            ))
+          ) : (
+            <Typography sx={{ mt: 1, textAlign: 'center', py: 4, bgcolor: '#f5f5f5', borderRadius: 1 }}>
+              No posts yet
+            </Typography>
+          )}
+        </Grid>
       </Grid>
     </Paper>
   );
@@ -192,11 +214,13 @@ function ViewProfile({ user, gameStats, isFollowing, onFollowToggle, isLoggedIn,
 
 function Profile() {
   const { username: profileUsername } = useParams();
-  const { isLoggedIn, username: loggedInUsername, updateFollowers } = useContext(AuthContext);
+  const { isLoggedIn, username: loggedInUsername, updateFollowers } = useAuth();
   const [tabValue, setTabValue] = useState(0);
   const [userData, setUserData] = useState(null);
   const [gameStats, setGameStats] = useState(null);
+  const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingPosts, setLoadingPosts] = useState(true);
   const [error, setError] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isAddingGame, setIsAddingGame] = useState(false);
@@ -271,6 +295,26 @@ function Profile() {
     fetchData();
   }, [profileUsername, isLoggedIn, loggedInUsername]);
 
+  // Fetch user posts
+  useEffect(() => {
+    const fetchPosts = async () => {
+      if (!profileUsername) return;
+      
+      try {
+        setLoadingPosts(true);
+        const response = await API.get(`/users/${profileUsername}/posts/`);
+        setPosts(response.data);
+      } catch (err) {
+        console.error('Error fetching posts:', err);
+        // Don't set error state here to avoid blocking the profile display
+      } finally {
+        setLoadingPosts(false);
+      }
+    };
+
+    fetchPosts();
+  }, [profileUsername]);
+
   const handleFollowToggle = async () => {
     // Optimistically update the state
     const newIsFollowing = !isFollowing;
@@ -299,6 +343,20 @@ function Profile() {
     }
   };
 
+  const handlePostCreated = (newPost) => {
+    setPosts(prevPosts => [newPost, ...prevPosts]);
+  };
+
+  const handlePostUpdate = (updatedPost) => {
+    setPosts(prevPosts => 
+      prevPosts.map(post => post.id === updatedPost.id ? updatedPost : post)
+    );
+  };
+
+  const handlePostDelete = (postId) => {
+    setPosts(prevPosts => prevPosts.filter(post => post.id !== postId));
+  };
+
   if (loading) {
     return (
       <Container sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
@@ -325,6 +383,7 @@ function Profile() {
               <Tab label="Edit Profile" />
               <Tab label="Change Password" />
               <Tab label="Game Statistics" />
+              <Tab label="Posts" />
             </Tabs>
           </Box>
           
@@ -337,6 +396,7 @@ function Profile() {
               isLoggedIn={isLoggedIn}
               loggedInUsername={loggedInUsername}
               followersCount={followersCount}
+              posts={posts}
             />
           )}
           {tabValue === 1 && (
@@ -408,6 +468,30 @@ function Profile() {
               )}
             </Box>
           )}
+          {tabValue === 4 && (
+            <Box>
+              <CreatePostForm onPostCreated={handlePostCreated} />
+              
+              {loadingPosts ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                  <CircularProgress />
+                </Box>
+              ) : posts.length > 0 ? (
+                posts.map(post => (
+                  <PostCard 
+                    key={post.id} 
+                    post={post} 
+                    onPostUpdate={handlePostUpdate}
+                    onPostDelete={handlePostDelete}
+                  />
+                ))
+              ) : (
+                <Alert severity="info">
+                  You haven't created any posts yet. Use the form above to create your first post!
+                </Alert>
+              )}
+            </Box>
+          )}
         </>
       ) : (
         <ViewProfile 
@@ -418,6 +502,7 @@ function Profile() {
           isLoggedIn={isLoggedIn}
           loggedInUsername={loggedInUsername}
           followersCount={followersCount}
+          posts={posts}
         />
       )}
     </Container>

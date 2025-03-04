@@ -3,6 +3,7 @@ from django.contrib.auth.models import AbstractUser
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.core.exceptions import ValidationError
 from django.utils import timezone
+import os
 
 class MyUser(AbstractUser):
     
@@ -287,3 +288,69 @@ class GameRanking(models.Model):
         verbose_name = 'Game Ranking'
         verbose_name_plural = 'Game Rankings'
         unique_together = ('game_stats', 'rank_system')
+
+# New models for social features
+
+class Post(models.Model):
+    user = models.ForeignKey(MyUser, on_delete=models.CASCADE, related_name='posts')
+    image = models.ImageField(upload_to='post_images/', null=True, blank=True)
+    caption = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    # Optional game reference - if the post is related to a specific game
+    game = models.ForeignKey(Game, on_delete=models.SET_NULL, null=True, blank=True, related_name='posts')
+    
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Post'
+        verbose_name_plural = 'Posts'
+    
+    def __str__(self):
+        return f"{self.user.username}'s post ({self.id})"
+    
+    def delete(self, *args, **kwargs):
+        # Delete the image file when deleting the post
+        if self.image:
+            if os.path.isfile(self.image.path):
+                os.remove(self.image.path)
+        super().delete(*args, **kwargs)
+    
+    @property
+    def likes_count(self):
+        return self.likes.count()
+    
+    @property
+    def comments_count(self):
+        return self.comments.count()
+
+class Like(models.Model):
+    user = models.ForeignKey(MyUser, on_delete=models.CASCADE, related_name='likes')
+    post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name='likes')
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        unique_together = ('user', 'post')
+        verbose_name = 'Like'
+        verbose_name_plural = 'Likes'
+    
+    def __str__(self):
+        return f"{self.user.username} likes {self.post}"
+
+class Comment(models.Model):
+    user = models.ForeignKey(MyUser, on_delete=models.CASCADE, related_name='comments')
+    post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name='comments')
+    text = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    # Self-referential relationship for replies
+    parent = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='replies')
+    
+    class Meta:
+        ordering = ['created_at']
+        verbose_name = 'Comment'
+        verbose_name_plural = 'Comments'
+    
+    def __str__(self):
+        return f"{self.user.username}'s comment on {self.post}"

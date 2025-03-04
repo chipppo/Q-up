@@ -1,8 +1,8 @@
 // src/pages/Login.jsx
-import { useState, useContext } from "react";
+import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import API from "../api/axios";
-import { AuthContext } from "../context/AuthContext.jsx"; // Correct import
+import { useAuth } from "../context/AuthContext.jsx"; // Updated import
 import "./Login.css";
 
 function Login() {
@@ -10,7 +10,7 @@ function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const navigate = useNavigate();
-  const { login } = useContext(AuthContext);
+  const { login } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();

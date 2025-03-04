@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from .models import MyUser, Game, GameStats, RankSystem, RankTier, PlayerGoal, GameRanking
+from .models import MyUser, Game, GameStats, RankSystem, RankTier, PlayerGoal, GameRanking, Post, Like, Comment
 import json
 
 class UserSerializer(serializers.ModelSerializer):
@@ -230,3 +230,76 @@ class AvatarUploadSerializer(serializers.Serializer):
                 "Invalid file type. Please upload a JPEG, PNG, or GIF."
             )
         return value
+
+
+# New serializers for social features
+
+class CommentSerializer(serializers.ModelSerializer):
+    user = UserSerializer(read_only=True)
+    reply_count = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Comment
+        fields = ['id', 'user', 'post', 'text', 'parent', 'created_at', 'updated_at', 'reply_count']
+        read_only_fields = ['id', 'user', 'created_at', 'updated_at']
+    
+    def get_reply_count(self, obj):
+        return obj.replies.count()
+
+class ReplySerializer(serializers.ModelSerializer):
+    user = UserSerializer(read_only=True)
+    
+    class Meta:
+        model = Comment
+        fields = ['id', 'user', 'post', 'text', 'parent', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'user', 'created_at', 'updated_at']
+
+class LikeSerializer(serializers.ModelSerializer):
+    user = UserSerializer(read_only=True)
+    
+    class Meta:
+        model = Like
+        fields = ['id', 'user', 'post', 'created_at']
+        read_only_fields = ['id', 'user', 'created_at']
+
+class PostSerializer(serializers.ModelSerializer):
+    user = UserSerializer(read_only=True)
+    likes_count = serializers.SerializerMethodField()
+    comments_count = serializers.SerializerMethodField()
+    liked_by_current_user = serializers.SerializerMethodField()
+    game = GameSerializer(read_only=True)
+    
+    class Meta:
+        model = Post
+        fields = ['id', 'user', 'image', 'caption', 'created_at', 'updated_at', 
+                 'likes_count', 'comments_count', 'liked_by_current_user', 'game']
+        read_only_fields = ['id', 'user', 'created_at', 'updated_at', 'likes_count', 'comments_count']
+    
+    def get_likes_count(self, obj):
+        return obj.likes.count()
+    
+    def get_comments_count(self, obj):
+        return obj.comments.count()
+    
+    def get_liked_by_current_user(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            return obj.likes.filter(user=request.user).exists()
+        return False
+
+class PostDetailSerializer(PostSerializer):
+    comments = serializers.SerializerMethodField()
+    likes = serializers.SerializerMethodField()
+    
+    class Meta(PostSerializer.Meta):
+        fields = PostSerializer.Meta.fields + ['comments', 'likes']
+    
+    def get_comments(self, obj):
+        # Only get top-level comments (no parent)
+        comments = obj.comments.filter(parent=None)
+        return CommentSerializer(comments, many=True, context=self.context).data
+    
+    def get_likes(self, obj):
+        # Return the users who liked this post
+        likes = obj.likes.all()
+        return LikeSerializer(likes, many=True, context=self.context).data

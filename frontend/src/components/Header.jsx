@@ -1,11 +1,11 @@
 // src/components/Header.jsx
-import React, { useContext } from "react";
+import React from "react";
 import { Link, useNavigate } from "react-router-dom"; // Import useNavigate
-import { AuthContext } from "../context/AuthContext.jsx";
+import { useAuth } from "../context/AuthContext.jsx";
 import "./Header.css";
 
 const Header = () => {
-  const { isLoggedIn, username, logout } = useContext(AuthContext);
+  const { isLoggedIn, username, logout } = useAuth();
   const navigate = useNavigate(); // Use the useNavigate hook
 
   const handleLogout = () => {

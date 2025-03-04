@@ -20,6 +20,13 @@ from .views import (
     RankingSystemListView,
     RankTierListView,
     PlayerGoalListView,
+    PostListView,
+    UserPostsView,
+    PostDetailView,
+    LikeView,
+    LikesListView,
+    CommentView,
+    CommentRepliesView,
 )
 
 urlpatterns = [
@@ -41,6 +48,14 @@ urlpatterns = [
     path('games/<int:game_id>/ranking-systems/', RankingSystemListView.as_view(), name='ranking-systems'),
     path('ranking-systems/<int:rank_system_id>/tiers/', RankTierListView.as_view(), name='rank-tiers'),
     path('player-goals/', PlayerGoalListView.as_view(), name='player-goals'),
+    path('posts/', PostListView.as_view(), name='post-list'),
+    path('users/<str:username>/posts/', UserPostsView.as_view(), name='user-posts'),
+    path('posts/<int:post_id>/', PostDetailView.as_view(), name='post-detail'),
+    path('posts/<int:post_id>/like/', LikeView.as_view(), name='post-like'),
+    path('posts/<int:post_id>/likes/', LikesListView.as_view(), name='post-likes-list'),
+    path('posts/<int:post_id>/comments/', CommentView.as_view(), name='post-comments'),
+    path('comments/<int:comment_id>/', CommentView.as_view(), name='comment-detail'),
+    path('comments/<int:comment_id>/replies/', CommentRepliesView.as_view(), name='comment-replies'),
 ]
 
 if settings.DEBUG:
