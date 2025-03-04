@@ -16,6 +16,8 @@ from .views import (
     FollowersListView,
     FollowingListView,
     ChangePasswordView,
+    GameListView,
+    RankingSystemListView,
 )
 
 urlpatterns = [
@@ -33,6 +35,8 @@ urlpatterns = [
     path('users/<str:username>/followers/', FollowersListView.as_view(), name='followers-list'),
     path('users/<str:username>/following/', FollowingListView.as_view(), name='following-list'),
     path('users/<str:username>/change-password/', ChangePasswordView.as_view(), name='change-password'),
+    path('games/', GameListView.as_view(), name='game-list'),
+    path('games/<int:game_id>/ranking-systems/', RankingSystemListView.as_view(), name='ranking-systems'),
 ]
 
 if settings.DEBUG:

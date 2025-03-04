@@ -71,9 +71,9 @@ const EditProfileForm = () => {
     mic_available: false,
     social_links: [],
     active_hours: [],
+    avatar: null,
   });
 
-  const [avatar, setAvatar] = useState(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -83,9 +83,8 @@ const EditProfileForm = () => {
         const response = await API.get(`/users/${username}/`);
         const userData = response.data;
         
-        console.log('Raw active_hours:', userData.active_hours);
-        console.log('Type of active_hours:', typeof userData.active_hours);
-
+        console.log('Fetched user data:', userData);
+        
         // Ensure active_hours is always an array
         let parsedActiveHours = [];
         try {
@@ -95,7 +94,6 @@ const EditProfileForm = () => {
             } else if (Array.isArray(userData.active_hours)) {
               parsedActiveHours = userData.active_hours;
             } else if (typeof userData.active_hours === 'object') {
-              // If it's an empty object or has hour entries
               parsedActiveHours = Object.keys(userData.active_hours).length === 0 
                 ? [] 
                 : Object.entries(userData.active_hours)
@@ -103,7 +101,6 @@ const EditProfileForm = () => {
                     .sort();
             }
           }
-          // Ensure parsedActiveHours is an array
           parsedActiveHours = Array.isArray(parsedActiveHours) ? parsedActiveHours : [];
         } catch (e) {
           console.error('Error parsing active_hours:', e);
@@ -129,9 +126,8 @@ const EditProfileForm = () => {
             ? JSON.parse(userData.social_links || '[]')
             : [];
 
-        console.log('Parsed active_hours:', parsedActiveHours);
-
         setFormData({
+          ...userData,
           display_name: userData.display_name || '',
           bio: userData.bio || '',
           timezone: userData.timezone || '',
@@ -142,6 +138,7 @@ const EditProfileForm = () => {
           mic_available: userData.mic_available || false,
           social_links: parsedSocialLinks,
           active_hours: parsedActiveHours,
+          avatar: userData.avatar || null,
         });
       } catch (error) {
         toast.error('Failed to load user data');
@@ -169,7 +166,10 @@ const EditProfileForm = () => {
         setError('File size too large. Maximum size is 5MB.');
         return;
       }
-      setAvatar(file);
+      setFormData(prev => ({
+        ...prev,
+        avatar: file  // This will be a File object
+      }));
     }
   };
 
@@ -237,8 +237,8 @@ const EditProfileForm = () => {
       });
 
       // Add the avatar if it exists
-      if (avatar) {
-        formDataToSend.append('avatar', avatar);
+      if (formData.avatar) {
+        formDataToSend.append('avatar', formData.avatar);
       }
 
       const response = await API.patch(`/users/${username}/update/`, formDataToSend, {
@@ -313,7 +313,7 @@ const EditProfileForm = () => {
           <Grid item xs={12}>
             <Box display="flex" alignItems="center" gap={2}>
               <Avatar
-                src={avatar ? URL.createObjectURL(avatar) : formData.avatar}
+                src={formData.avatar instanceof File ? URL.createObjectURL(formData.avatar) : formData.avatar ? `${API.defaults.baseURL}${formData.avatar}` : null}
                 sx={{ width: 100, height: 100 }}
               />
               <Button variant="contained" component="label">

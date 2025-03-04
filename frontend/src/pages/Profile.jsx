@@ -28,7 +28,7 @@ import ChangePasswordForm from '../components/ChangePasswordForm';
 import GameStatsForm from '../components/GameStatsForm';
 
 // ViewProfile Component - moved outside of Profile component
-function ViewProfile({ user, gameStats, isFollowing, onFollowToggle, isLoggedIn, loggedInUsername }) {
+function ViewProfile({ user, gameStats, isFollowing, onFollowToggle, isLoggedIn, loggedInUsername, followersCount }) {
   const isOwnProfile = loggedInUsername === user?.username;
   
   const handleSendMessage = () => {
@@ -42,7 +42,7 @@ function ViewProfile({ user, gameStats, isFollowing, onFollowToggle, isLoggedIn,
         <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <Box sx={{ display: 'flex', gap: 3, alignItems: 'center' }}>
             <Avatar
-              src={user?.avatar}
+              src={user?.avatar ? `${API.defaults.baseURL}${user.avatar}` : null}
               sx={{ width: 120, height: 120 }}
             />
             <Box>
@@ -50,7 +50,7 @@ function ViewProfile({ user, gameStats, isFollowing, onFollowToggle, isLoggedIn,
               <Typography variant="subtitle1">@{user?.username}</Typography>
               <Box sx={{ display: 'flex', gap: 2, mt: 1 }}>
                 <Typography>
-                  <strong>{user?.followers_count || 0}</strong> followers
+                  <strong>{followersCount || 0}</strong> followers
                 </Typography>
                 <Typography>
                   <strong>{user?.following_count || 0}</strong> following
@@ -151,7 +151,7 @@ function ViewProfile({ user, gameStats, isFollowing, onFollowToggle, isLoggedIn,
 
 function Profile() {
   const { username: profileUsername } = useParams();
-  const { isLoggedIn, username: loggedInUsername } = useContext(AuthContext);
+  const { isLoggedIn, username: loggedInUsername, updateFollowers } = useContext(AuthContext);
   const [tabValue, setTabValue] = useState(0);
   const [userData, setUserData] = useState(null);
   const [gameStats, setGameStats] = useState(null);
@@ -218,12 +218,29 @@ function Profile() {
   }, [profileUsername, isLoggedIn, loggedInUsername]);
 
   const handleFollowToggle = async () => {
+    // Optimistically update the state
+    const newIsFollowing = !isFollowing;
+    setIsFollowing(newIsFollowing);
+
+    // Update follower count immediately
+    if (newIsFollowing) {
+      setFollowersCount(prevCount => prevCount + 1); // Increment follower count
+    } else {
+      setFollowersCount(prevCount => prevCount - 1); // Decrement follower count
+    }
+
     try {
-      const endpoint = isFollowing ? `/users/${profileUsername}/unfollow/` : `/users/${profileUsername}/follow/`;
+      const endpoint = newIsFollowing ? `/users/${profileUsername}/follow/` : `/users/${profileUsername}/unfollow/`;
       await API.post(endpoint);
-      setIsFollowing(!isFollowing);
-      toast.success(isFollowing ? 'Unfollowed successfully' : 'Followed successfully');
+      toast.success(newIsFollowing ? 'Followed successfully' : 'Unfollowed successfully');
     } catch (error) {
+      // Revert the optimistic update if the request fails
+      setIsFollowing(!newIsFollowing); // Revert the following state
+      if (newIsFollowing) {
+        setFollowersCount(prevCount => prevCount - 1); // Revert follower count
+      } else {
+        setFollowersCount(prevCount => prevCount + 1); // Revert follower count
+      }
       toast.error('Failed to update follow status');
     }
   };
@@ -265,6 +282,7 @@ function Profile() {
               onFollowToggle={() => {}}
               isLoggedIn={isLoggedIn}
               loggedInUsername={loggedInUsername}
+              followersCount={followersCount}
             />
           )}
           {tabValue === 1 && (
@@ -299,6 +317,7 @@ function Profile() {
           onFollowToggle={handleFollowToggle}
           isLoggedIn={isLoggedIn}
           loggedInUsername={loggedInUsername}
+          followersCount={followersCount}
         />
       )}
     </Container>

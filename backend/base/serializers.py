@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from .models import MyUser, Game, GameStats
+from .models import MyUser, Game, GameStats, RankSystem
 import json
 
 class UserSerializer(serializers.ModelSerializer):
@@ -123,3 +123,15 @@ class AvatarUploadSerializer(serializers.Serializer):
                 "Invalid file type. Please upload a JPEG, PNG, or GIF."
             )
         return value
+
+
+class GameSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Game
+        fields = ['id', 'name', 'description', 'logo']  # Adjust fields as necessary
+
+
+class RankSystemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RankSystem
+        fields = ['id', 'name', 'is_numeric', 'max_numeric_value', 'increment']  # Adjust fields as necessary
