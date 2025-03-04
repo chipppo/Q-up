@@ -220,13 +220,27 @@ class GameStats(models.Model):
         validators=[MinValueValidator(0)],
         help_text="Total hours played in this game"
     )
-    
-    rank_system = models.ForeignKey(
-        RankSystem, 
+    player_goal = models.ForeignKey(
+        PlayerGoal, 
         on_delete=models.SET_NULL, 
         null=True, 
-        blank=True, 
-        related_name='player_stats'
+        blank=True
+    )
+
+    def __str__(self):
+        return f"{self.user.username} - {self.game.name}"
+
+    class Meta:
+        verbose_name = 'Game Stats'
+        verbose_name_plural = 'Game Stats'
+        unique_together = ('user', 'game')
+
+class GameRanking(models.Model):
+    game_stats = models.ForeignKey(GameStats, on_delete=models.CASCADE, related_name='rankings')
+    rank_system = models.ForeignKey(
+        RankSystem, 
+        on_delete=models.CASCADE, 
+        related_name='player_rankings'
     )
     rank = models.ForeignKey(
         RankTier, 
@@ -239,19 +253,9 @@ class GameStats(models.Model):
         blank=True,
         help_text="Points for numeric ranking systems (e.g., CS2 Premier points)"
     )
-    
-    player_goal = models.ForeignKey(
-        PlayerGoal, 
-        on_delete=models.SET_NULL, 
-        null=True, 
-        blank=True
-    )
 
     def clean(self):
         super().clean()
-        if self.hours_played < 0:
-            raise ValidationError({'hours_played': 'Hours played cannot be negative'})
-
         if not self.rank_system:
             if self.rank or self.numeric_rank:
                 raise ValidationError('Cannot set rank without a rank system')
@@ -274,13 +278,12 @@ class GameStats(models.Model):
         else:
             if self.numeric_rank:
                 raise ValidationError({'numeric_rank': 'Tier-based rank systems cannot have numeric ranks'})
-            if not self.rank and self.rank_system:
-                raise ValidationError({'rank': 'Rank tier is required for tier-based rank systems'})
 
     def __str__(self):
-        return f"{self.user.username} - {self.game.name}"
+        rank_display = self.numeric_rank if self.rank_system.is_numeric else self.rank.name if self.rank else 'Unranked'
+        return f"{self.game_stats.user.username} - {self.game_stats.game.name} - {self.rank_system.name}: {rank_display}"
 
     class Meta:
-        verbose_name = 'Game Stats'
-        verbose_name_plural = 'Game Stats'
-        unique_together = ('user', 'game')
+        verbose_name = 'Game Ranking'
+        verbose_name_plural = 'Game Rankings'
+        unique_together = ('game_stats', 'rank_system')

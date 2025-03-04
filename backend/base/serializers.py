@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from .models import MyUser, Game, GameStats, RankSystem
+from .models import MyUser, Game, GameStats, RankSystem, RankTier, PlayerGoal, GameRanking
 import json
 
 class UserSerializer(serializers.ModelSerializer):
@@ -51,7 +51,7 @@ class RegisterUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = MyUser
         fields = [
-            'username', 'email', 'password', 'display_name', 'avatar_url', 
+            'username', 'email', 'password', 'display_name', 
             'active_hours', 'language_preference', 'platforms', 'mic_available', 
             'social_links', 'timezone', 'date_of_birth'
         ]
@@ -71,15 +71,47 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
         return data
 
 
+class GameSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Game
+        fields = ['id', 'name', 'description', 'logo']
+
+
+class RankSystemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RankSystem
+        fields = ['id', 'name', 'is_numeric', 'max_numeric_value', 'increment', 'game']
+
+
+class RankTierSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RankTier
+        fields = ['id', 'name', 'order', 'icon']
+
+
+class PlayerGoalSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PlayerGoal
+        fields = ['id', 'name', 'description']
+
+
+class GameRankingSerializer(serializers.ModelSerializer):
+    rank_system = RankSystemSerializer(read_only=True)
+    rank = RankTierSerializer(read_only=True)
+
+    class Meta:
+        model = GameRanking
+        fields = ['id', 'rank_system', 'rank', 'numeric_rank']
+
+
 class GameStatsSerializer(serializers.ModelSerializer):
-    game = serializers.StringRelatedField()  # This will just show the game name
-    rank_system = serializers.StringRelatedField()
-    rank = serializers.StringRelatedField()
-    player_goal = serializers.StringRelatedField()
+    game = GameSerializer(read_only=True)
+    player_goal = PlayerGoalSerializer(read_only=True)
+    rankings = GameRankingSerializer(many=True, read_only=True)
 
     class Meta:
         model = GameStats
-        fields = ['id', 'user', 'game', 'hours_played', 'rank_system', 'rank', 'numeric_rank', 'player_goal']
+        fields = ['id', 'user', 'game', 'hours_played', 'player_goal', 'rankings']
         read_only_fields = ['id', 'user']
 
     def validate_hours_played(self, value):
@@ -87,10 +119,85 @@ class GameStatsSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Hours played cannot be negative")
         return value
 
-    def validate_rank(self, value):
-        if value < 0:
-            raise serializers.ValidationError("Rank cannot be negative")
-        return value
+    def create(self, validated_data):
+        rankings_data = self.context.get('rankings', [])
+        game_stats = GameStats.objects.create(**validated_data)
+        
+        for ranking_data in rankings_data:
+            # Extract rank_system_id - it might be an ID or an object
+            rank_system_id = ranking_data.get('rank_system')
+            if isinstance(rank_system_id, dict) and 'id' in rank_system_id:
+                rank_system_id = rank_system_id['id']
+                
+            # Extract rank_id - it might be an ID or an object
+            rank_id = ranking_data.get('rank')
+            if isinstance(rank_id, dict) and 'id' in rank_id:
+                rank_id = rank_id['id']
+                
+            numeric_rank = ranking_data.get('numeric_rank')
+            
+            GameRanking.objects.create(
+                game_stats=game_stats,
+                rank_system_id=rank_system_id,
+                rank_id=rank_id,
+                numeric_rank=numeric_rank
+            )
+        
+        return game_stats
+
+    def update(self, instance, validated_data):
+        rankings_data = self.context.get('rankings', [])
+        
+        # Update GameStats fields
+        instance.hours_played = validated_data.get('hours_played', instance.hours_played)
+        
+        # Handle player_goal - it might be an ID or an object
+        player_goal = validated_data.get('player_goal')
+        if player_goal is not None:
+            if isinstance(player_goal, int):
+                instance.player_goal_id = player_goal
+            else:
+                instance.player_goal = player_goal
+        
+        instance.save()
+
+        # Update rankings
+        existing_rankings = {ranking.rank_system_id: ranking for ranking in instance.rankings.all()}
+        
+        for ranking_data in rankings_data:
+            # Extract rank_system_id - it might be an ID or an object
+            rank_system_id = ranking_data.get('rank_system')
+            if isinstance(rank_system_id, dict) and 'id' in rank_system_id:
+                rank_system_id = rank_system_id['id']
+                
+            # Extract rank_id - it might be an ID or an object
+            rank_id = ranking_data.get('rank')
+            if isinstance(rank_id, dict) and 'id' in rank_id:
+                rank_id = rank_id['id']
+                
+            numeric_rank = ranking_data.get('numeric_rank')
+            
+            if rank_system_id in existing_rankings:
+                # Update existing ranking
+                ranking = existing_rankings[rank_system_id]
+                ranking.numeric_rank = numeric_rank
+                ranking.rank_id = rank_id
+                ranking.save()
+                del existing_rankings[rank_system_id]
+            else:
+                # Create new ranking
+                GameRanking.objects.create(
+                    game_stats=instance,
+                    rank_system_id=rank_system_id,
+                    rank_id=rank_id,
+                    numeric_rank=numeric_rank
+                )
+        
+        # Delete rankings that weren't included in the update
+        for ranking in existing_rankings.values():
+            ranking.delete()
+        
+        return instance
 
 
 class PasswordChangeSerializer(serializers.Serializer):
@@ -123,15 +230,3 @@ class AvatarUploadSerializer(serializers.Serializer):
                 "Invalid file type. Please upload a JPEG, PNG, or GIF."
             )
         return value
-
-
-class GameSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Game
-        fields = ['id', 'name', 'description', 'logo']  # Adjust fields as necessary
-
-
-class RankSystemSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = RankSystem
-        fields = ['id', 'name', 'is_numeric', 'max_numeric_value', 'increment']  # Adjust fields as necessary

@@ -124,22 +124,63 @@ function ViewProfile({ user, gameStats, isFollowing, onFollowToggle, isLoggedIn,
           </Grid>
         )}
 
-        {/* Game Stats */}
+        {/* Game Stats - Horizontal Scrolling */}
         <Grid item xs={12}>
-          <Typography variant="h6">Game Statistics</Typography>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h6">Game Statistics</Typography>
+            {isOwnProfile && (
+              <Button 
+                variant="outlined" 
+                size="small"
+                component={Link}
+                to={`/profile/${user?.username}`}
+                onClick={() => {
+                  // Set tab to Game Statistics (index 3)
+                  const event = new CustomEvent('setProfileTab', { detail: 3 });
+                  window.dispatchEvent(event);
+                }}
+              >
+                Manage Games
+              </Button>
+            )}
+          </Box>
+          
           {gameStats && gameStats.length > 0 ? (
-            <Grid container spacing={2} sx={{ mt: 1 }}>
+            <div className="game-stats-scroll">
               {gameStats.map((stat) => (
-                <Grid item xs={12} sm={6} md={4} key={stat.id}>
-                  <Paper elevation={2} sx={{ p: 2 }}>
-                    <Typography variant="subtitle1" fontWeight="bold">{stat.game.name}</Typography>
-                    <Typography>Hours: {stat.hours_played || 0}</Typography>
-                    <Typography>Rank: {stat.rank || 'N/A'}</Typography>
-                    <Typography>Achievements: {stat.achievements || 'None'}</Typography>
-                  </Paper>
-                </Grid>
+                <div className="game-stat-card" key={stat.id}>
+                  <h3>{stat.game.name}</h3>
+                  
+                  <div className="game-stat-row">
+                    <span className="game-stat-label">Hours Played:</span>
+                    <span className="game-stat-value">{stat.hours_played || 0}</span>
+                  </div>
+                  
+                  {stat.player_goal && (
+                    <div className="game-stat-row">
+                      <span className="game-stat-label">Goal:</span>
+                      <span className="game-stat-value">{stat.player_goal.name}</span>
+                    </div>
+                  )}
+                  
+                  {stat.rankings && stat.rankings.length > 0 && (
+                    <div className="game-rankings">
+                      <div className="game-rankings-title">Rankings:</div>
+                      {stat.rankings.map((ranking) => (
+                        <div className="game-stat-row" key={ranking.id}>
+                          <span className="game-stat-label">{ranking.rank_system.name}:</span>
+                          <span className="game-stat-value">
+                            {ranking.rank ? ranking.rank.name : 
+                             ranking.numeric_rank !== null ? `${ranking.numeric_rank} pts` : 
+                             'Unranked'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               ))}
-            </Grid>
+            </div>
           ) : (
             <Typography sx={{ mt: 1 }}>No game statistics available</Typography>
           )}
@@ -174,6 +215,19 @@ function Profile() {
   
   // Define isOwnProfile - moved to after all hooks are initialized
   const isOwnProfile = loggedInUsername === profileUsername;
+
+  // Listen for tab change events
+  useEffect(() => {
+    const handleTabChange = (event) => {
+      setTabValue(event.detail);
+    };
+
+    window.addEventListener('setProfileTab', handleTabChange);
+    
+    return () => {
+      window.removeEventListener('setProfileTab', handleTabChange);
+    };
+  }, []);
 
   // Fetch user data and game stats
   useEffect(() => {
@@ -298,14 +352,60 @@ function Profile() {
           )}
           {tabValue === 3 && (
             <Box>
-              {gameStats?.map((stat) => (
-                <GameStatsForm
-                  key={stat.game.id}
-                  username={profileUsername}
-                  gameId={stat.game.id}
-                  initialStats={stat}
-                />
-              ))}
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                <Typography variant="h5">Manage Game Statistics</Typography>
+                <Button 
+                  variant="contained" 
+                  color="primary"
+                  onClick={() => setIsAddingGame(true)}
+                >
+                  Add New Game
+                </Button>
+              </Box>
+              
+              {isAddingGame && (
+                <Box sx={{ mb: 4 }}>
+                  <Paper elevation={3} sx={{ p: 3 }}>
+                    <Typography variant="h6" gutterBottom>Add New Game Stats</Typography>
+                    <GameStatsForm
+                      username={profileUsername}
+                      onUpdate={() => {
+                        setIsAddingGame(false);
+                        // Refresh game stats
+                        API.get(`/users/${profileUsername}/game-stats/`)
+                          .then(response => setGameStats(response.data))
+                          .catch(err => console.error('Error refreshing game stats:', err));
+                      }}
+                    />
+                  </Paper>
+                </Box>
+              )}
+              
+              {gameStats?.length > 0 ? (
+                <Grid container spacing={3}>
+                  {gameStats.map((stat, index) => (
+                    <Grid item xs={12} key={`${stat.game.id}-${index}`}>
+                      <Paper elevation={2} sx={{ p: 3 }}>
+                        <Typography variant="h6" gutterBottom>{stat.game.name}</Typography>
+                        <GameStatsForm
+                          username={profileUsername}
+                          initialStats={stat}
+                          onUpdate={() => {
+                            // Refresh game stats
+                            API.get(`/users/${profileUsername}/game-stats/`)
+                              .then(response => setGameStats(response.data))
+                              .catch(err => console.error('Error refreshing game stats:', err));
+                          }}
+                        />
+                      </Paper>
+                    </Grid>
+                  ))}
+                </Grid>
+              ) : (
+                <Alert severity="info">
+                  You haven't added any game statistics yet. Click "Add New Game" to get started.
+                </Alert>
+              )}
             </Box>
           )}
         </>
