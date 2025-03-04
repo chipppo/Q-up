@@ -18,6 +18,8 @@ from .views import (
     ChangePasswordView,
     GameListView,
     RankingSystemListView,
+    RankTierListView,
+    PlayerGoalListView,
 )
 
 urlpatterns = [
@@ -37,6 +39,8 @@ urlpatterns = [
     path('users/<str:username>/change-password/', ChangePasswordView.as_view(), name='change-password'),
     path('games/', GameListView.as_view(), name='game-list'),
     path('games/<int:game_id>/ranking-systems/', RankingSystemListView.as_view(), name='ranking-systems'),
+    path('ranking-systems/<int:rank_system_id>/tiers/', RankTierListView.as_view(), name='rank-tiers'),
+    path('player-goals/', PlayerGoalListView.as_view(), name='player-goals'),
 ]
 
 if settings.DEBUG:

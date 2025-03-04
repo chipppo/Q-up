@@ -7,7 +7,7 @@ from django.db.models import Q
 from django.core.exceptions import ValidationError
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.http import JsonResponse
-from .models import Game, MyUser, GameStats, RankSystem
+from .models import Game, MyUser, GameStats, RankSystem, RankTier, PlayerGoal, GameRanking
 from .serializers import (
     UserSerializer,
     RegisterUserSerializer,
@@ -18,6 +18,9 @@ from .serializers import (
     AvatarUploadSerializer,
     GameSerializer,
     RankSystemSerializer,
+    RankTierSerializer,
+    PlayerGoalSerializer,
+    GameRankingSerializer,
 )
 import json
 from django.core.validators import validate_email
@@ -165,21 +168,83 @@ class UpdateProfileView(APIView):
             )
 
 
+class GameListView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        games = Game.objects.all()
+        serializer = GameSerializer(games, many=True)
+        return Response(serializer.data)
+
+
 class GameStatsListView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, username, format=None):
         try:
             user = MyUser.objects.get(username=username)
-            game_stats = GameStats.objects.filter(user=user)
+            game_stats = GameStats.objects.filter(user=user).prefetch_related(
+                'rankings', 'rankings__rank_system', 'rankings__rank', 'game', 'player_goal'
+            )
             serializer = GameStatsSerializer(game_stats, many=True)
             return Response(serializer.data)
         except MyUser.DoesNotExist:
             return Response({"detail": "User not found."}, status=status.HTTP_404_NOT_FOUND)
 
+    def post(self, request, username):
+        if request.user.username != username:
+            return Response(
+                {"detail": "You can only add your own game stats."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        try:
+            # Extract rankings data
+            rankings_data = request.data.pop('rankings', [])
+            
+            # Handle game ID - it might be an ID or an object
+            game_data = request.data.get('game')
+            if isinstance(game_data, dict) and 'id' in game_data:
+                request.data['game'] = game_data['id']
+                
+            # Handle player_goal - it might be an ID or an object
+            player_goal = request.data.get('player_goal')
+            if isinstance(player_goal, dict) and 'id' in player_goal:
+                request.data['player_goal'] = player_goal['id']
+            
+            # Create GameStats instance
+            serializer = GameStatsSerializer(
+                data=request.data,
+                context={'rankings': rankings_data}
+            )
+            
+            if serializer.is_valid():
+                game_stats = serializer.save(user=request.user)
+                return Response(GameStatsSerializer(game_stats).data, status=status.HTTP_201_CREATED)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
 
 class GameStatsUpdateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, username, game_id):
+        try:
+            game_stats = GameStats.objects.prefetch_related(
+                'rankings', 'rankings__rank_system', 'rankings__rank', 'game', 'player_goal'
+            ).get(
+                user__username=username,
+                game_id=game_id
+            )
+            serializer = GameStatsSerializer(game_stats)
+            return Response(serializer.data)
+        except GameStats.DoesNotExist:
+            return Response(
+                {"detail": "Game stats not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
     def patch(self, request, username, game_id):
         try:
@@ -190,11 +255,25 @@ class GameStatsUpdateView(APIView):
                 )
 
             game_stats = GameStats.objects.get(user=request.user, game_id=game_id)
-            serializer = GameStatsSerializer(game_stats, data=request.data, partial=True)
+            
+            # Extract rankings data
+            rankings_data = request.data.pop('rankings', [])
+            
+            # Handle player_goal - it might be an ID or an object
+            player_goal = request.data.get('player_goal')
+            if isinstance(player_goal, dict) and 'id' in player_goal:
+                request.data['player_goal'] = player_goal['id']
+            
+            serializer = GameStatsSerializer(
+                game_stats,
+                data=request.data,
+                partial=True,
+                context={'rankings': rankings_data}
+            )
             
             if serializer.is_valid():
-                serializer.save()
-                return Response(serializer.data)
+                game_stats = serializer.save()
+                return Response(GameStatsSerializer(game_stats).data)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         except GameStats.DoesNotExist:
@@ -202,9 +281,13 @@ class GameStatsUpdateView(APIView):
                 {"detail": "Game stats not found."},
                 status=status.HTTP_404_NOT_FOUND
             )
+        except Exception as e:
+            return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class SearchView(APIView):
+    permission_classes = [permissions.AllowAny]
+
     def get(self, request, format=None):
         query = request.query_params.get("q", "")
         users = MyUser.objects.filter(
@@ -329,20 +412,41 @@ class ChangePasswordView(APIView):
 
         return Response({"detail": "Password successfully updated."})
 
-class GameListView(APIView):
-    """
-    Retrieve a list of games.
-    """
-    def get(self, request):
-        games = Game.objects.all()
-        serializer = GameSerializer(games, many=True)
-        return Response(serializer.data)
-
 class RankingSystemListView(APIView):
+    permission_classes = [permissions.AllowAny]
+
     def get(self, request, game_id):
         try:
             ranking_systems = RankSystem.objects.filter(game_id=game_id)
             serializer = RankSystemSerializer(ranking_systems, many=True)
+            return Response(serializer.data)
+        except Exception as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+class RankTierListView(APIView):
+    """
+    Retrieve rank tiers for a specific ranking system.
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, rank_system_id):
+        try:
+            rank_tiers = RankTier.objects.filter(rank_system_id=rank_system_id).order_by('order')
+            serializer = RankTierSerializer(rank_tiers, many=True)
+            return Response(serializer.data)
+        except Exception as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+class PlayerGoalListView(APIView):
+    """
+    Retrieve all player goals.
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        try:
+            player_goals = PlayerGoal.objects.all()
+            serializer = PlayerGoalSerializer(player_goals, many=True)
             return Response(serializer.data)
         except Exception as e:
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
