@@ -1,10 +1,10 @@
 // src/pages/Dashboard.jsx
-import React, { useContext } from "react";
+import React from "react";
 import { Link } from "react-router-dom";
-import { AuthContext } from "../context/AuthContext";
+import { useAuth } from "../context/AuthContext";
 
 function Dashboard() {
-  const { username } = useContext(AuthContext);
+  const { username } = useAuth();
 
   return (
     <div className="dashboard-container">

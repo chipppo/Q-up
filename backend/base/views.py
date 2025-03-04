@@ -7,7 +7,7 @@ from django.db.models import Q
 from django.core.exceptions import ValidationError
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.http import JsonResponse
-from .models import Game, MyUser, GameStats, RankSystem, RankTier, PlayerGoal, GameRanking
+from .models import Game, MyUser, GameStats, RankSystem, RankTier, PlayerGoal, GameRanking, Post, Like, Comment
 from .serializers import (
     UserSerializer,
     RegisterUserSerializer,
@@ -21,6 +21,11 @@ from .serializers import (
     RankTierSerializer,
     PlayerGoalSerializer,
     GameRankingSerializer,
+    PostSerializer,
+    PostDetailSerializer,
+    CommentSerializer,
+    ReplySerializer,
+    LikeSerializer,
 )
 import json
 from django.core.validators import validate_email
@@ -450,3 +455,289 @@ class PlayerGoalListView(APIView):
             return Response(serializer.data)
         except Exception as e:
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+# New views for social features
+
+class PostListView(APIView):
+    """
+    List all posts or create a new post.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+    
+    def get(self, request):
+        """Get all posts from users the current user follows + their own posts"""
+        following_users = request.user.following.all()
+        posts = Post.objects.filter(
+            Q(user=request.user) | Q(user__in=following_users)
+        ).select_related('user', 'game').order_by('-created_at')
+        
+        serializer = PostSerializer(posts, many=True, context={'request': request})
+        return Response(serializer.data)
+    
+    def post(self, request):
+        """Create a new post"""
+        serializer = PostSerializer(data=request.data, context={'request': request})
+        if serializer.is_valid():
+            # Handle game reference if provided
+            game_id = request.data.get('game')
+            game = None
+            if game_id:
+                try:
+                    game = Game.objects.get(id=game_id)
+                except Game.DoesNotExist:
+                    return Response(
+                        {"detail": "Game not found."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            
+            post = serializer.save(user=request.user, game=game)
+            return Response(
+                PostSerializer(post, context={'request': request}).data,
+                status=status.HTTP_201_CREATED
+            )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class UserPostsView(APIView):
+    """
+    List all posts by a specific user.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request, username):
+        try:
+            user = MyUser.objects.get(username=username)
+            posts = Post.objects.filter(user=user).select_related('user', 'game').order_by('-created_at')
+            serializer = PostSerializer(posts, many=True, context={'request': request})
+            return Response(serializer.data)
+        except MyUser.DoesNotExist:
+            return Response(
+                {"detail": "User not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+class PostDetailView(APIView):
+    """
+    Retrieve, update or delete a post.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+    
+    def get(self, request, post_id):
+        try:
+            post = Post.objects.get(id=post_id)
+            serializer = PostDetailSerializer(post, context={'request': request})
+            return Response(serializer.data)
+        except Post.DoesNotExist:
+            return Response(
+                {"detail": "Post not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+    
+    def patch(self, request, post_id):
+        try:
+            post = Post.objects.get(id=post_id)
+            
+            # Check if the user is the owner of the post
+            if post.user != request.user:
+                return Response(
+                    {"detail": "You can only update your own posts."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            
+            serializer = PostSerializer(post, data=request.data, partial=True, context={'request': request})
+            if serializer.is_valid():
+                # Handle game reference if provided
+                game_id = request.data.get('game')
+                if game_id:
+                    try:
+                        game = Game.objects.get(id=game_id)
+                        post.game = game
+                    except Game.DoesNotExist:
+                        return Response(
+                            {"detail": "Game not found."},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+                
+                post = serializer.save()
+                return Response(PostSerializer(post, context={'request': request}).data)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Post.DoesNotExist:
+            return Response(
+                {"detail": "Post not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+    
+    def delete(self, request, post_id):
+        try:
+            post = Post.objects.get(id=post_id)
+            
+            # Check if the user is the owner of the post
+            if post.user != request.user:
+                return Response(
+                    {"detail": "You can only delete your own posts."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            
+            post.delete()
+            return Response(
+                {"detail": "Post deleted successfully."},
+                status=status.HTTP_204_NO_CONTENT
+            )
+        except Post.DoesNotExist:
+            return Response(
+                {"detail": "Post not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+class LikeView(APIView):
+    """
+    Like or unlike a post.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def post(self, request, post_id):
+        try:
+            post = Post.objects.get(id=post_id)
+            
+            # Check if the user already liked this post
+            like, created = Like.objects.get_or_create(user=request.user, post=post)
+            
+            if created:
+                return Response(
+                    {"detail": "Post liked successfully."},
+                    status=status.HTTP_201_CREATED
+                )
+            else:
+                return Response(
+                    {"detail": "You already liked this post."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        except Post.DoesNotExist:
+            return Response(
+                {"detail": "Post not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+    
+    def delete(self, request, post_id):
+        try:
+            post = Post.objects.get(id=post_id)
+            
+            # Try to find and delete the like
+            try:
+                like = Like.objects.get(user=request.user, post=post)
+                like.delete()
+                return Response(
+                    {"detail": "Post unliked successfully."},
+                    status=status.HTTP_204_NO_CONTENT
+                )
+            except Like.DoesNotExist:
+                return Response(
+                    {"detail": "You haven't liked this post."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        except Post.DoesNotExist:
+            return Response(
+                {"detail": "Post not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+class LikesListView(APIView):
+    """
+    List all users who liked a post.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request, post_id):
+        try:
+            post = Post.objects.get(id=post_id)
+            likes = Like.objects.filter(post=post).select_related('user')
+            serializer = LikeSerializer(likes, many=True)
+            return Response(serializer.data)
+        except Post.DoesNotExist:
+            return Response(
+                {"detail": "Post not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+class CommentView(APIView):
+    """
+    Create, update or delete a comment.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def post(self, request, post_id):
+        try:
+            post = Post.objects.get(id=post_id)
+            
+            # Check if this is a reply to another comment
+            parent_id = request.data.get('parent')
+            parent = None
+            if parent_id:
+                try:
+                    parent = Comment.objects.get(id=parent_id, post=post)
+                except Comment.DoesNotExist:
+                    return Response(
+                        {"detail": "Parent comment not found."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            
+            # Create the comment
+            comment = Comment.objects.create(
+                user=request.user,
+                post=post,
+                text=request.data.get('text', ''),
+                parent=parent
+            )
+            
+            if parent:
+                serializer = ReplySerializer(comment)
+            else:
+                serializer = CommentSerializer(comment)
+            
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        except Post.DoesNotExist:
+            return Response(
+                {"detail": "Post not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+    
+    def delete(self, request, comment_id):
+        try:
+            comment = Comment.objects.get(id=comment_id)
+            
+            # Check if the user is the owner of the comment
+            if comment.user != request.user:
+                return Response(
+                    {"detail": "You can only delete your own comments."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            
+            comment.delete()
+            return Response(
+                {"detail": "Comment deleted successfully."},
+                status=status.HTTP_204_NO_CONTENT
+            )
+        except Comment.DoesNotExist:
+            return Response(
+                {"detail": "Comment not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+class CommentRepliesView(APIView):
+    """
+    List all replies to a comment.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request, comment_id):
+        try:
+            comment = Comment.objects.get(id=comment_id)
+            replies = Comment.objects.filter(parent=comment).select_related('user')
+            serializer = ReplySerializer(replies, many=True)
+            return Response(serializer.data)
+        except Comment.DoesNotExist:
+            return Response(
+                {"detail": "Comment not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
