@@ -6,6 +6,8 @@ const AuthContext = createContext();
 const AuthProvider = ({ children }) => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [username, setUsername] = useState("");
+  const [followers, setFollowers] = useState([]);
+  const [following, setFollowing] = useState([]);
 
   // Check localStorage on initial load
   useEffect(() => {
@@ -33,11 +35,23 @@ const AuthProvider = ({ children }) => {
     localStorage.removeItem("username");
     setIsLoggedIn(false);
     setUsername("");
+    setFollowers([]);
+    setFollowing([]);
     if (callback) callback(); // Call the callback (e.g., navigate to Home)
   };
 
+  // Function to update followers
+  const updateFollowers = (newFollowers) => {
+    setFollowers(newFollowers);
+  };
+
+  // Function to update following
+  const updateFollowing = (newFollowing) => {
+    setFollowing(newFollowing);
+  };
+
   return (
-    <AuthContext.Provider value={{ isLoggedIn, username, login, logout }}>
+    <AuthContext.Provider value={{ isLoggedIn, username, login, logout, followers, following, updateFollowers, updateFollowing }}>
       {children}
     </AuthContext.Provider>
   );

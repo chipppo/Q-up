@@ -7,7 +7,7 @@ from django.db.models import Q
 from django.core.exceptions import ValidationError
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.http import JsonResponse
-from .models import Game, MyUser, GameStats
+from .models import Game, MyUser, GameStats, RankSystem
 from .serializers import (
     UserSerializer,
     RegisterUserSerializer,
@@ -16,6 +16,8 @@ from .serializers import (
     FollowSerializer,
     PasswordChangeSerializer,
     AvatarUploadSerializer,
+    GameSerializer,
+    RankSystemSerializer,
 )
 import json
 from django.core.validators import validate_email
@@ -326,3 +328,21 @@ class ChangePasswordView(APIView):
         request.user.save()
 
         return Response({"detail": "Password successfully updated."})
+
+class GameListView(APIView):
+    """
+    Retrieve a list of games.
+    """
+    def get(self, request):
+        games = Game.objects.all()
+        serializer = GameSerializer(games, many=True)
+        return Response(serializer.data)
+
+class RankingSystemListView(APIView):
+    def get(self, request, game_id):
+        try:
+            ranking_systems = RankSystem.objects.filter(game_id=game_id)
+            serializer = RankSystemSerializer(ranking_systems, many=True)
+            return Response(serializer.data)
+        except Exception as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
