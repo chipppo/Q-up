@@ -66,25 +66,42 @@ const PostCard = ({ post, onPostUpdate, onPostDelete }) => {
   const likesMenuOpen = Boolean(likesAnchorEl);
 
   // Fetch post details when expanded
-  const handleExpandClick = () => {
+  const handleExpandClick = async () => {
     if (!expanded && !loadingComments) {
       setLoadingComments(true);
-      API.get(`/posts/${post.id}/`)
-        .then(response => {
-          setComments(response.data.comments || []);
-          setLoadingComments(false);
-        })
-        .catch(error => {
-          console.error('Error fetching comments:', error);
-          setLoadingComments(false);
+      
+      try {
+        const response = await API.get(`/posts/${post.id}/`);
+        setComments(response.data.comments || []);
+        setLoadingComments(false);
+      } catch (error) {
+        console.error('Error fetching comments:', error);
+        setLoadingComments(false);
+        
+        if (error.response) {
+          if (error.response.status === 404) {
+            toast.error('Post not found');
+          } else {
+            toast.error(error.response.data?.detail || 'Failed to load comments');
+          }
+        } else if (error.request) {
+          toast.error('No response from server. Please check your connection.');
+        } else {
           toast.error('Failed to load comments');
-        });
+        }
+      }
     }
+    
     setExpanded(!expanded);
   };
 
   // Handle like/unlike
   const handleLikeClick = async () => {
+    if (!isLoggedIn) {
+      toast.error('You must be logged in to like posts');
+      return;
+    }
+    
     try {
       if (liked) {
         await API.delete(`/posts/${post.id}/like/`);
@@ -94,28 +111,63 @@ const PostCard = ({ post, onPostUpdate, onPostDelete }) => {
       // Update the local state
       setLiked(!liked);
       setLikesCount(liked ? likesCount - 1 : likesCount + 1);
+      
+      // Update the post in the parent component
+      if (onPostUpdate) {
+        onPostUpdate({
+          ...post,
+          likes_count: liked ? likesCount - 1 : likesCount + 1,
+          liked_by_current_user: !liked
+        });
+      }
     } catch (error) {
-      toast.error('Failed to update like');
+      console.error('Error updating like:', error);
+      
+      if (error.response) {
+        if (error.response.status === 401) {
+          toast.error('You must be logged in to like posts');
+        } else if (error.response.status === 404) {
+          toast.error('Post not found');
+        } else {
+          toast.error(error.response.data?.detail || 'Failed to update like');
+        }
+      } else if (error.request) {
+        toast.error('No response from server. Please check your connection.');
+      } else {
+        toast.error('Failed to update like');
+      }
     }
   };
 
   // Show likes list
-  const handleLikesClick = (event) => {
+  const handleLikesClick = async (event) => {
     if (likesCount === 0) return;
     
     setLikesAnchorEl(event.currentTarget);
+    
     if (!loadingLikes) {
       setLoadingLikes(true);
-      API.get(`/posts/${post.id}/likes/`)
-        .then(response => {
-          setLikes(response.data);
-          setLoadingLikes(false);
-        })
-        .catch(error => {
-          console.error('Error fetching likes:', error);
-          setLoadingLikes(false);
+      
+      try {
+        const response = await API.get(`/posts/${post.id}/likes/`);
+        setLikes(response.data);
+        setLoadingLikes(false);
+      } catch (error) {
+        console.error('Error fetching likes:', error);
+        setLoadingLikes(false);
+        
+        if (error.response) {
+          if (error.response.status === 404) {
+            toast.error('Post not found');
+          } else {
+            toast.error(error.response.data?.detail || 'Failed to load likes');
+          }
+        } else if (error.request) {
+          toast.error('No response from server. Please check your connection.');
+        } else {
           toast.error('Failed to load likes');
-        });
+        }
+      }
     }
   };
 
@@ -130,23 +182,48 @@ const PostCard = ({ post, onPostUpdate, onPostDelete }) => {
 
   // Delete post
   const handleDeletePost = async () => {
+    // Show confirmation before deleting
+    if (!window.confirm('Are you sure you want to delete this post?')) {
+      return;
+    }
+    
     try {
       await API.delete(`/posts/${post.id}/`);
       handleMenuClose();
+      
       // Call the parent's onPostDelete handler
       if (onPostDelete) {
         onPostDelete(post.id);
-        // Force a refresh of the current page
-        window.location.reload();
+        toast.success('Post deleted successfully');
       }
     } catch (error) {
-      toast.error('Failed to delete post');
+      console.error('Error deleting post:', error);
+      
+      if (error.response) {
+        if (error.response.status === 401) {
+          toast.error('You must be logged in to delete posts');
+        } else if (error.response.status === 403) {
+          toast.error('You do not have permission to delete this post');
+        } else if (error.response.status === 404) {
+          toast.error('Post not found');
+          // If the post is not found, we should still remove it from the UI
+          if (onPostDelete) {
+            onPostDelete(post.id);
+          }
+        } else {
+          toast.error(error.response.data?.detail || 'Failed to delete post. Please try again.');
+        }
+      } else if (error.request) {
+        toast.error('No response from server. Please check your connection and try again.');
+      } else {
+        toast.error('Failed to delete post. Please try again.');
+      }
     }
   };
 
   // Add comment
   const handleAddComment = async () => {
-    if (!commentText.trim()) return;
+    if (!commentText.trim() || !isLoggedIn) return;
 
     try {
       const response = await API.post(`/posts/${post.id}/comments/`, {
@@ -156,71 +233,195 @@ const PostCard = ({ post, onPostUpdate, onPostDelete }) => {
       // Update the comments state with the new comment
       setComments([...comments, response.data]);
       setCommentText('');
-      // Update comment count in parent component
-      if (onPostUpdate) onPostUpdate({ ...post, comments_count: post.comments_count + 1 });
       
-      // Optionally refresh the page to ensure all data is up to date
-      window.location.reload();
+      // Update comment count in parent component
+      if (onPostUpdate) {
+        onPostUpdate({ 
+          ...post, 
+          comments_count: post.comments_count + 1 
+        });
+      }
+      
+      toast.success('Comment added successfully');
     } catch (error) {
-      toast.error('Failed to add comment');
+      console.error('Error adding comment:', error);
+      
+      // Handle different error scenarios
+      if (error.response) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
+        if (error.response.status === 401) {
+          toast.error('You must be logged in to comment');
+        } else if (error.response.status === 404) {
+          toast.error('The post could not be found');
+        } else {
+          toast.error(error.response.data?.detail || 'Failed to add comment. Please try again.');
+        }
+      } else if (error.request) {
+        // The request was made but no response was received
+        toast.error('No response from server. Please check your connection and try again.');
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        toast.error('Failed to add comment. Please try again.');
+      }
     }
   };
 
   // Add reply
-  const handleAddReply = (commentId) => {
+  const handleAddReply = async (commentId) => {
     if (!replyText.trim() || !isLoggedIn) return;
     
-    API.post(`/posts/${post.id}/comments/`, { 
-      text: replyText,
-      parent: commentId
-    })
-      .then(() => {
-        setReplyText('');
-        setReplyingTo(null);
-        // Refresh comments to show the new reply
-        API.get(`/posts/${post.id}/`)
-          .then(response => {
-            setComments(response.data.comments || []);
-          })
-          .catch(error => {
-            console.error('Error refreshing comments:', error);
-          });
-      })
-      .catch(error => {
-        console.error('Error adding reply:', error);
-        toast.error('Failed to add reply');
+    // Convert commentId to a number to ensure proper comparison
+    const parentId = parseInt(commentId, 10);
+    
+    try {
+      const response = await API.post(`/posts/${post.id}/comments/`, { 
+        text: replyText,
+        parent: parentId
       });
+      
+      console.log('Reply added successfully:', response.data);
+      setReplyText('');
+      setReplyingTo(null);
+      
+      // Update the UI to show the new reply
+      // If the replies for this comment are already shown, add the new reply
+      if (showReplies[commentId]) {
+        setShowReplies(prev => ({
+          ...prev,
+          [commentId]: [...(prev[commentId] || []), response.data]
+        }));
+      }
+      
+      // Update the comment's reply count
+      setComments(prev => 
+        prev.map(comment => 
+          comment.id === parentId 
+            ? { ...comment, reply_count: (comment.reply_count || 0) + 1 } 
+            : comment
+        )
+      );
+      
+      toast.success('Reply added successfully');
+    } catch (error) {
+      console.error('Error adding reply:', error);
+      
+      // Handle different error scenarios
+      if (error.response) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
+        if (error.response.status === 401) {
+          toast.error('You must be logged in to reply to comments');
+        } else if (error.response.status === 404) {
+          toast.error('The post or comment could not be found');
+        } else {
+          toast.error(error.response.data?.detail || 'Failed to add reply. Please try again.');
+        }
+      } else if (error.request) {
+        // The request was made but no response was received
+        toast.error('No response from server. Please check your connection and try again.');
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        toast.error('Failed to add reply. Please try again.');
+      }
+    }
   };
 
   // Delete comment
-  const handleDeleteComment = (commentId) => {
-    API.delete(`/comments/${commentId}/`)
-      .then(() => {
+  const handleDeleteComment = async (commentId) => {
+    // Show confirmation before deleting
+    if (!window.confirm('Are you sure you want to delete this comment?')) {
+      return;
+    }
+    
+    try {
+      await API.delete(`/comments/${commentId}/`);
+      
+      // If it's a reply, update the parent comment's reply count
+      const parentComment = comments.find(comment => 
+        showReplies[comment.id] && 
+        Array.isArray(showReplies[comment.id]) && 
+        showReplies[comment.id].some(reply => reply.id === commentId)
+      );
+      
+      if (parentComment) {
+        // It's a reply, update the parent's reply count and remove from replies
+        setComments(prev => 
+          prev.map(comment => 
+            comment.id === parentComment.id 
+              ? { ...comment, reply_count: Math.max(0, comment.reply_count - 1) } 
+              : comment
+          )
+        );
+        
+        // Remove the reply from showReplies
+        setShowReplies(prev => ({
+          ...prev,
+          [parentComment.id]: prev[parentComment.id].filter(reply => reply.id !== commentId)
+        }));
+      } else {
+        // It's a top-level comment, remove it from comments
         setComments(prev => prev.filter(comment => comment.id !== commentId));
+        
         // Update comment count in parent component
-        if (onPostUpdate) onPostUpdate({ ...post, comments_count: post.comments_count - 1 });
-        toast.success('Comment deleted successfully');
-      })
-      .catch(error => {
-        console.error('Error deleting comment:', error);
-        toast.error('Failed to delete comment');
-      });
+        if (onPostUpdate) {
+          onPostUpdate({ 
+            ...post, 
+            comments_count: Math.max(0, post.comments_count - 1) 
+          });
+        }
+      }
+      
+      toast.success('Comment deleted successfully');
+    } catch (error) {
+      console.error('Error deleting comment:', error);
+      
+      // Handle different error scenarios
+      if (error.response) {
+        if (error.response.status === 401) {
+          toast.error('You must be logged in to delete comments');
+        } else if (error.response.status === 403) {
+          toast.error('You do not have permission to delete this comment');
+        } else if (error.response.status === 404) {
+          toast.error('The comment could not be found');
+          
+          // If the comment is not found, we should still remove it from the UI
+          setComments(prev => prev.filter(comment => comment.id !== commentId));
+        } else {
+          toast.error(error.response.data?.detail || 'Failed to delete comment. Please try again.');
+        }
+      } else if (error.request) {
+        toast.error('No response from server. Please check your connection and try again.');
+      } else {
+        toast.error('Failed to delete comment. Please try again.');
+      }
+    }
   };
 
   // Toggle replies visibility
-  const toggleReplies = (commentId) => {
+  const toggleReplies = async (commentId) => {
     if (showReplies[commentId]) {
       setShowReplies(prev => ({ ...prev, [commentId]: false }));
     } else {
-      API.get(`/comments/${commentId}/replies/`)
-        .then(response => {
-          const replies = response.data;
-          setShowReplies(prev => ({ ...prev, [commentId]: replies }));
-        })
-        .catch(error => {
-          console.error('Error fetching replies:', error);
+      try {
+        const response = await API.get(`/comments/${commentId}/replies/`);
+        const replies = response.data;
+        setShowReplies(prev => ({ ...prev, [commentId]: replies }));
+      } catch (error) {
+        console.error('Error fetching replies:', error);
+        
+        if (error.response) {
+          if (error.response.status === 404) {
+            toast.error('Comment not found');
+          } else {
+            toast.error(error.response.data?.detail || 'Failed to load replies');
+          }
+        } else if (error.request) {
+          toast.error('No response from server. Please check your connection.');
+        } else {
           toast.error('Failed to load replies');
-        });
+        }
+      }
     }
   };
 

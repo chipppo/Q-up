@@ -20,10 +20,12 @@ const Header = () => {
     <header>
       <nav>
         <Link to="/">Home</Link>
+        <Link to="/search-profiles">Find Players</Link>
         {isLoggedIn ? (
           <>
             <span>Welcome, {username || "User"}!</span>
             {username && <Link to={`/profile/${username}`}>Profile</Link>}
+            <Link to="/feed">Feed</Link>
             <Link to="/dashboard">Dashboard</Link>
             <button onClick={handleLogout}>Logout</button> {/* Use handleLogout */}
           </>

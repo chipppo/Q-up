@@ -6,6 +6,8 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
+import SearchProfiles from "./pages/SearchProfiles";
+import Feed from "./pages/Feed";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
@@ -45,7 +47,16 @@ function App() {
                 </ProtectedRoute>
               }
             />
-              {/* <Route path="/search" element={<Search />} /> */}
+            <Route
+              path="/feed"
+              element={
+                <ProtectedRoute>
+                  <Feed />
+                </ProtectedRoute>
+              }
+            />
+            <Route path="/search-profiles" element={<SearchProfiles />} />
+            {/* <Route path="/search" element={<Search />} /> */}
             <Route path="/profile/:username" element={<Profile />} /> {/* Public route */}
             <Route 
               path="/profile/:username/edit" 

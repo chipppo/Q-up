@@ -30,12 +30,58 @@ import GameStatsForm from '../components/GameStatsForm';
 import CreatePostForm from '../components/CreatePostForm';
 import PostCard from '../components/PostCard';
 
+// Define time periods with their corresponding hours
+const TIME_PERIODS = [
+  { id: "earlyMorning", name: "Early Morning (5-8 AM)", hours: ["05:00", "06:00", "07:00", "08:00"] },
+  { id: "morning", name: "Morning (8-11 AM)", hours: ["08:00", "09:00", "10:00", "11:00"] },
+  { id: "noon", name: "Noon (11 AM-2 PM)", hours: ["11:00", "12:00", "13:00", "14:00"] },
+  { id: "afternoon", name: "Afternoon (2-5 PM)", hours: ["14:00", "15:00", "16:00", "17:00"] },
+  { id: "evening", name: "Evening (5-8 PM)", hours: ["17:00", "18:00", "19:00", "20:00"] },
+  { id: "night", name: "Night (8-11 PM)", hours: ["20:00", "21:00", "22:00", "23:00"] },
+  { id: "lateNight", name: "Late Night (11 PM-2 AM)", hours: ["23:00", "00:00", "01:00", "02:00"] },
+  { id: "overnight", name: "Overnight (2-5 AM)", hours: ["02:00", "03:00", "04:00", "05:00"] }
+];
+
 // ViewProfile Component - moved outside of Profile component
 function ViewProfile({ user, gameStats, isFollowing, onFollowToggle, isLoggedIn, loggedInUsername, followersCount, posts }) {
   const isOwnProfile = loggedInUsername === user?.username;
   
   const handleSendMessage = () => {
     toast.info('Messaging feature coming soon!');
+  };
+
+  // Helper function to format active hours for display
+  const formatActiveHours = (activeHours, timezoneOffset = 0) => {
+    if (!activeHours || !Array.isArray(activeHours) || activeHours.length === 0) {
+      return "Not specified";
+    }
+    
+    // Convert hours from UTC to user's local timezone
+    const convertedHours = activeHours.map(hour => {
+      const [hourStr, minuteStr] = hour.split(':');
+      let hourNum = parseInt(hourStr, 10);
+      
+      // Apply timezone offset
+      hourNum = (hourNum + timezoneOffset + 24) % 24;
+      
+      // Format back to string with leading zeros
+      return `${hourNum.toString().padStart(2, '0')}:${minuteStr}`;
+    });
+    
+    // Check which periods the user is active in
+    const activePeriods = [];
+    for (const period of TIME_PERIODS) {
+      // If all hours in the period are active, add the full period
+      if (period.hours.every(hour => convertedHours.includes(hour))) {
+        activePeriods.push(period.name.split(' ')[0]); // Just use the first word
+      }
+      // If some hours in the period are active, add the period with a * to indicate partial
+      else if (period.hours.some(hour => convertedHours.includes(hour))) {
+        activePeriods.push(`${period.name.split(' ')[0]}*`); // Just use the first word with *
+      }
+    }
+    
+    return activePeriods.length > 0 ? activePeriods.join(", ") : "Not specified";
   };
 
   return (
@@ -57,6 +103,20 @@ function ViewProfile({ user, gameStats, isFollowing, onFollowToggle, isLoggedIn,
                 </Typography>
                 <Typography>
                   <strong>{user?.following_count || 0}</strong> following
+                </Typography>
+              </Box>
+              {/* Display active hours */}
+              <Box sx={{ mt: 1 }}>
+                <Typography variant="body2">
+                  <strong>Active:</strong> {formatActiveHours(user?.active_hours, user?.timezone_offset)}
+                  <span style={{ fontSize: '0.8rem', color: '#666', fontStyle: 'italic', display: 'block', marginTop: '2px' }}>
+                    (Times shown in {user?.timezone || 'local'} timezone)
+                  </span>
+                  {formatActiveHours(user?.active_hours, user?.timezone_offset).includes('*') && (
+                    <span style={{ fontSize: '0.8rem', color: '#666', fontStyle: 'italic', display: 'block', marginTop: '2px' }}>
+                      * Partially active during this time period
+                    </span>
+                  )}
                 </Typography>
               </Box>
             </Box>
@@ -127,6 +187,66 @@ function ViewProfile({ user, gameStats, isFollowing, onFollowToggle, isLoggedIn,
           </Grid>
         )}
 
+        {/* Social Links */}
+        {user?.social_links?.length > 0 && (
+          <Grid item xs={12}>
+            <Typography variant="h6">Social Links</Typography>
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 1 }}>
+              {user.social_links.map((link, index) => {
+                try {
+                  const url = new URL(link);
+                  let icon = null;
+                  const hostname = url.hostname;
+                  
+                  // Determine icon based on hostname
+                  if (hostname.includes('twitter.com') || hostname.includes('x.com')) {
+                    icon = '𝕏'; // X (Twitter)
+                  } else if (hostname.includes('facebook.com')) {
+                    icon = 'f';
+                  } else if (hostname.includes('instagram.com')) {
+                    icon = '📷';
+                  } else if (hostname.includes('linkedin.com')) {
+                    icon = 'in';
+                  } else if (hostname.includes('github.com')) {
+                    icon = '🐙';
+                  } else if (hostname.includes('youtube.com')) {
+                    icon = '▶️';
+                  } else if (hostname.includes('twitch.tv')) {
+                    icon = '🎮';
+                  } else if (hostname.includes('discord.com') || hostname.includes('discord.gg')) {
+                    icon = '🎧';
+                  } else if (hostname.includes('steam')) {
+                    icon = '🎲';
+                  }
+                  
+                  return (
+                    <Chip
+                      key={index}
+                      icon={icon ? <span style={{ fontSize: '1.2rem', marginLeft: '8px' }}>{icon}</span> : undefined}
+                      label={hostname.replace('www.', '')}
+                      component="a"
+                      href={link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      clickable
+                      color="primary"
+                      variant="outlined"
+                      sx={{ 
+                        borderRadius: '16px',
+                        '&:hover': {
+                          backgroundColor: 'rgba(25, 118, 210, 0.1)',
+                        }
+                      }}
+                    />
+                  );
+                } catch (err) {
+                  return null;
+                }
+              })}
+            </Box>
+          </Grid>
+        )}
+
         {/* Game Stats - Horizontal Scrolling */}
         <Grid item xs={12}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
@@ -173,9 +293,28 @@ function ViewProfile({ user, gameStats, isFollowing, onFollowToggle, isLoggedIn,
                         <div className="game-stat-row" key={ranking.id}>
                           <span className="game-stat-label">{ranking.rank_system.name}:</span>
                           <span className="game-stat-value">
-                            {ranking.rank ? ranking.rank.name : 
-                             ranking.numeric_rank !== null ? `${ranking.numeric_rank} pts` : 
-                             'Unranked'}
+                            {ranking.rank ? (
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                {ranking.rank.icon && (
+                                  <img 
+                                    src={`${API.defaults.baseURL}${ranking.rank.icon}`}
+                                    alt={ranking.rank.name}
+                                    style={{ width: 60, height: 60, objectFit: 'contain' }}
+                                  />
+                                )}
+                                <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                                  {ranking.rank.name}
+                                </Typography>
+                              </Box>
+                            ) : ranking.numeric_rank !== null ? (
+                              <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                                {ranking.numeric_rank} pts
+                              </Typography>
+                            ) : (
+                              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                                Unranked
+                              </Typography>
+                            )}
                           </span>
                         </div>
                       ))}
