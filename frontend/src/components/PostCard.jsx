@@ -32,6 +32,19 @@ import { useAuth } from '../context/AuthContext';
 import API from '../api/axios';
 import { toast } from 'react-toastify';
 
+const stringToColor = (string) => {
+  let hash = 0;
+  for (let i = 0; i < string.length; i++) {
+    hash = string.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  let color = '#';
+  for (let i = 0; i < 3; i++) {
+    const value = (hash >> (i * 8)) & 0xff;
+    color += `00${value.toString(16)}`.slice(-2);
+  }
+  return color;
+};
+
 const PostCard = ({ post, onPostUpdate, onPostDelete }) => {
   const { isLoggedIn, username } = useAuth();
   const [expanded, setExpanded] = useState(false);
@@ -71,22 +84,19 @@ const PostCard = ({ post, onPostUpdate, onPostDelete }) => {
   };
 
   // Handle like/unlike
-  const handleLikeClick = () => {
-    if (!isLoggedIn) {
-      toast.error('Please log in to like posts');
-      return;
+  const handleLikeClick = async () => {
+    try {
+      if (liked) {
+        await API.delete(`/posts/${post.id}/like/`);
+      } else {
+        await API.post(`/posts/${post.id}/like/`);
+      }
+      // Update the local state
+      setLiked(!liked);
+      setLikesCount(liked ? likesCount - 1 : likesCount + 1);
+    } catch (error) {
+      toast.error('Failed to update like');
     }
-
-    const method = liked ? 'delete' : 'post';
-    API[method](`/posts/${post.id}/like/`)
-      .then(() => {
-        setLiked(!liked);
-        setLikesCount(prev => (liked ? prev - 1 : prev + 1));
-      })
-      .catch(error => {
-        console.error('Error toggling like:', error);
-        toast.error('Failed to update like');
-      });
   };
 
   // Show likes list
@@ -119,36 +129,41 @@ const PostCard = ({ post, onPostUpdate, onPostDelete }) => {
   };
 
   // Delete post
-  const handleDeletePost = () => {
-    if (!isOwner) return;
-    
-    API.delete(`/posts/${post.id}/`)
-      .then(() => {
-        handleMenuClose();
-        if (onPostDelete) onPostDelete(post.id);
-        toast.success('Post deleted successfully');
-      })
-      .catch(error => {
-        console.error('Error deleting post:', error);
-        toast.error('Failed to delete post');
-      });
+  const handleDeletePost = async () => {
+    try {
+      await API.delete(`/posts/${post.id}/`);
+      handleMenuClose();
+      // Call the parent's onPostDelete handler
+      if (onPostDelete) {
+        onPostDelete(post.id);
+        // Force a refresh of the current page
+        window.location.reload();
+      }
+    } catch (error) {
+      toast.error('Failed to delete post');
+    }
   };
 
   // Add comment
-  const handleAddComment = () => {
-    if (!commentText.trim() || !isLoggedIn) return;
-    
-    API.post(`/posts/${post.id}/comments/`, { text: commentText })
-      .then(response => {
-        setComments(prev => [...prev, response.data]);
-        setCommentText('');
-        // Update comment count in parent component
-        if (onPostUpdate) onPostUpdate({ ...post, comments_count: post.comments_count + 1 });
-      })
-      .catch(error => {
-        console.error('Error adding comment:', error);
-        toast.error('Failed to add comment');
+  const handleAddComment = async () => {
+    if (!commentText.trim()) return;
+
+    try {
+      const response = await API.post(`/posts/${post.id}/comments/`, {
+        text: commentText
       });
+      
+      // Update the comments state with the new comment
+      setComments([...comments, response.data]);
+      setCommentText('');
+      // Update comment count in parent component
+      if (onPostUpdate) onPostUpdate({ ...post, comments_count: post.comments_count + 1 });
+      
+      // Optionally refresh the page to ensure all data is up to date
+      window.location.reload();
+    } catch (error) {
+      toast.error('Failed to add comment');
+    }
   };
 
   // Add reply
@@ -209,17 +224,22 @@ const PostCard = ({ post, onPostUpdate, onPostDelete }) => {
     }
   };
 
+  const getAvatarProps = (user) => ({
+    sx: {
+      bgcolor: user.avatar ? 'transparent' : stringToColor(user.username),
+    },
+    children: user.avatar ? null : user.username[0].toUpperCase(),
+    src: user.avatar || null,
+  });
+
   return (
     <Card sx={{ maxWidth: 600, mb: 3, mx: 'auto' }}>
       {/* Post Header */}
       <CardHeader
         avatar={
-          <Avatar 
-            src={post.user.avatar} 
+          <Avatar
+            {...getAvatarProps(post.user)}
             alt={post.user.username}
-            component={Link}
-            to={`/profile/${post.user.username}`}
-            sx={{ textDecoration: 'none' }}
           />
         }
         action={
@@ -258,11 +278,13 @@ const PostCard = ({ post, onPostUpdate, onPostDelete }) => {
         <CardMedia
           component="img"
           image={post.image}
-          alt="Post"
-          sx={{ 
+          alt="Post content"
+          sx={{
             maxHeight: 500,
-            objectFit: 'contain',
-            bgcolor: '#f0f0f0'
+            objectFit: 'contain'
+          }}
+          onError={(e) => {
+            e.target.style.display = 'none';
           }}
         />
       )}
@@ -321,7 +343,10 @@ const PostCard = ({ post, onPostUpdate, onPostDelete }) => {
                 onClick={() => setLikesAnchorEl(null)}
               >
                 <ListItemAvatar>
-                  <Avatar src={like.user.avatar} alt={like.user.username} />
+                  <Avatar
+                    {...getAvatarProps(like.user)}
+                    alt={like.user.username}
+                  />
                 </ListItemAvatar>
                 <ListItemText primary={like.user.display_name || like.user.username} />
               </MenuItem>
@@ -368,23 +393,15 @@ const PostCard = ({ post, onPostUpdate, onPostDelete }) => {
                     }
                   >
                     <ListItemAvatar>
-                      <Avatar 
-                        src={comment.user.avatar} 
+                      <Avatar
+                        {...getAvatarProps(comment.user)}
                         alt={comment.user.username}
-                        component={Link}
-                        to={`/profile/${comment.user.username}`}
-                        sx={{ width: 32, height: 32 }}
                       />
                     </ListItemAvatar>
                     <ListItemText
                       primary={
-                        <Typography 
-                          component={Link} 
-                          to={`/profile/${comment.user.username}`}
-                          sx={{ textDecoration: 'none', color: 'inherit', fontWeight: 'bold' }}
-                          variant="body2"
-                        >
-                          {comment.user.display_name || comment.user.username}
+                        <Typography variant="subtitle1">
+                          {comment.user.username}
                         </Typography>
                       }
                       secondary={
@@ -392,36 +409,35 @@ const PostCard = ({ post, onPostUpdate, onPostDelete }) => {
                           <Typography
                             component="span"
                             variant="body2"
-                            color="text.primary"
+                            color="textPrimary"
                           >
                             {comment.text}
                           </Typography>
-                          <Box sx={{ mt: 0.5, display: 'flex', alignItems: 'center' }}>
+                          <Box component="span" sx={{ display: 'block', mt: 1 }}>
                             <Typography
                               component="span"
                               variant="caption"
-                              color="text.secondary"
+                              color="textSecondary"
+                              sx={{ mr: 2 }}
                             >
                               {new Date(comment.created_at).toLocaleString()}
                             </Typography>
-                            {isLoggedIn && (
-                              <Button 
-                                size="small" 
-                                sx={{ ml: 1, minWidth: 'auto', p: 0 }}
-                                onClick={() => setReplyingTo(comment.id === replyingTo ? null : comment.id)}
-                              >
-                                Reply
-                              </Button>
-                            )}
                             {comment.reply_count > 0 && (
-                              <Button 
-                                size="small" 
-                                sx={{ ml: 1, minWidth: 'auto', p: 0 }}
+                              <Button
+                                size="small"
                                 onClick={() => toggleReplies(comment.id)}
+                                sx={{ mr: 1 }}
                               >
-                                {showReplies[comment.id] ? 'Hide Replies' : `View ${comment.reply_count} Replies`}
+                                {showReplies[comment.id] ? 'Hide Replies' : `Show ${comment.reply_count} Replies`}
                               </Button>
                             )}
+                            <Button
+                              size="small"
+                              onClick={() => setReplyingTo(comment.id)}
+                              sx={{ mr: 1 }}
+                            >
+                              Reply
+                            </Button>
                           </Box>
                         </>
                       }
@@ -474,10 +490,14 @@ const PostCard = ({ post, onPostUpdate, onPostDelete }) => {
                             }
                           >
                             <ListItemAvatar sx={{ minWidth: 36 }}>
-                              <Avatar 
-                                src={reply.user.avatar} 
+                              <Avatar
+                                {...getAvatarProps(reply.user)}
                                 alt={reply.user.username}
-                                sx={{ width: 24, height: 24 }}
+                                sx={{ 
+                                  width: 24, 
+                                  height: 24,
+                                  ...getAvatarProps(reply.user).sx 
+                                }}
                               />
                             </ListItemAvatar>
                             <ListItemText
