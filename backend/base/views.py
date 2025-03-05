@@ -188,48 +188,67 @@ class GameStatsListView(APIView):
     def get(self, request, username, format=None):
         try:
             user = MyUser.objects.get(username=username)
-            game_stats = GameStats.objects.filter(user=user).prefetch_related(
-                'rankings', 'rankings__rank_system', 'rankings__rank', 'game', 'player_goal'
-            )
+            game_stats = GameStats.objects.filter(user=user)
             serializer = GameStatsSerializer(game_stats, many=True)
             return Response(serializer.data)
         except MyUser.DoesNotExist:
-            return Response({"detail": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'detail': 'User not found'}, status=404)
 
     def post(self, request, username):
-        if request.user.username != username:
-            return Response(
-                {"detail": "You can only add your own game stats."},
-                status=status.HTTP_403_FORBIDDEN
-            )
-
         try:
-            # Extract rankings data
-            rankings_data = request.data.pop('rankings', [])
+            user = MyUser.objects.get(username=username)
             
-            # Handle game ID - it might be an ID or an object
-            game_data = request.data.get('game')
-            if isinstance(game_data, dict) and 'id' in game_data:
-                request.data['game'] = game_data['id']
-                
-            # Handle player_goal - it might be an ID or an object
-            player_goal = request.data.get('player_goal')
-            if isinstance(player_goal, dict) and 'id' in player_goal:
-                request.data['player_goal'] = player_goal['id']
+            # Check if the user is trying to add stats for their own profile
+            if request.user != user:
+                return Response({'detail': 'You can only add game stats to your own profile'}, status=403)
             
-            # Create GameStats instance
-            serializer = GameStatsSerializer(
-                data=request.data,
-                context={'rankings': rankings_data}
+            # Get the game instance
+            game_id = request.data.get('game_id')
+            try:
+                game = Game.objects.get(id=game_id)
+            except Game.DoesNotExist:
+                return Response({'detail': 'Game not found'}, status=404)
+            
+            # Check if stats already exist for this game
+            if GameStats.objects.filter(user=user, game=game).exists():
+                return Response({'detail': 'Stats for this game already exist'}, status=400)
+
+            # Get player goal if provided
+            player_goal_id = request.data.get('player_goal')
+            player_goal = None
+            if player_goal_id:
+                try:
+                    player_goal = PlayerGoal.objects.get(id=player_goal_id)
+                except PlayerGoal.DoesNotExist:
+                    return Response({'detail': 'Player goal not found'}, status=404)
+            
+            # Create the game stats
+            game_stats = GameStats.objects.create(
+                user=user,
+                game=game,
+                hours_played=request.data.get('hours_played', 0),
+                player_goal=player_goal
             )
             
-            if serializer.is_valid():
-                game_stats = serializer.save(user=request.user)
-                return Response(GameStatsSerializer(game_stats).data, status=status.HTTP_201_CREATED)
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-        except Exception as e:
-            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            # Handle rankings if provided
+            rankings_data = request.data.get('rankings', [])
+            for ranking_data in rankings_data:
+                try:
+                    rank_system = RankSystem.objects.get(id=ranking_data.get('rank_system_id'))
+                    GameRanking.objects.create(
+                        game_stats=game_stats,
+                        rank_system=rank_system,
+                        rank_id=ranking_data.get('rank_id'),
+                        numeric_rank=ranking_data.get('numeric_rank')
+                    )
+                except RankSystem.DoesNotExist:
+                    continue
+            
+            serializer = GameStatsSerializer(game_stats)
+            return Response(serializer.data, status=201)
+            
+        except MyUser.DoesNotExist:
+            return Response({'detail': 'User not found'}, status=404)
 
 
 class GameStatsUpdateView(APIView):
@@ -237,57 +256,84 @@ class GameStatsUpdateView(APIView):
 
     def get(self, request, username, game_id):
         try:
-            game_stats = GameStats.objects.prefetch_related(
-                'rankings', 'rankings__rank_system', 'rankings__rank', 'game', 'player_goal'
-            ).get(
-                user__username=username,
-                game_id=game_id
-            )
+            user = MyUser.objects.get(username=username)
+            game_stats = GameStats.objects.get(user=user, game_id=game_id)
             serializer = GameStatsSerializer(game_stats)
             return Response(serializer.data)
-        except GameStats.DoesNotExist:
-            return Response(
-                {"detail": "Game stats not found."},
-                status=status.HTTP_404_NOT_FOUND
-            )
+        except (MyUser.DoesNotExist, GameStats.DoesNotExist):
+            return Response({'detail': 'Stats not found'}, status=404)
 
     def patch(self, request, username, game_id):
         try:
-            if request.user.username != username:
-                return Response(
-                    {"detail": "You can only update your own game stats."},
-                    status=status.HTTP_403_FORBIDDEN
-                )
+            user = MyUser.objects.get(username=username)
+            
+            # Check if the user is trying to update their own stats
+            if request.user != user:
+                return Response({'detail': 'You can only update your own game stats'}, status=403)
+            
+            game_stats = GameStats.objects.get(user=user, game_id=game_id)
+            
+            # Update hours played if provided
+            if 'hours_played' in request.data:
+                game_stats.hours_played = request.data['hours_played']
 
-            game_stats = GameStats.objects.get(user=request.user, game_id=game_id)
-            
-            # Extract rankings data
-            rankings_data = request.data.pop('rankings', [])
-            
-            # Handle player_goal - it might be an ID or an object
-            player_goal = request.data.get('player_goal')
-            if isinstance(player_goal, dict) and 'id' in player_goal:
-                request.data['player_goal'] = player_goal['id']
-            
-            serializer = GameStatsSerializer(
-                game_stats,
-                data=request.data,
-                partial=True,
-                context={'rankings': rankings_data}
-            )
-            
-            if serializer.is_valid():
-                game_stats = serializer.save()
-                return Response(GameStatsSerializer(game_stats).data)
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            # Update player goal if provided
+            if 'player_goal' in request.data:
+                player_goal_id = request.data['player_goal']
+                if player_goal_id is None:
+                    game_stats.player_goal = None
+                else:
+                    try:
+                        player_goal = PlayerGoal.objects.get(id=player_goal_id)
+                        game_stats.player_goal = player_goal
+                    except PlayerGoal.DoesNotExist:
+                        return Response({'detail': 'Player goal not found'}, status=404)
 
+            # Save the changes
+            game_stats.save()
+            
+            # Update rankings if provided
+            if 'rankings' in request.data:
+                rankings_data = request.data['rankings']
+                
+                # Remove existing rankings
+                game_stats.rankings.all().delete()
+                
+                # Create new rankings
+                for ranking_data in rankings_data:
+                    try:
+                        rank_system = RankSystem.objects.get(id=ranking_data.get('rank_system_id'))
+                        GameRanking.objects.create(
+                            game_stats=game_stats,
+                            rank_system=rank_system,
+                            rank_id=ranking_data.get('rank_id'),
+                            numeric_rank=ranking_data.get('numeric_rank')
+                        )
+                    except RankSystem.DoesNotExist:
+                        continue
+            
+            serializer = GameStatsSerializer(game_stats)
+            return Response(serializer.data)
+            
+        except MyUser.DoesNotExist:
+            return Response({'detail': 'User not found'}, status=404)
         except GameStats.DoesNotExist:
-            return Response(
-                {"detail": "Game stats not found."},
-                status=status.HTTP_404_NOT_FOUND
-            )
-        except Exception as e:
-            return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'detail': 'Stats not found'}, status=404)
+
+    def delete(self, request, username, game_id):
+        try:
+            user = MyUser.objects.get(username=username)
+            
+            # Check if the user is trying to delete their own stats
+            if request.user != user:
+                return Response({'detail': 'You can only delete your own game stats'}, status=403)
+            
+            game_stats = GameStats.objects.get(user=user, game_id=game_id)
+            game_stats.delete()
+            return Response(status=204)
+            
+        except (MyUser.DoesNotExist, GameStats.DoesNotExist):
+            return Response({'detail': 'Stats not found'}, status=404)
 
 
 class SearchView(APIView):
@@ -444,7 +490,7 @@ class RankTierListView(APIView):
 
 class PlayerGoalListView(APIView):
     """
-    Retrieve all player goals.
+    List and create player goals.
     """
     permission_classes = [permissions.AllowAny]
 
@@ -455,6 +501,50 @@ class PlayerGoalListView(APIView):
             return Response(serializer.data)
         except Exception as e:
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    def post(self, request):
+        """Create a new player goal"""
+        if not request.user.is_staff:  # Only staff can create player goals
+            return Response({"detail": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
+            
+        serializer = PlayerGoalSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class PlayerGoalDetailView(APIView):
+    """
+    Retrieve, update or delete a player goal.
+    """
+    permission_classes = [permissions.IsAdminUser]  # Only admin users can modify player goals
+
+    def get(self, request, goal_id):
+        try:
+            goal = PlayerGoal.objects.get(id=goal_id)
+            serializer = PlayerGoalSerializer(goal)
+            return Response(serializer.data)
+        except PlayerGoal.DoesNotExist:
+            return Response({"detail": "Player goal not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    def put(self, request, goal_id):
+        try:
+            goal = PlayerGoal.objects.get(id=goal_id)
+            serializer = PlayerGoalSerializer(goal, data=request.data)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except PlayerGoal.DoesNotExist:
+            return Response({"detail": "Player goal not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    def delete(self, request, goal_id):
+        try:
+            goal = PlayerGoal.objects.get(id=goal_id)
+            goal.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except PlayerGoal.DoesNotExist:
+            return Response({"detail": "Player goal not found"}, status=status.HTTP_404_NOT_FOUND)
 
 # New views for social features
 
