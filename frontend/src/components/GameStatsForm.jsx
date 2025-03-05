@@ -13,26 +13,31 @@ import {
   FormControl,
   InputLabel,
   CircularProgress,
-  Divider,
   Stack,
   Card,
   CardContent,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
 } from '@mui/material';
 
 const GameStatsForm = ({ username, initialStats, onUpdate }) => {
   const [games, setGames] = useState([]);
   const [rankingSystems, setRankingSystems] = useState([]);
-  const [rankTiers, setRankTiers] = useState({});  // Changed to object to store tiers for each system
+  const [rankTiers, setRankTiers] = useState({});
   const [playerGoals, setPlayerGoals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   const [formData, setFormData] = useState({
     game: '',
     hours_played: '',
     player_goal: '',
-    rankings: [], // Array to store multiple ranking system data
+    rankings: [],
   });
 
   // Fetch initial data
@@ -49,29 +54,21 @@ const GameStatsForm = ({ username, initialStats, onUpdate }) => {
         setPlayerGoals(goalsRes.data);
 
         if (initialStats) {
-          // Transform initial stats to new format
-          const rankings = [];
-          if (initialStats.rank_system) {
-            rankings.push({
-              rank_system: initialStats.rank_system.id,
-              numeric_rank: initialStats.numeric_rank || '',
-              rank: initialStats.rank?.id || '',
-            });
-          }
-
           setFormData({
-            game: initialStats.game?.id || '',
-            hours_played: initialStats.hours_played || '',
+            game: initialStats.game.id,
+            hours_played: initialStats.hours_played,
             player_goal: initialStats.player_goal?.id || '',
-            rankings,
+            rankings: initialStats.rankings.map(ranking => ({
+              rank_system: ranking.rank_system.id,
+              rank: ranking.rank?.id || '',
+              numeric_rank: ranking.numeric_rank || '',
+            })),
           });
 
-          // If we have initial stats, fetch the ranking systems for that game
-          if (initialStats.game?.id) {
+          if (initialStats.game.id) {
             const rankingSystemsRes = await API.get(`/games/${initialStats.game.id}/ranking-systems/`);
             setRankingSystems(rankingSystemsRes.data);
             
-            // Fetch rank tiers for all non-numeric ranking systems
             const tierPromises = rankingSystemsRes.data
               .filter(rs => !rs.is_numeric)
               .map(rs => API.get(`/ranking-systems/${rs.id}/tiers/`));
@@ -97,7 +94,6 @@ const GameStatsForm = ({ username, initialStats, onUpdate }) => {
     fetchData();
   }, [initialStats]);
 
-  // Fetch ranking systems when game changes
   useEffect(() => {
     const fetchRankingSystems = async () => {
       if (formData.game) {
@@ -105,13 +101,11 @@ const GameStatsForm = ({ username, initialStats, onUpdate }) => {
           const response = await API.get(`/games/${formData.game}/ranking-systems/`);
           setRankingSystems(response.data);
           
-          // Reset rankings when game changes
           setFormData(prev => ({
             ...prev,
             rankings: [],
           }));
 
-          // Fetch rank tiers for all non-numeric ranking systems
           const tierPromises = response.data
             .filter(rs => !rs.is_numeric)
             .map(rs => API.get(`/ranking-systems/${rs.id}/tiers/`));
@@ -126,6 +120,7 @@ const GameStatsForm = ({ username, initialStats, onUpdate }) => {
           setRankTiers(newRankTiers);
         } catch (err) {
           console.error('Error fetching ranking systems:', err);
+          setError('Error fetching ranking systems');
         }
       }
     };
@@ -137,7 +132,7 @@ const GameStatsForm = ({ username, initialStats, onUpdate }) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: value || ''
+      [name]: value
     }));
   };
 
@@ -149,14 +144,13 @@ const GameStatsForm = ({ username, initialStats, onUpdate }) => {
       if (existingIndex >= 0) {
         rankings[existingIndex] = {
           ...rankings[existingIndex],
-          [field]: value || '',
+          [field]: value,
         };
       } else {
         rankings.push({
           rank_system: rankSystemId,
-          numeric_rank: '',
-          rank: '',
-          [field]: value || '',
+          numeric_rank: field === 'numeric_rank' ? value : '',
+          rank: field === 'rank' ? value : '',
         });
       }
 
@@ -172,30 +166,73 @@ const GameStatsForm = ({ username, initialStats, onUpdate }) => {
     setError('');
     setSuccess('');
 
-    try {
-      const endpoint = initialStats
-        ? `/users/${username}/game-stats/${initialStats.id}/`
-        : `/users/${username}/game-stats/`;
-      
-      const method = initialStats ? 'patch' : 'post';
+    if (!formData.game) {
+      setError('Please select a game');
+      return;
+    }
 
-      // Clean up the form data before submitting
+    try {
       const submitData = {
-        game: formData.game || null,
-        hours_played: formData.hours_played || 0,
-        player_goal: formData.player_goal || null,
-        rankings: formData.rankings.map(ranking => ({
-          rank_system: ranking.rank_system,
-          numeric_rank: ranking.numeric_rank || null,
-          rank: ranking.rank || null,
-        })),
+        game_id: parseInt(formData.game),
+        hours_played: parseInt(formData.hours_played) || 0,
+        player_goal: formData.player_goal ? parseInt(formData.player_goal) : null,
+        rankings: formData.rankings
+          .filter(ranking => ranking.rank_system && (ranking.rank || ranking.numeric_rank))
+          .map(ranking => ({
+            rank_system_id: parseInt(ranking.rank_system),
+            rank_id: ranking.rank ? parseInt(ranking.rank) : null,
+            numeric_rank: ranking.numeric_rank ? parseInt(ranking.numeric_rank) : null
+          }))
       };
 
-      await API[method](endpoint, submitData);
-      setSuccess('Game statistics updated successfully!');
-      if (onUpdate) onUpdate();
+      console.log('Submitting data:', submitData);
+
+      let response;
+      if (initialStats) {
+        response = await API.patch(
+          `/users/${username}/game-stats/${initialStats.game.id}/`,
+          submitData
+        );
+      } else {
+        response = await API.post(
+          `/users/${username}/game-stats/`,
+          submitData
+        );
+      }
+
+      if (response.status === 200 || response.status === 201) {
+        setSuccess('Game statistics updated successfully!');
+        if (onUpdate) onUpdate();
+        
+        if (!initialStats) {
+          setFormData({
+            game: '',
+            hours_played: '',
+            player_goal: '',
+            rankings: []
+          });
+        }
+      }
     } catch (err) {
-      setError(err.response?.data?.detail || 'Error updating game statistics');
+      console.error('Error submitting game stats:', err);
+      const errorMessage = err.response?.data?.detail || 
+                         err.response?.data?.game_id?.[0] ||
+                         err.response?.data?.message ||
+                         'Error updating game statistics';
+      setError(errorMessage);
+    }
+  };
+
+  const handleDelete = async () => {
+    try {
+      await API.delete(`/users/${username}/game-stats/${initialStats.game.id}/`);
+      setSuccess('Game statistics deleted successfully!');
+      if (onUpdate) onUpdate();
+      setDeleteDialogOpen(false);
+    } catch (err) {
+      console.error('Error deleting game stats:', err);
+      setError('Error deleting game statistics');
+      setDeleteDialogOpen(false);
     }
   };
 
@@ -218,16 +255,16 @@ const GameStatsForm = ({ username, initialStats, onUpdate }) => {
 
       <form onSubmit={handleSubmit}>
         <Grid container spacing={3}>
-          {/* Game Selection */}
           <Grid item xs={12}>
             <FormControl fullWidth>
               <InputLabel>Game</InputLabel>
               <Select
                 name="game"
-                value={formData.game || ''}
+                value={formData.game}
                 onChange={handleChange}
                 required
                 label="Game"
+                disabled={initialStats}
               >
                 <MenuItem value="">
                   <em>Select a game</em>
@@ -241,21 +278,19 @@ const GameStatsForm = ({ username, initialStats, onUpdate }) => {
             </FormControl>
           </Grid>
 
-          {/* Hours Played */}
           <Grid item xs={12}>
             <TextField
               fullWidth
               label="Hours Played"
               name="hours_played"
               type="number"
-              value={formData.hours_played || ''}
+              value={formData.hours_played}
               onChange={handleChange}
               required
               inputProps={{ min: 0 }}
             />
           </Grid>
 
-          {/* Player Goal */}
           <Grid item xs={12}>
             <FormControl fullWidth>
               <InputLabel>Player Goal</InputLabel>
@@ -277,7 +312,6 @@ const GameStatsForm = ({ username, initialStats, onUpdate }) => {
             </FormControl>
           </Grid>
 
-          {/* Ranking Systems */}
           {formData.game && rankingSystems.length > 0 && (
             <Grid item xs={12}>
               <Typography variant="h6" gutterBottom>
@@ -334,20 +368,50 @@ const GameStatsForm = ({ username, initialStats, onUpdate }) => {
             </Grid>
           )}
 
-          {/* Submit Button */}
           <Grid item xs={12}>
-            <Button
-              type="submit"
-              variant="contained"
-              color="primary"
-              size="large"
-              fullWidth
-            >
-              {initialStats ? 'Update' : 'Add'} Game Stats
-            </Button>
+            <Stack direction="row" spacing={2}>
+              <Button
+                type="submit"
+                variant="contained"
+                color="primary"
+                size="large"
+                fullWidth
+              >
+                {initialStats ? 'Update' : 'Add'} Game Stats
+              </Button>
+              
+              {initialStats && (
+                <Button
+                  variant="contained"
+                  color="error"
+                  size="large"
+                  onClick={() => setDeleteDialogOpen(true)}
+                >
+                  Delete
+                </Button>
+              )}
+            </Stack>
           </Grid>
         </Grid>
       </form>
+
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+      >
+        <DialogTitle>Confirm Delete</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to delete these game statistics? This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
+          <Button onClick={handleDelete} color="error" autoFocus>
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Paper>
   );
 };
