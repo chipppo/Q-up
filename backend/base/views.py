@@ -733,11 +733,10 @@ class CommentRepliesView(APIView):
     def get(self, request, comment_id):
         try:
             comment = Comment.objects.get(id=comment_id)
-            replies = Comment.objects.filter(parent=comment).select_related('user')
-            serializer = ReplySerializer(replies, many=True)
+            replies = comment.replies.all().order_by('created_at')
+            serializer = ReplySerializer(replies, many=True, context={'request': request})
             return Response(serializer.data)
         except Comment.DoesNotExist:
-            return Response(
-                {"detail": "Comment not found."},
-                status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({'detail': 'Comment not found'}, status=404)
+        except Exception as e:
+            return Response({'detail': str(e)}, status=500)

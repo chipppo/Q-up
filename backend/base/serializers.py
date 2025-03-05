@@ -254,6 +254,13 @@ class ReplySerializer(serializers.ModelSerializer):
         fields = ['id', 'user', 'post', 'text', 'parent', 'created_at', 'updated_at']
         read_only_fields = ['id', 'user', 'created_at', 'updated_at']
 
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        user_data = representation.get('user', {})
+        if user_data and user_data.get('avatar'):
+            user_data['avatar'] = self.context['request'].build_absolute_uri(user_data['avatar'])
+        return representation
+
 class LikeSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
     
