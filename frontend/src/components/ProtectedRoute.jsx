@@ -1,12 +1,16 @@
 // src/components/ProtectedRoute.jsx
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { toast } from "react-toastify";
 
 const ProtectedRoute = ({ children }) => {
   const { isLoggedIn } = useAuth();
+  const location = useLocation();
 
   if (!isLoggedIn) {
-    return <Navigate to="/login" />;
+    // Store the current path to redirect back after login
+    toast.info("Please log in to access this page");
+    return <Navigate to="/login" state={{ from: location.pathname }} />;
   }
 
   return children;

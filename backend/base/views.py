@@ -341,9 +341,100 @@ class SearchView(APIView):
 
     def get(self, request, format=None):
         query = request.query_params.get("q", "")
-        users = MyUser.objects.filter(
-            Q(username__icontains=query) | Q(display_name__icontains=query)
-        )
+        
+        # Start with a base queryset
+        users = MyUser.objects.all()
+        
+        # Apply text search if query is provided
+        if query:
+            users = users.filter(
+                Q(username__icontains=query) | 
+                Q(display_name__icontains=query) |
+                Q(bio__icontains=query)
+            )
+        
+        # Filter by platforms
+        platforms = request.query_params.get("platforms")
+        if platforms:
+            platform_list = platforms.split(",")
+            # Filter users who have at least one of the specified platforms
+            platform_users = []
+            for user in users:
+                if any(platform in user.platforms for platform in platform_list):
+                    platform_users.append(user.id)
+            users = users.filter(id__in=platform_users)
+        
+        # Filter by languages
+        languages = request.query_params.get("languages")
+        if languages:
+            language_list = languages.split(",")
+            # Filter users who have at least one of the specified languages
+            language_users = []
+            for user in users:
+                if any(language in user.language_preference for language in language_list):
+                    language_users.append(user.id)
+            users = users.filter(id__in=language_users)
+        
+        # Filter by active hours
+        active_hours = request.query_params.get("active_hours")
+        if active_hours:
+            hours_list = active_hours.split(",")
+            
+            # The hours are already in UTC from the frontend
+            # We need to convert them to each user's local time for comparison
+            active_users = []
+            
+            for user in users:
+                user_timezone_offset = user.timezone_offset
+                
+                # Convert the requested hours to the user's timezone
+                user_local_hours = []
+                for hour in hours_list:
+                    if hour:  # Skip empty strings
+                        hour_parts = hour.split(':')
+                        if len(hour_parts) == 2:
+                            hour_num = int(hour_parts[0])
+                            minute_str = hour_parts[1]
+                            
+                            # Convert UTC hour to user's local hour
+                            local_hour = (hour_num + user_timezone_offset) % 24
+                            local_hour_str = f"{local_hour:02d}:{minute_str}"
+                            user_local_hours.append(local_hour_str)
+                
+                # Check if any of the user's active hours match the converted search hours
+                if any(hour in user.active_hours for hour in user_local_hours):
+                    active_users.append(user.id)
+            
+            if hours_list:  # Only apply filter if we have valid hours
+                users = users.filter(id__in=active_users)
+        
+        # Filter by mic availability
+        mic_available = request.query_params.get("mic_available")
+        if mic_available is not None:
+            mic_bool = mic_available.lower() == 'true'
+            users = users.filter(mic_available=mic_bool)
+        
+        # Filter by games
+        games = request.query_params.get("games")
+        if games:
+            game_ids = games.split(",")
+            # Find users who play these games
+            users = users.filter(game_stats__game__id__in=game_ids).distinct()
+        
+        # Filter by player goals
+        player_goals = request.query_params.get("player_goals")
+        if player_goals:
+            goal_ids = player_goals.split(",")
+            # Find users who have these player goals
+            users = users.filter(game_stats__player_goal__id__in=goal_ids).distinct()
+        
+        # Filter by minimum hours played
+        min_hours_played = request.query_params.get("min_hours_played")
+        if min_hours_played and min_hours_played.isdigit():
+            # Find users who have played at least this many hours in any game
+            users = users.filter(game_stats__hours_played__gte=int(min_hours_played)).distinct()
+        
+        # Serialize and return the filtered users
         serializer = UserSerializer(users, many=True)
         return Response(serializer.data)
 
@@ -562,7 +653,16 @@ class PostListView(APIView):
             Q(user=request.user) | Q(user__in=following_users)
         ).select_related('user', 'game').order_by('-created_at')
         
-        serializer = PostSerializer(posts, many=True, context={'request': request})
+        # Add pagination
+        page = int(request.query_params.get('page', 1))
+        limit = int(request.query_params.get('limit', 20))
+        start = (page - 1) * limit
+        end = start + limit
+        
+        # Slice the queryset for pagination
+        paginated_posts = posts[start:end]
+        
+        serializer = PostSerializer(paginated_posts, many=True, context={'request': request})
         return Response(serializer.data)
     
     def post(self, request):

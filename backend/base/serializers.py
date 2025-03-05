@@ -11,11 +11,12 @@ class UserSerializer(serializers.ModelSerializer):
     language_preference = serializers.ListField(child=serializers.CharField(), required=False)
     platforms = serializers.ListField(child=serializers.CharField(), required=False)
     social_links = serializers.ListField(child=serializers.CharField(), required=False)
+    avatar_url = serializers.SerializerMethodField()
 
     class Meta:
         model = MyUser
         fields = [
-            'id', 'username', 'display_name', 'email', 'avatar', 
+            'id', 'username', 'display_name', 'email', 'avatar', 'avatar_url',
             'followers_count', 'following_count', 'active_hours',
             'language_preference', 'platforms', 'mic_available',
             'social_links', 'created_at', 'is_active', 'timezone',
@@ -27,6 +28,11 @@ class UserSerializer(serializers.ModelSerializer):
 
     def get_following_count(self, obj):
         return obj.following.count()
+
+    def get_avatar_url(self, obj):
+        if obj.avatar:
+            return obj.avatar.url
+        return '/media/default/default-avatar.svg'
 
     def validate_active_hours(self, value):
         if not isinstance(value, list):

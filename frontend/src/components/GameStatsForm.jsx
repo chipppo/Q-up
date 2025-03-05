@@ -258,23 +258,23 @@ const GameStatsForm = ({ username, initialStats, onUpdate }) => {
           <Grid item xs={12}>
             <FormControl fullWidth>
               <InputLabel>Game</InputLabel>
-              <Select
+            <Select
                 name="game"
                 value={formData.game}
                 onChange={handleChange}
-                required
+              required
                 label="Game"
                 disabled={initialStats}
-              >
+            >
                 <MenuItem value="">
                   <em>Select a game</em>
                 </MenuItem>
-                {games.map(game => (
+              {games.map(game => (
                   <MenuItem key={game.id} value={game.id}>
                     {game.name}
                   </MenuItem>
-                ))}
-              </Select>
+              ))}
+            </Select>
             </FormControl>
           </Grid>
 
@@ -291,7 +291,7 @@ const GameStatsForm = ({ username, initialStats, onUpdate }) => {
             />
           </Grid>
 
-          <Grid item xs={12}>
+            <Grid item xs={12}>
             <FormControl fullWidth>
               <InputLabel>Player Goal</InputLabel>
               <Select
@@ -310,7 +310,7 @@ const GameStatsForm = ({ username, initialStats, onUpdate }) => {
                 ))}
               </Select>
             </FormControl>
-          </Grid>
+            </Grid>
 
           {formData.game && rankingSystems.length > 0 && (
             <Grid item xs={12}>
@@ -328,8 +328,8 @@ const GameStatsForm = ({ username, initialStats, onUpdate }) => {
                           {system.name}
                         </Typography>
                         {system.is_numeric ? (
-                          <TextField
-                            fullWidth
+              <TextField
+                fullWidth
                             label="Numeric Rank"
                             type="number"
                             value={ranking.numeric_rank || ''}
@@ -370,13 +370,13 @@ const GameStatsForm = ({ username, initialStats, onUpdate }) => {
 
           <Grid item xs={12}>
             <Stack direction="row" spacing={2}>
-              <Button
-                type="submit"
-                variant="contained"
-                color="primary"
-                size="large"
-                fullWidth
-              >
+            <Button
+              type="submit"
+              variant="contained"
+              color="primary"
+              size="large"
+              fullWidth
+            >
                 {initialStats ? 'Update' : 'Add'} Game Stats
               </Button>
               
@@ -388,7 +388,7 @@ const GameStatsForm = ({ username, initialStats, onUpdate }) => {
                   onClick={() => setDeleteDialogOpen(true)}
                 >
                   Delete
-                </Button>
+            </Button>
               )}
             </Stack>
           </Grid>
