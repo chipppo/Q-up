@@ -29,6 +29,7 @@ import ChangePasswordForm from '../components/ChangePasswordForm';
 import GameStatsForm from '../components/GameStatsForm';
 import CreatePostForm from '../components/CreatePostForm';
 import PostCard from '../components/PostCard';
+import MessageIcon from '@mui/icons-material/Message';
 
 // Define time periods with their corresponding hours
 const TIME_PERIODS = [
@@ -44,10 +45,33 @@ const TIME_PERIODS = [
 
 // ViewProfile Component - moved outside of Profile component
 function ViewProfile({ user, gameStats, isFollowing, onFollowToggle, isLoggedIn, loggedInUsername, followersCount, posts }) {
+  const navigate = useNavigate();
   const isOwnProfile = loggedInUsername === user?.username;
   
-  const handleSendMessage = () => {
-    toast.info('Messaging feature coming soon!');
+  const handleSendMessage = async () => {
+    if (!isLoggedIn) {
+      toast.error('Please log in to send messages');
+      navigate('/login', { state: { from: `/profile/${user.username}` } });
+      return;
+    }
+
+    try {
+      // Create or get existing chat
+      const response = await API.post('/chats/', {
+        username: user.username
+      });
+
+      // Navigate to chat with the specific chat ID
+      navigate('/chat', {
+        state: {
+          selectedChatId: response.data.id,
+          returnTo: `/profile/${user.username}`
+        }
+      });
+    } catch (error) {
+      console.error('Error creating chat:', error);
+      toast.error('Failed to create chat. Please try again later.');
+    }
   };
 
   // Helper function to format active hours for display
@@ -87,13 +111,15 @@ function ViewProfile({ user, gameStats, isFollowing, onFollowToggle, isLoggedIn,
   return (
     <Paper elevation={3} sx={{ p: 4, maxWidth: 800, mx: 'auto', my: 4 }}>
       <Grid container spacing={3}>
-        {/* Header with Avatar, Name, and Action Buttons */}
-        <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <Box sx={{ display: 'flex', gap: 3, alignItems: 'center' }}>
+        {/* Profile Header */}
+        <Grid item xs={12} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <Avatar
               src={user?.avatar ? `${API.defaults.baseURL}${user.avatar}` : null}
-              sx={{ width: 120, height: 120 }}
-            />
+              sx={{ width: 100, height: 100 }}
+            >
+              {user?.username?.[0]?.toUpperCase()}
+            </Avatar>
             <Box>
               <Typography variant="h4">{user?.display_name || user?.username}</Typography>
               <Typography variant="subtitle1">@{user?.username}</Typography>
@@ -121,8 +147,7 @@ function ViewProfile({ user, gameStats, isFollowing, onFollowToggle, isLoggedIn,
               </Box>
             </Box>
           </Box>
-
-          {/* Action Buttons */}
+          
           <Box>
             {isOwnProfile ? (
               <Button
@@ -134,22 +159,22 @@ function ViewProfile({ user, gameStats, isFollowing, onFollowToggle, isLoggedIn,
                 Edit Profile
               </Button>
             ) : isLoggedIn && (
-              <>
+              <Box sx={{ display: 'flex', gap: 1 }}>
                 <Button
                   variant="contained"
                   onClick={onFollowToggle}
                   startIcon={isFollowing ? <PersonRemoveIcon /> : <PersonAddIcon />}
-                  sx={{ mr: 1 }}
                 >
                   {isFollowing ? 'Unfollow' : 'Follow'}
                 </Button>
                 <Button
                   variant="outlined"
                   onClick={handleSendMessage}
+                  startIcon={<MessageIcon />}
                 >
                   Message
                 </Button>
-              </>
+              </Box>
             )}
           </Box>
         </Grid>

@@ -354,3 +354,63 @@ class Comment(models.Model):
     
     def __str__(self):
         return f"{self.user.username}'s comment on {self.post}"
+
+class Chat(models.Model):
+    participants = models.ManyToManyField(MyUser, related_name='chats')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-updated_at']
+    
+    def __str__(self):
+        participant_names = ', '.join(user.username for user in self.participants.all())
+        return f"Chat {self.id} between {participant_names}"
+    
+    def save(self, *args, **kwargs):
+        # Update the updated_at timestamp
+        self.updated_at = timezone.now()
+        super().save(*args, **kwargs)
+    
+    def get_messages(self):
+        return self.messages.all().order_by('created_at')
+    
+    def add_message(self, sender, content=None, image=None):
+        if not content and not image:
+            raise ValidationError("Message must have either content or image")
+        
+        message = Message.objects.create(
+            chat=self,
+            sender=sender,
+            content=content,
+            image=image
+        )
+        
+        # Update chat's updated_at timestamp
+        self.save()
+        
+        return message
+
+class Message(models.Model):
+    chat = models.ForeignKey(Chat, on_delete=models.CASCADE, related_name='messages')
+    sender = models.ForeignKey(MyUser, on_delete=models.CASCADE, related_name='sent_messages')
+    content = models.TextField(blank=True)
+    image = models.ImageField(upload_to='chat_images/', null=True, blank=True)
+    parent = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='replies')
+    is_edited = models.BooleanField(default=False)
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['created_at']
+    
+    def __str__(self):
+        return f"Message from {self.sender.username} in chat {self.chat.id}"
+    
+    def delete(self, *args, **kwargs):
+        # Delete the image file when deleting the message
+        if self.image:
+            if os.path.isfile(self.image.path):
+                os.remove(self.image.path)
+        super().delete(*args, **kwargs)

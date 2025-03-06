@@ -1,42 +1,122 @@
 // src/components/Header.jsx
 import React from "react";
-import { Link, useNavigate } from "react-router-dom"; // Import useNavigate
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
+import { AppBar, Toolbar, Button, IconButton, Typography, Box, Badge } from '@mui/material';
+import {
+  Message as MessageIcon,
+  Notifications as NotificationsIcon,
+  Person as PersonIcon,
+  Dashboard as DashboardIcon,
+  Feed as FeedIcon,
+  Search as SearchIcon,
+  Logout as LogoutIcon
+} from '@mui/icons-material';
 import "./Header.css";
 
 const Header = () => {
   const { isLoggedIn, username, logout } = useAuth();
-  const navigate = useNavigate(); // Use the useNavigate hook
+  const navigate = useNavigate();
 
   const handleLogout = () => {
     logout(() => {
-      navigate("/"); // Navigate to the Home page after logout
+      navigate("/");
     });
   };
 
   console.log("Header - Current username:", username); // Debugging
 
   return (
-    <header>
-      <nav>
-        <Link to="/">Home</Link>
-        <Link to="/search-profiles">Find Players</Link>
-        {isLoggedIn ? (
-          <>
-            <span>Welcome, {username || "User"}!</span>
-            {username && <Link to={`/profile/${username}`}>Profile</Link>}
-            <Link to="/feed">Feed</Link>
-            <Link to="/dashboard">Dashboard</Link>
-            <button onClick={handleLogout}>Logout</button> {/* Use handleLogout */}
-          </>
-        ) : (
-          <>
-            <Link to="/login">Login</Link>
-            <Link to="/register">Register</Link>
-          </>
-        )}
-      </nav>
-    </header>
+    <AppBar position="sticky">
+      <Toolbar sx={{ justifyContent: 'space-between' }}>
+        <Typography
+          variant="h6"
+          component={Link}
+          to="/"
+          sx={{
+            textDecoration: 'none',
+            color: 'inherit',
+            flexGrow: 0
+          }}
+        >
+          Q-up
+        </Typography>
+
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Button
+            component={Link}
+            to="/search-profiles"
+            color="inherit"
+            startIcon={<SearchIcon />}
+          >
+            Find Players
+          </Button>
+
+          {isLoggedIn ? (
+            <>
+              <IconButton
+                color="inherit"
+                component={Link}
+                to="/feed"
+              >
+                <FeedIcon />
+              </IconButton>
+
+              <IconButton
+                color="inherit"
+                component={Link}
+                to="/chat"
+              >
+                <Badge color="error" variant="dot">
+                  <MessageIcon />
+                </Badge>
+              </IconButton>
+
+              <IconButton
+                color="inherit"
+                component={Link}
+                to="/dashboard"
+              >
+                <DashboardIcon />
+              </IconButton>
+
+              <Button
+                component={Link}
+                to={`/profile/${username}`}
+                color="inherit"
+                startIcon={<PersonIcon />}
+              >
+                {username}
+              </Button>
+
+              <IconButton
+                color="inherit"
+                onClick={handleLogout}
+              >
+                <LogoutIcon />
+              </IconButton>
+            </>
+          ) : (
+            <>
+              <Button
+                component={Link}
+                to="/login"
+                color="inherit"
+              >
+                Login
+              </Button>
+              <Button
+                component={Link}
+                to="/register"
+                color="inherit"
+              >
+                Register
+              </Button>
+            </>
+          )}
+        </Box>
+      </Toolbar>
+    </AppBar>
   );
 };
 

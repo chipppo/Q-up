@@ -72,11 +72,11 @@ const PostCard = ({ post, onPostUpdate, onPostDelete }) => {
       
       try {
         const response = await API.get(`/posts/${post.id}/`);
-        setComments(response.data.comments || []);
-        setLoadingComments(false);
+          setComments(response.data.comments || []);
+          setLoadingComments(false);
       } catch (error) {
-        console.error('Error fetching comments:', error);
-        setLoadingComments(false);
+          console.error('Error fetching comments:', error);
+          setLoadingComments(false);
         
         if (error.response) {
           if (error.response.status === 404) {
@@ -101,7 +101,7 @@ const PostCard = ({ post, onPostUpdate, onPostDelete }) => {
       toast.error('You must be logged in to like posts');
       return;
     }
-    
+
     try {
       if (liked) {
         await API.delete(`/posts/${post.id}/like/`);
@@ -109,7 +109,7 @@ const PostCard = ({ post, onPostUpdate, onPostDelete }) => {
         await API.post(`/posts/${post.id}/like/`);
       }
       // Update the local state
-      setLiked(!liked);
+        setLiked(!liked);
       setLikesCount(liked ? likesCount - 1 : likesCount + 1);
       
       // Update the post in the parent component
@@ -150,11 +150,11 @@ const PostCard = ({ post, onPostUpdate, onPostDelete }) => {
       
       try {
         const response = await API.get(`/posts/${post.id}/likes/`);
-        setLikes(response.data);
-        setLoadingLikes(false);
+          setLikes(response.data);
+          setLoadingLikes(false);
       } catch (error) {
-        console.error('Error fetching likes:', error);
-        setLoadingLikes(false);
+          console.error('Error fetching likes:', error);
+          setLoadingLikes(false);
         
         if (error.response) {
           if (error.response.status === 404) {
@@ -189,7 +189,7 @@ const PostCard = ({ post, onPostUpdate, onPostDelete }) => {
     
     try {
       await API.delete(`/posts/${post.id}/`);
-      handleMenuClose();
+        handleMenuClose();
       
       // Call the parent's onPostDelete handler
       if (onPostDelete) {
@@ -197,7 +197,7 @@ const PostCard = ({ post, onPostUpdate, onPostDelete }) => {
         toast.success('Post deleted successfully');
       }
     } catch (error) {
-      console.error('Error deleting post:', error);
+        console.error('Error deleting post:', error);
       
       if (error.response) {
         if (error.response.status === 401) {
@@ -224,7 +224,7 @@ const PostCard = ({ post, onPostUpdate, onPostDelete }) => {
   // Add comment
   const handleAddComment = async () => {
     if (!commentText.trim() || !isLoggedIn) return;
-
+    
     try {
       const response = await API.post(`/posts/${post.id}/comments/`, {
         text: commentText
@@ -276,13 +276,13 @@ const PostCard = ({ post, onPostUpdate, onPostDelete }) => {
     
     try {
       const response = await API.post(`/posts/${post.id}/comments/`, { 
-        text: replyText,
+      text: replyText,
         parent: parentId
       });
       
       console.log('Reply added successfully:', response.data);
-      setReplyText('');
-      setReplyingTo(null);
+        setReplyText('');
+        setReplyingTo(null);
       
       // Update the UI to show the new reply
       // If the replies for this comment are already shown, add the new reply
@@ -304,7 +304,7 @@ const PostCard = ({ post, onPostUpdate, onPostDelete }) => {
       
       toast.success('Reply added successfully');
     } catch (error) {
-      console.error('Error adding reply:', error);
+        console.error('Error adding reply:', error);
       
       // Handle different error scenarios
       if (error.response) {
@@ -372,9 +372,9 @@ const PostCard = ({ post, onPostUpdate, onPostDelete }) => {
         }
       }
       
-      toast.success('Comment deleted successfully');
+        toast.success('Comment deleted successfully');
     } catch (error) {
-      console.error('Error deleting comment:', error);
+        console.error('Error deleting comment:', error);
       
       // Handle different error scenarios
       if (error.response) {
@@ -405,10 +405,10 @@ const PostCard = ({ post, onPostUpdate, onPostDelete }) => {
     } else {
       try {
         const response = await API.get(`/comments/${commentId}/replies/`);
-        const replies = response.data;
-        setShowReplies(prev => ({ ...prev, [commentId]: replies }));
+          const replies = response.data;
+          setShowReplies(prev => ({ ...prev, [commentId]: replies }));
       } catch (error) {
-        console.error('Error fetching replies:', error);
+          console.error('Error fetching replies:', error);
         
         if (error.response) {
           if (error.response.status === 404) {
@@ -438,7 +438,7 @@ const PostCard = ({ post, onPostUpdate, onPostDelete }) => {
       {/* Post Header */}
       <CardHeader
         avatar={
-          <Avatar
+          <Avatar 
             {...getAvatarProps(post.user)}
             alt={post.user.username}
           />
@@ -480,7 +480,7 @@ const PostCard = ({ post, onPostUpdate, onPostDelete }) => {
           component="img"
           image={post.image}
           alt="Post content"
-          sx={{
+          sx={{ 
             maxHeight: 500,
             objectFit: 'contain'
           }}
@@ -594,7 +594,7 @@ const PostCard = ({ post, onPostUpdate, onPostDelete }) => {
                     }
                   >
                     <ListItemAvatar>
-                      <Avatar
+                      <Avatar 
                         {...getAvatarProps(comment.user)}
                         alt={comment.user.username}
                       />
@@ -624,8 +624,8 @@ const PostCard = ({ post, onPostUpdate, onPostDelete }) => {
                               {new Date(comment.created_at).toLocaleString()}
                             </Typography>
                             {comment.reply_count > 0 && (
-                              <Button
-                                size="small"
+                              <Button 
+                                size="small" 
                                 onClick={() => toggleReplies(comment.id)}
                                 sx={{ mr: 1 }}
                               >
@@ -691,7 +691,7 @@ const PostCard = ({ post, onPostUpdate, onPostDelete }) => {
                             }
                           >
                             <ListItemAvatar sx={{ minWidth: 36 }}>
-                              <Avatar
+                              <Avatar 
                                 {...getAvatarProps(reply.user)}
                                 alt={reply.user.username}
                                 sx={{ 

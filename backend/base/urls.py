@@ -28,6 +28,12 @@ from .views import (
     LikesListView,
     CommentView,
     CommentRepliesView,
+    ChatListView,
+    ChatDetailView,
+    MessageListView,
+    MessageDetailView,
+    MessageReplyView,
+    MutualFollowersView,
 )
 
 urlpatterns = [
@@ -58,6 +64,12 @@ urlpatterns = [
     path('posts/<int:post_id>/comments/', CommentView.as_view(), name='post-comments'),
     path('comments/<int:comment_id>/', CommentView.as_view(), name='comment-detail'),
     path('comments/<int:comment_id>/replies/', CommentRepliesView.as_view(), name='comment-replies'),
+    path('chats/', ChatListView.as_view(), name='chat-list'),
+    path('chats/<int:chat_id>/', ChatDetailView.as_view(), name='chat-detail'),
+    path('chats/<int:chat_id>/messages/', MessageListView.as_view(), name='message-list'),
+    path('messages/<int:message_id>/', MessageDetailView.as_view(), name='message-detail'),
+    path('messages/<int:message_id>/replies/', MessageReplyView.as_view(), name='message-replies'),
+    path('users/<str:username>/mutual-followers/', MutualFollowersView.as_view(), name='mutual-followers'),
 ]
 
 if settings.DEBUG:

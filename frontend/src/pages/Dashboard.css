@@ -18,7 +18,7 @@
 
 /* Quick links styling */
 .quick-link-button {
-  transition: all 0.3s ease;
+  transition: all 0.2s ease-in-out !important;
 }
 
 .quick-link-button:hover {
@@ -28,19 +28,19 @@
 
 /* Activity list styling */
 .activity-list-item {
-  transition: background-color 0.2s ease;
+  transition: background-color 0.2s ease-in-out;
 }
 
 .activity-list-item:hover {
-  background-color: rgba(0, 0, 0, 0.03);
+  background-color: rgba(0, 0, 0, 0.04);
 }
 
 .activity-avatar {
-  background: linear-gradient(45deg, #2196F3, #21CBF3) !important;
+  background-color: #2196f3 !important;
 }
 
 .game-avatar {
-  background: linear-gradient(45deg, #FF9800, #F44336) !important;
+  background-color: #4caf50 !important;
 }
 
 /* Post card styling */
@@ -48,12 +48,11 @@
   height: 100%;
   display: flex;
   flex-direction: column;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  transition: transform 0.2s ease-in-out;
 }
 
 .post-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1) !important;
+  transform: translateY(-4px);
 }
 
 .post-content {
@@ -70,4 +69,9 @@
     padding-left: 1rem !important;
     padding-right: 1rem !important;
   }
+}
+
+.dashboard-container {
+  min-height: calc(100vh - 64px);
+  padding: 24px;
 } 
