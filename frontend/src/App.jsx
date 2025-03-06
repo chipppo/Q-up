@@ -14,6 +14,7 @@ import Footer from "./components/Footer";
 import "./App.css";
 import { ThemeProvider, createTheme } from '@mui/material';
 import EditProfileForm from "./components/EditProfileForm";
+import Chat from "./pages/Chat";
 
 const theme = createTheme({
   palette: {
@@ -52,6 +53,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Feed />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/chat"
+              element={
+                <ProtectedRoute>
+                  <Chat />
                 </ProtectedRoute>
               }
             />

@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from .models import MyUser, Game, GameStats, RankSystem, RankTier, PlayerGoal, GameRanking, Post, Like, Comment
+from .models import MyUser, Game, GameStats, RankSystem, RankTier, PlayerGoal, GameRanking, Post, Like, Comment, Message, Chat
 import json
 
 class UserSerializer(serializers.ModelSerializer):
@@ -316,3 +316,95 @@ class PostDetailSerializer(PostSerializer):
         # Return the users who liked this post
         likes = obj.likes.all()
         return LikeSerializer(likes, many=True, context=self.context).data
+
+class MessageSerializer(serializers.ModelSerializer):
+    sender = UserSerializer(read_only=True)
+    replies_count = serializers.SerializerMethodField()
+    parent_sender = serializers.SerializerMethodField()
+    image = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Message
+        fields = [
+            'id', 'chat', 'sender', 'content', 'image',
+            'parent', 'is_edited', 'is_read', 'created_at',
+            'updated_at', 'replies_count', 'parent_sender'
+        ]
+        read_only_fields = [
+            'id', 'sender', 'is_edited', 'is_read', 'created_at', 'updated_at',
+            'replies_count', 'parent_sender'
+        ]
+
+    def get_replies_count(self, obj):
+        return obj.replies.count()
+
+    def get_parent_sender(self, obj):
+        if obj.parent:
+            return obj.parent.sender.username
+        return None
+        
+    def get_image(self, obj):
+        if obj.image:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.image.url)
+            return obj.image.url
+        return None
+
+    def validate(self, data):
+        # Make chat field optional since we'll set it in the view
+        if 'chat' not in data:
+            data.pop('chat', None)
+            
+        # Allow empty content if image is provided
+        if not data.get('content') and not data.get('image'):
+            if self.context.get('request') and self.context['request'].FILES.get('image'):
+                # Image is being uploaded but not in data yet
+                return data
+            raise serializers.ValidationError("Either content or image must be provided")
+        return data
+
+class ChatSerializer(serializers.ModelSerializer):
+    participants = UserSerializer(many=True, read_only=True)
+    last_message = serializers.SerializerMethodField()
+    unread_count = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Chat
+        fields = ['id', 'participants', 'created_at', 'updated_at', 'last_message', 'unread_count']
+        read_only_fields = ['id', 'created_at', 'updated_at']
+    
+    def get_last_message(self, obj):
+        try:
+            last_message = obj.messages.order_by('-created_at').first()
+            if last_message:
+                return {
+                    'id': last_message.id,
+                    'content': last_message.content[:50] + '...' if len(last_message.content) > 50 else last_message.content,
+                    'sender': last_message.sender.username,
+                    'created_at': last_message.created_at,
+                    'has_image': bool(last_message.image)
+                }
+            return None
+        except Exception as e:
+            print(f"Error in get_last_message: {str(e)}")
+            return None
+    
+    def get_unread_count(self, obj):
+        try:
+            user = self.context.get('request').user
+            if not user or not user.is_authenticated:
+                return 0
+                
+            # Check if the is_read field exists on the Message model
+            from django.db import models
+            message_fields = [f.name for f in obj.messages.model._meta.get_fields()]
+            
+            if 'is_read' in message_fields:
+                return obj.messages.exclude(sender=user).filter(is_read=False).count()
+            else:
+                # Fallback if is_read field doesn't exist yet
+                return 0
+        except Exception as e:
+            print(f"Error in get_unread_count: {str(e)}")
+            return 0

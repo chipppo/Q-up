@@ -7,7 +7,7 @@ from django.db.models import Q
 from django.core.exceptions import ValidationError
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.http import JsonResponse
-from .models import Game, MyUser, GameStats, RankSystem, RankTier, PlayerGoal, GameRanking, Post, Like, Comment
+from .models import Game, MyUser, GameStats, RankSystem, RankTier, PlayerGoal, GameRanking, Post, Like, Comment, Chat, Message
 from .serializers import (
     UserSerializer,
     RegisterUserSerializer,
@@ -26,10 +26,13 @@ from .serializers import (
     CommentSerializer,
     ReplySerializer,
     LikeSerializer,
+    ChatSerializer,
+    MessageSerializer,
 )
 import json
 from django.core.validators import validate_email
 from datetime import datetime
+from django.db.models import Count
 
 class UserDetailView(APIView):
     """
@@ -930,3 +933,302 @@ class CommentRepliesView(APIView):
             return Response({'detail': 'Comment not found'}, status=404)
         except Exception as e:
             return Response({'detail': str(e)}, status=500)
+
+class ChatListView(APIView):
+    """
+    List all chats or create a new chat.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        try:
+            # Get all chats where the user is a participant
+            chats = Chat.objects.filter(participants=request.user).prefetch_related(
+                'participants',
+                'messages'
+            ).order_by('-updated_at')
+
+            # Serialize the chats
+            serializer = ChatSerializer(chats, many=True, context={'request': request})
+            return Response(serializer.data)
+        except Exception as e:
+            print(f"Error in ChatListView.get: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return Response(
+                {'detail': 'Failed to retrieve chats'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    def post(self, request):
+        try:
+            # Get the username of the other participant
+            other_username = request.data.get('username')
+            if not other_username:
+                return Response(
+                    {'detail': 'Username is required'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Get the other user
+            try:
+                other_user = MyUser.objects.get(username=other_username)
+            except MyUser.DoesNotExist:
+                return Response(
+                    {'detail': 'User not found'},
+                status=status.HTTP_404_NOT_FOUND
+                )
+
+            # Check if the user is trying to chat with themselves
+            if other_user == request.user:
+                return Response(
+                    {'detail': 'Cannot create chat with yourself'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Check if chat already exists between these users
+            existing_chats = Chat.objects.filter(participants=request.user).filter(participants=other_user)
+            
+            if existing_chats.exists():
+                existing_chat = existing_chats.first()
+                serializer = ChatSerializer(existing_chat, context={'request': request})
+                return Response(serializer.data)
+
+            # Create new chat
+            chat = Chat.objects.create()
+            chat.participants.add(request.user, other_user)
+            chat.save()
+            
+            serializer = ChatSerializer(chat, context={'request': request})
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+        except Exception as e:
+            print(f"Error in ChatListView.post: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return Response(
+                {'detail': 'Failed to create chat'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+class ChatDetailView(APIView):
+    """
+    Retrieve or delete a chat.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, chat_id):
+        try:
+            print(f"DEBUG: Fetching chat {chat_id} for user {request.user.username}")
+            # Check if the user is a participant in the chat
+            try:
+                chat = Chat.objects.get(id=chat_id, participants=request.user)
+            except Chat.DoesNotExist:
+                return Response(
+                    {'detail': 'Chat not found or you are not a participant'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            serializer = ChatSerializer(chat, context={'request': request})
+            return Response(serializer.data)
+        except Exception as e:
+            print(f"ERROR in ChatDetailView.get: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return Response(
+                {'detail': f'Failed to retrieve chat: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    def delete(self, request, chat_id):
+        try:
+            print(f"DEBUG: Deleting chat {chat_id} for user {request.user.username}")
+            # Check if the user is a participant in the chat
+            try:
+                chat = Chat.objects.get(id=chat_id, participants=request.user)
+            except Chat.DoesNotExist:
+                return Response(
+                    {'detail': 'Chat not found or you are not a participant'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            chat.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except Exception as e:
+            print(f"ERROR in ChatDetailView.delete: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return Response(
+                {'detail': f'Failed to delete chat: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+class MessageListView(APIView):
+    """
+    List all messages in a chat or create a new message.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def get(self, request, chat_id):
+        try:
+            chat = Chat.objects.get(id=chat_id, participants=request.user)
+            messages = chat.messages.all().order_by('created_at')
+            serializer = MessageSerializer(messages, many=True, context={'request': request})
+            return Response(serializer.data)
+        except Chat.DoesNotExist:
+            return Response(
+                {'detail': 'Chat not found or you are not a participant'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            print(f"Error in MessageListView.get: {str(e)}")
+            return Response(
+                {'detail': f'Failed to retrieve messages: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    def post(self, request, chat_id):
+        try:
+            print("Request data:", request.data)
+            print("Request FILES:", request.FILES)
+            
+            # Check if the user is a participant in the chat
+            chat = Chat.objects.get(id=chat_id, participants=request.user)
+            
+            # Create the message directly
+            message = Message(
+                chat=chat,
+                sender=request.user
+            )
+            
+            # Handle content
+            if 'content' in request.data:
+                message.content = request.data['content']
+                
+            # Handle image
+            if 'image' in request.FILES:
+                message.image = request.FILES['image']
+                
+            # Validate that at least content or image is provided
+            if not message.content and not message.image:
+                return Response(
+                    {'detail': 'Either content or image must be provided'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+                
+            # Save the message
+            message.save()
+            
+            # Update chat's updated_at timestamp
+            chat.save()
+            
+            return Response(
+                MessageSerializer(message, context={'request': request}).data,
+                status=status.HTTP_201_CREATED
+            )
+                
+        except Chat.DoesNotExist:
+            return Response(
+                {'detail': 'Chat not found or you are not a participant'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            print(f"Error in MessageListView.post: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return Response(
+                {'detail': f'Failed to create message: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+class MessageDetailView(APIView):
+    """
+    Retrieve, update or delete a message.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+    
+    def get(self, request, message_id):
+        try:
+            message = Message.objects.get(id=message_id, chat__participants=request.user)
+            serializer = MessageSerializer(message, context={'request': request})
+            return Response(serializer.data)
+        except Message.DoesNotExist:
+            return Response({'error': 'Message not found'}, status=404)
+    
+    def patch(self, request, message_id):
+        try:
+            message = Message.objects.get(id=message_id, sender=request.user)
+            serializer = MessageSerializer(message, data=request.data, partial=True, context={'request': request})
+            if serializer.is_valid():
+                serializer.save(is_edited=True)
+                return Response(serializer.data)
+            return Response(serializer.errors, status=400)
+        except Message.DoesNotExist:
+            return Response({'error': 'Message not found'}, status=404)
+    
+    def delete(self, request, message_id):
+        try:
+            message = Message.objects.get(id=message_id, sender=request.user)
+            message.delete()
+            return Response(status=204)
+        except Message.DoesNotExist:
+            return Response({'error': 'Message not found'}, status=404)
+
+class MessageReplyView(APIView):
+    """
+    List all replies to a message or create a new reply.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request, message_id):
+        try:
+            message = Message.objects.get(id=message_id, chat__participants=request.user)
+            replies = message.replies.all()
+            serializer = MessageSerializer(replies, many=True, context={'request': request})
+            return Response(serializer.data)
+        except Message.DoesNotExist:
+            return Response({'error': 'Message not found'}, status=404)
+
+class MutualFollowersView(APIView):
+    """
+    Search for mutual followers.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, username):
+        try:
+            # Get the user
+            try:
+                user = MyUser.objects.get(username=username)
+            except MyUser.DoesNotExist:
+                return Response(
+                    {"detail": "User not found"},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            # Get the search query
+            query = request.query_params.get('q', '').strip()
+            if not query:
+                return Response([])
+
+            # Get mutual followers
+            followers = user.followers.all()
+            following = user.following.all()
+            mutual = followers.intersection(following)
+
+            # Filter by search query
+            mutual = mutual.filter(
+                Q(username__icontains=query) |
+                Q(display_name__icontains=query)
+            )
+
+            serializer = UserSerializer(mutual, many=True, context={'request': request})
+            return Response(serializer.data)
+        except Exception as e:
+            print(f"Error in MutualFollowersView.get: {str(e)}")
+            return Response(
+                {"detail": "Failed to search mutual followers"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
