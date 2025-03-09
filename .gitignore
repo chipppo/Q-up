@@ -1,0 +1,29 @@
+   # Python virtual environment
+   venv/
+   env/
+   ENV/
+   .env
+   .venv
+   __pycache__/
+   *.py[cod]
+   
+   # Node.js dependencies
+   node_modules/
+   npm-debug.log
+   yarn-debug.log
+   yarn-error.log
+   
+   # Django
+   *.log
+   local_settings.py
+   db.sqlite3
+   db.sqlite3-journal
+   media/
+   
+   # React
+   /build
+   .DS_Store
+   .env.local
+   .env.development.local
+   .env.test.local
+   .env.production.local
