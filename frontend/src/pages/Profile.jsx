@@ -147,7 +147,7 @@ function ViewProfile({ user, gameStats, isFollowing, onFollowToggle, isLoggedIn,
               </Box>
             </Box>
           </Box>
-          
+
           <Box>
             {isOwnProfile ? (
               <Button

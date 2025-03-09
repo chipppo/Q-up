@@ -34,6 +34,8 @@ from .views import (
     MessageDetailView,
     MessageReplyView,
     MutualFollowersView,
+    PasswordResetRequestView,
+    PasswordResetConfirmView,
 )
 
 urlpatterns = [
@@ -51,6 +53,8 @@ urlpatterns = [
     path('users/<str:username>/followers/', FollowersListView.as_view(), name='followers-list'),
     path('users/<str:username>/following/', FollowingListView.as_view(), name='following-list'),
     path('users/<str:username>/change-password/', ChangePasswordView.as_view(), name='change-password'),
+    path('password-reset/', PasswordResetRequestView.as_view(), name='password-reset-request'),
+    path('password-reset/confirm/<str:uidb64>/<str:token>/', PasswordResetConfirmView.as_view(), name='password-reset-confirm'),
     path('games/', GameListView.as_view(), name='game-list'),
     path('games/<int:game_id>/ranking-systems/', RankingSystemListView.as_view(), name='ranking-systems'),
     path('ranking-systems/<int:rank_system_id>/tiers/', RankTierListView.as_view(), name='rank-tiers'),

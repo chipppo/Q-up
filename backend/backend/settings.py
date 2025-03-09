@@ -155,3 +155,18 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Frontend URL for password reset
+FRONTEND_URL = 'http://localhost:5173'  # Update this in production
+
+# Email settings for Gmail
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'your-email@gmail.com'  # Replace with your Gmail address
+EMAIL_HOST_PASSWORD = 'your-app-password'  # Replace with your app password
+DEFAULT_FROM_EMAIL = 'Q-up Support <your-email@gmail.com>'  # Replace with your email
+
+# Password reset settings
+PASSWORD_RESET_TIMEOUT = 3600  # 1 hour timeout for password reset links
