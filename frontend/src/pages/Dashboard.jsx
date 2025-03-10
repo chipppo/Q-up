@@ -42,6 +42,13 @@ import {
 import { toast } from "react-toastify";
 import "./Dashboard.css";
 
+// Utility function to safely format image URLs
+const formatImageUrl = (url) => {
+  if (!url) return null;
+  if (url.startsWith('http')) return url;
+  return `${API.defaults.baseURL}${url}`;
+};
+
 const stringToColor = (string) => {
   let hash = 0;
   for (let i = 0; i < string.length; i++) {
@@ -79,11 +86,7 @@ function Dashboard() {
       const userResponse = await API.get(`/users/${username}/`);
       const userData = userResponse.data;
       
-      // Ensure we have the full avatar URL
-      if (userData.avatar && !userData.avatar.startsWith('http')) {
-        userData.avatar_url = `http://localhost:8000${userData.avatar_url}`;
-      }
-      
+      // No need to manually format the avatar URL anymore
       setUserData(userData);
 
       const statsResponse = await API.get(`/users/${username}/game-stats/`);
@@ -172,7 +175,7 @@ function Dashboard() {
         }}
       >
         <Avatar
-          src={userData?.avatar_url || ''}
+          src={formatImageUrl(userData?.avatar_url)}
           sx={{
             width: 80,
             height: 80,
@@ -271,16 +274,16 @@ function Dashboard() {
         {/* Game Stats Section */}
         <Grid item xs={12} md={6}>
           <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 2, height: '100%' }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <Typography variant="h5" gutterBottom sx={{ fontWeight: 'bold', display: 'flex', alignItems: 'center' }}>
-                <GameIcon sx={{ mr: 1 }} />
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+              <Typography variant="h5" sx={{ fontWeight: 'bold', display: 'flex', alignItems: 'center' }}>
+                <GameIcon sx={{ mr: 1, fontSize: 28 }} />
                 Your Games
-            </Typography>
+              </Typography>
               <Button 
-                variant="outlined" 
+                variant="contained" 
                 startIcon={<AddIcon />}
-                endIcon={<GameIcon />}
                 onClick={() => navigate(`/profile/${username}`)}
+                sx={{ borderRadius: '20px' }}
               >
                 Add Game
               </Button>
@@ -301,65 +304,102 @@ function Dashboard() {
                 </Button>
               </Box>
             ) : (
-              <List sx={{ maxHeight: 300, overflow: 'auto' }}>
+              <Box className="game-stats-container">
                 {stats.map((stat) => (
-                  <ListItem 
+                  <Box 
                     key={stat.id} 
-                    divider
-                    sx={{
-                      '&:hover': {
-                        backgroundColor: 'rgba(0, 0, 0, 0.04)',
-                        cursor: 'pointer'
-                      }
-                    }}
+                    className="game-stat-item"
                     onClick={() => navigate(`/profile/${username}`)}
+                    sx={{ cursor: 'pointer' }}
                   >
-                    <ListItemAvatar>
+                    {/* Game Logo */}
+                    <Box sx={{ position: 'relative' }}>
                       <Avatar 
-                        src={stat.game.logo} 
+                        src={formatImageUrl(stat.game.logo)} 
                         alt={stat.game.name}
                         sx={{
+                          width: 70,
+                          height: 70,
                           bgcolor: 'primary.main',
-                          '& .MuiSvgIcon-root': { color: 'white' }
+                          borderRadius: '12px'
+                        }}
+                        variant="rounded"
+                      >
+                        <GameIcon sx={{ fontSize: 40 }} />
+                      </Avatar>
+                      <Typography 
+                        variant="caption" 
+                        sx={{ 
+                          position: 'absolute', 
+                          bottom: -8, 
+                          right: -8, 
+                          bgcolor: 'primary.main', 
+                          color: 'white', 
+                          borderRadius: '10px', 
+                          px: 1, 
+                          py: 0.5,
+                          fontWeight: 'bold'
                         }}
                       >
-                        <GameIcon />
-                      </Avatar>
-                    </ListItemAvatar>
-                    <ListItemText
-                      primary={
-                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                          <GameIcon sx={{ mr: 1, fontSize: 16 }} />
-                          {stat.game.name}
-                        </Box>
-                      }
-                      secondary={`${stat.hours_played} hours played • ${stat.player_goal?.name || 'No goal set'}`}
-                    />
-                    {stat.rankings && stat.rankings.length > 0 && (
-                      <Box sx={{ display: 'flex', gap: 1 }}>
-                        {stat.rankings.map((ranking, index) => (
-                          <Chip 
-                            key={index}
-                            icon={<img 
-                              src={ranking.rank?.icon || ''} 
-                              alt="" 
-                              style={{ width: 20, height: 20 }}
-                              onError={(e) => {
-                                e.target.style.display = 'none';
-                                e.target.onerror = null;
+                        {stat.hours_played}h
+                      </Typography>
+                    </Box>
+                    
+                    {/* Game Info */}
+                    <Box sx={{ ml: 2, flexGrow: 1 }}>
+                      <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 0.5 }}>
+                        {stat.game.name}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                        Goal: {stat.player_goal?.name || 'Not set'}
+                      </Typography>
+                      
+                      {/* Rankings */}
+                      {stat.rankings && stat.rankings.length > 0 && (
+                        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                          {stat.rankings.map((ranking, index) => (
+                            <Box 
+                              key={index}
+                              sx={{ 
+                                display: 'flex', 
+                                alignItems: 'center',
+                                gap: 1,
+                                bgcolor: 'rgba(25, 118, 210, 0.1)',
+                                borderRadius: '20px',
+                                px: 1.5,
+                                py: 0.5
                               }}
-                            />}
-                            label={ranking.rank?.name || `Rank: ${ranking.numeric_rank}`} 
-                            color="primary" 
-                            variant="outlined" 
-                            size="small"
-                          />
-                        ))}
-                      </Box>
-                    )}
-                  </ListItem>
+                            >
+                              {ranking.rank?.icon ? (
+                                <Avatar 
+                                  src={formatImageUrl(ranking.rank.icon)}
+                                  alt={ranking.rank.name}
+                                  sx={{ width: 24, height: 24 }}
+                                  imgProps={{
+                                    onError: (e) => {
+                                      e.target.src = null;
+                                      e.target.alt = ranking.rank.name.charAt(0);
+                                    }
+                                  }}
+                                >
+                                  {ranking.rank.name.charAt(0)}
+                                </Avatar>
+                              ) : (
+                                <Avatar sx={{ width: 24, height: 24, bgcolor: 'primary.main', fontSize: '0.75rem' }}>
+                                  {ranking.numeric_rank || 'N/A'}
+                                </Avatar>
+                              )}
+                              <Typography variant="caption" sx={{ fontWeight: 'bold' }}>
+                                {ranking.rank?.name || `${ranking.numeric_rank || 'Unranked'}`}
+                              </Typography>
+                            </Box>
+                          ))}
+                        </Box>
+                      )}
+                    </Box>
+                  </Box>
                 ))}
-              </List>
+              </Box>
             )}
           </Paper>
         </Grid>
@@ -400,51 +440,164 @@ function Dashboard() {
             ) : (
               <List>
                 {recentChats.map((chat) => {
+                  // Find the other participant (not the current user)
                   const otherParticipant = chat.participants.find(p => p.username !== username);
+                  
                   return (
                     <ListItem 
                       key={chat.id} 
                       divider 
-                      component="div"
+                      button
+                      onClick={() => navigate('/chat', { state: { selectedChatId: chat.id } })}
                       sx={{ 
-                        cursor: 'pointer',
-                        '&:hover': {
-                          backgroundColor: 'rgba(0, 0, 0, 0.04)'
-                        }
+                        '&:hover': { 
+                          backgroundColor: 'rgba(0, 0, 0, 0.04)' 
+                        } 
                       }}
-                      onClick={() => navigate(`/chat?chat=${chat.id}`)}
                     >
                       <ListItemAvatar>
                         <Avatar 
-                          src={otherParticipant?.avatar_url || ''} 
-                          alt={otherParticipant?.username}
-                          sx={{
-                            bgcolor: otherParticipant?.avatar_url ? 'transparent' : stringToColor(otherParticipant?.username || '')
+                          src={formatImageUrl(otherParticipant?.avatar_url)}
+                          sx={{ 
+                            bgcolor: otherParticipant?.avatar_url ? 'transparent' : stringToColor(otherParticipant?.username || '') 
                           }}
                         >
                           {otherParticipant?.username?.[0]?.toUpperCase()}
                         </Avatar>
                       </ListItemAvatar>
-                      <ListItemText
+                      <ListItemText 
                         primary={otherParticipant?.display_name || otherParticipant?.username}
                         secondary={
-                          chat.last_message ? 
-                            (chat.last_message.content?.length > 30 ? 
-                              chat.last_message.content.substring(0, 30) + '...' : 
-                              chat.last_message.content) || (chat.last_message.image ? 'Sent an image' : '') : 
-                            'No messages yet'
+                          chat.last_message ? (
+                            <>
+                              {chat.last_message.content.length > 30 
+                                ? chat.last_message.content.substring(0, 30) + '...' 
+                                : chat.last_message.content}
+                              <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary' }}>
+                                {new Date(chat.last_message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </Typography>
+                            </>
+                          ) : 'No messages yet'
                         }
                       />
-                      <Typography variant="caption" color="text.secondary">
-                        {chat.last_message ? 
-                          new Date(chat.last_message.created_at).toLocaleDateString() : 
-                          new Date(chat.created_at).toLocaleDateString()
-                        }
-                      </Typography>
+                      {chat.unread_count > 0 && (
+                        <Chip 
+                          label={chat.unread_count} 
+                          color="primary" 
+                          size="small" 
+                          sx={{ ml: 1 }}
+                        />
+                      )}
                     </ListItem>
                   );
                 })}
               </List>
+            )}
+          </Paper>
+        </Grid>
+
+        {/* Recent Posts Section */}
+        <Grid item xs={12} md={6}>
+          <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 2, height: '100%' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Typography variant="h5" gutterBottom sx={{ fontWeight: 'bold' }}>
+                Recent Posts
+              </Typography>
+              <Button 
+                variant="outlined" 
+                startIcon={<PostAddIcon />}
+                onClick={() => navigate('/feed')}
+              >
+                View All Posts
+              </Button>
+            </Box>
+            {loadingPosts ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                <CircularProgress />
+              </Box>
+            ) : recentPosts.length === 0 ? (
+              <Box sx={{ textAlign: 'center', py: 4 }}>
+                <PostAddIcon sx={{ fontSize: 60, color: 'text.secondary', mb: 2 }} />
+                <Typography variant="body1" color="text.secondary">
+                  You haven't posted anything yet.
+                </Typography>
+                <Button 
+                  variant="contained" 
+                  sx={{ mt: 2 }}
+                  onClick={() => navigate('/create-post')}
+                >
+                  Create Your First Post
+                </Button>
+              </Box>
+            ) : (
+              <Grid container spacing={2}>
+                {recentPosts.map((post) => (
+                  <Grid item xs={12} key={post.id}>
+                    <Card 
+                      className="post-card"
+                      onClick={() => navigate(`/feed?post=${post.id}`)}
+                      sx={{ cursor: 'pointer' }}
+                    >
+                      <CardContent className="post-content">
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                          <Avatar 
+                            src={formatImageUrl(post.user.avatar_url)}
+                            sx={{ 
+                              mr: 1,
+                              bgcolor: post.user.avatar_url ? 'transparent' : stringToColor(post.user.username || '')
+                            }}
+                          >
+                            {post.user.username?.[0]?.toUpperCase()}
+                          </Avatar>
+                          <Box>
+                            <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+                              {post.user.display_name || post.user.username}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {formatDate(post.created_at)}
+                            </Typography>
+                          </Box>
+                        </Box>
+                        
+                        <Typography variant="body1" sx={{ mb: 2 }}>
+                          {post.caption}
+                        </Typography>
+                        
+                        {post.image && (
+                          <Box 
+                            sx={{ 
+                              width: '100%', 
+                              height: 200, 
+                              overflow: 'hidden', 
+                              borderRadius: 1,
+                              mb: 2
+                            }}
+                          >
+                            <img 
+                              src={formatImageUrl(post.image)}
+                              alt="Post"
+                              style={{ 
+                                width: '100%', 
+                                height: '100%', 
+                                objectFit: 'cover' 
+                              }}
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                              }}
+                            />
+                          </Box>
+                        )}
+                        
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <Typography variant="body2" color="text.secondary">
+                            {post.likes_count} likes • {post.comments_count} comments
+                          </Typography>
+                        </Box>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                ))}
+              </Grid>
             )}
           </Paper>
         </Grid>

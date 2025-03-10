@@ -439,9 +439,14 @@ class SearchView(APIView):
         
         # Filter by minimum hours played
         min_hours_played = request.query_params.get("min_hours_played")
-        if min_hours_played and min_hours_played.isdigit():
-            # Find users who have played at least this many hours in any game
-            users = users.filter(game_stats__hours_played__gte=int(min_hours_played)).distinct()
+        if min_hours_played:
+            try:
+                min_hours = int(float(min_hours_played))
+                # Find users who have played at least this many hours in any game
+                users = users.filter(game_stats__hours_played__gte=min_hours).distinct()
+            except (ValueError, TypeError):
+                # If conversion fails, ignore this filter
+                pass
         
         # Serialize and return the filtered users
         serializer = UserSerializer(users, many=True)
@@ -1219,19 +1224,30 @@ class MutualFollowersView(APIView):
             if not query:
                 return Response([])
 
-            # Get mutual followers
-            followers = user.followers.all()
-            following = user.following.all()
-            mutual = followers.intersection(following)
+            try:
+                # Get mutual followers
+                followers = user.followers.all()
+                print(f"Found {followers.count()} followers")
+                
+                following = user.following.all()
+                print(f"Found {following.count()} following")
+                
+                # Use filter instead of intersection for better compatibility
+                mutual = followers.filter(pk__in=following.values_list('pk', flat=True))
+                print(f"Found {mutual.count()} mutual followers")
 
-            # Filter by search query
-            mutual = mutual.filter(
-                Q(username__icontains=query) |
-                Q(display_name__icontains=query)
-            )
+                # Filter by search query
+                mutual = mutual.filter(
+                    Q(username__icontains=query) |
+                    Q(display_name__icontains=query)
+                )
+                print(f"Found {mutual.count()} matches for query '{query}'")
 
-            serializer = UserSerializer(mutual, many=True, context={'request': request})
-            return Response(serializer.data)
+                serializer = UserSerializer(mutual, many=True, context={'request': request})
+                return Response(serializer.data)
+            except Exception as inner_e:
+                print(f"Inner error in MutualFollowersView: {str(inner_e)}")
+                raise
         except Exception as e:
             print(f"Error in MutualFollowersView.get: {str(e)}")
             return Response(

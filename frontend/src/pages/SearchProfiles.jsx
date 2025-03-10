@@ -76,7 +76,7 @@ function SearchProfiles() {
             "Turkish", "Dutch", "Swedish", "Norwegian", "Finnish", "Danish", 
             "Polish", "Czech", "Hungarian", "Greek", "Romanian", "Bulgarian", 
             "Ukrainian", "Thai", "Vietnamese", "Indonesian", "Malay", "Filipino"
-          ],
+          ].sort(),
           // Use the predefined time periods
           activeHours: TIME_PERIODS
         }));
@@ -177,7 +177,11 @@ function SearchProfiles() {
       }
       
       if (filters.minHoursPlayed) {
-        queryParams.append("min_hours_played", filters.minHoursPlayed);
+        // Ensure minHoursPlayed is a valid number
+        const minHours = Number(filters.minHoursPlayed);
+        if (!isNaN(minHours) && minHours > 0) {
+          queryParams.append("min_hours_played", minHours.toString());
+        }
       }
       
       // Make the API call
@@ -194,6 +198,14 @@ function SearchProfiles() {
   // Handle filter changes
   const handleFilterChange = (filterType, value) => {
     setFilters(prevFilters => {
+      // Special handling for minHoursPlayed
+      if (filterType === "minHoursPlayed") {
+        return {
+          ...prevFilters,
+          [filterType]: value
+        };
+      }
+      
       // Ensure the filter array exists
       if (!prevFilters[filterType]) {
         prevFilters[filterType] = [];
@@ -236,6 +248,12 @@ function SearchProfiles() {
       hasMic: null,
       minHoursPlayed: "",
     });
+    
+    // Reset the slider appearance
+    const slider = document.querySelector('.hours-slider');
+    if (slider) {
+      slider.style.setProperty('--slider-percentage', '0%');
+    }
   };
   
   // Render filter section
@@ -362,17 +380,39 @@ function SearchProfiles() {
           <div className="filter-section">
             <h3>Minimum Hours Played</h3>
             <div className="hours-slider-container">
+              <div className="hours-input-container">
+                <input
+                  type="number"
+                  min="0"
+                  max="10000"
+                  value={filters.minHoursPlayed || ""}
+                  onChange={(e) => {
+                    const value = e.target.value === "" ? "" : Math.max(0, Math.min(10000, Number(e.target.value)));
+                    handleFilterChange("minHoursPlayed", value.toString());
+                  }}
+                  className="hours-input"
+                  placeholder="Any"
+                />
+                <span>hours</span>
+              </div>
               <input
                 type="range"
                 min="0"
-                max="1000"
-                step="10"
+                max="10000"
+                step="100"
                 value={filters.minHoursPlayed || 0}
-                onChange={(e) => handleFilterChange("minHoursPlayed", e.target.value)}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  const percentage = (Number(value) / 10000) * 100;
+                  e.target.style.setProperty('--slider-percentage', `${percentage}%`);
+                  handleFilterChange("minHoursPlayed", value);
+                }}
                 className="hours-slider"
+                style={{ '--slider-percentage': `${((Number(filters.minHoursPlayed) || 0) / 10000) * 100}%` }}
               />
               <div className="hours-value">
-                {filters.minHoursPlayed || 0} hours
+                {filters.minHoursPlayed ? `${Number(filters.minHoursPlayed).toLocaleString()} hours` : 'Any'}
+                {Number(filters.minHoursPlayed) >= 10000 ? '+' : ''}
               </div>
             </div>
           </div>
