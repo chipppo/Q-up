@@ -3,6 +3,13 @@ import { Link } from "react-router-dom";
 import API from "../api/axios";
 // import "./Search.css";
 
+// Utility function to safely format image URLs
+const formatImageUrl = (url) => {
+  if (!url) return null;
+  if (url.startsWith('http')) return url;
+  return `${API.defaults.baseURL}${url}`;
+};
+
 function Search() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
@@ -33,7 +40,7 @@ function Search() {
         {results.map((user) => (
           <div key={user.id} className="search-result">
             <Link to={`/profile/${user.username}`}>
-              <img src={user.avatar_url || "https://via.placeholder.com/50"} alt="Profile" />
+              <img src={formatImageUrl(user.avatar_url) || "https://via.placeholder.com/50"} alt="Profile" />
               <span>{user.display_name || user.username}</span>
             </Link>
           </div>

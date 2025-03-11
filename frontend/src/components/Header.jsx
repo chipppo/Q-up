@@ -46,6 +46,13 @@ const stringToColor = (string) => {
   return color;
 };
 
+// Utility function to safely format image URLs
+const formatImageUrl = (url) => {
+  if (!url) return null;
+  if (url.startsWith('http')) return url;
+  return `${API.defaults.baseURL}${url}`;
+};
+
 const Header = () => {
   const { isLoggedIn, username, logout } = useAuth();
   const navigate = useNavigate();
@@ -62,14 +69,6 @@ const Header = () => {
     try {
       const response = await API.get(`/users/${username}/`);
       const userData = response.data;
-      
-      // Ensure we have the full avatar URL
-      if (userData.avatar && !userData.avatar.startsWith('http')) {
-        userData.avatar_url = `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}${userData.avatar}`;
-      } else if (userData.avatar_url && !userData.avatar_url.startsWith('http')) {
-        userData.avatar_url = `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}${userData.avatar_url}`;
-      }
-      
       setUserData(userData);
     } catch (error) {
       console.error('Error fetching user data:', error);
@@ -209,7 +208,7 @@ const Header = () => {
                 sx={{ ml: 2 }}
               >
                 <Avatar 
-                  src={userData?.avatar_url || null}
+                  src={formatImageUrl(userData?.avatar_url)}
                   alt={username}
                   sx={{ 
                     width: 32, 
