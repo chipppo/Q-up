@@ -7,7 +7,7 @@ from django.db.models import Q
 from django.core.exceptions import ValidationError
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.http import JsonResponse
-from .models import Game, MyUser, GameStats, RankSystem, RankTier, PlayerGoal, GameRanking, Post, Like, Comment, Chat, Message
+from .models import Game, MyUser, GameStats, RankSystem, RankTier, PlayerGoal, GameRanking, Post, Like, Comment, Chat, Message, MessageReaction
 from .serializers import (
     UserSerializer,
     RegisterUserSerializer,
@@ -28,6 +28,7 @@ from .serializers import (
     LikeSerializer,
     ChatSerializer,
     MessageSerializer,
+    MessageReactionSerializer
 )
 import json
 from django.core.validators import validate_email
@@ -39,6 +40,8 @@ from django.utils.encoding import force_bytes, force_str
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.conf import settings
+from django.utils import timezone
+from django.http import Http404
 
 class UserDetailView(APIView):
     """
@@ -1160,32 +1163,51 @@ class MessageDetailView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
     
-    def get(self, request, message_id):
+    def get_object(self, message_id):
         try:
-            message = Message.objects.get(id=message_id, chat__participants=request.user)
-            serializer = MessageSerializer(message, context={'request': request})
-            return Response(serializer.data)
+            return Message.objects.get(id=message_id)
         except Message.DoesNotExist:
-            return Response({'error': 'Message not found'}, status=404)
+            raise Http404
+    
+    def get(self, request, message_id):
+        message = self.get_object(message_id)
+        
+        # Check if user is a participant in the chat
+        if request.user not in message.chat.participants.all():
+            return Response({"detail": "You do not have permission to view this message."}, status=status.HTTP_403_FORBIDDEN)
+        
+        serializer = MessageSerializer(message, context={'request': request})
+        return Response(serializer.data)
     
     def patch(self, request, message_id):
-        try:
-            message = Message.objects.get(id=message_id, sender=request.user)
-            serializer = MessageSerializer(message, data=request.data, partial=True, context={'request': request})
-            if serializer.is_valid():
-                serializer.save(is_edited=True)
-                return Response(serializer.data)
-            return Response(serializer.errors, status=400)
-        except Message.DoesNotExist:
-            return Response({'error': 'Message not found'}, status=404)
+        message = self.get_object(message_id)
+        
+        # Check if the user is the sender of the message
+        if message.sender != request.user:
+            return Response({"detail": "You can only edit your own messages."}, status=status.HTTP_403_FORBIDDEN)
+        
+        # Check if it's not too old to edit (optional time limit)
+        time_limit = timezone.now() - timezone.timedelta(hours=24)  # 24 hour limit
+        if message.created_at < time_limit:
+            return Response({"detail": "Messages can only be edited within 24 hours of sending."}, status=status.HTTP_403_FORBIDDEN)
+        
+        serializer = MessageSerializer(message, data=request.data, partial=True, context={'request': request})
+        if serializer.is_valid():
+            message.is_edited = True  # Mark as edited
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     def delete(self, request, message_id):
-        try:
-            message = Message.objects.get(id=message_id, sender=request.user)
-            message.delete()
-            return Response(status=204)
-        except Message.DoesNotExist:
-            return Response({'error': 'Message not found'}, status=404)
+        message = self.get_object(message_id)
+        
+        # Check if the user is the sender or if they're in the chat
+        if message.sender != request.user and request.user not in message.chat.participants.all():
+            return Response({"detail": "You do not have permission to delete this message."}, 
+                           status=status.HTTP_403_FORBIDDEN)
+        
+        message.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 class MessageReplyView(APIView):
     """
@@ -1195,12 +1217,146 @@ class MessageReplyView(APIView):
     
     def get(self, request, message_id):
         try:
-            message = Message.objects.get(id=message_id, chat__participants=request.user)
-            replies = message.replies.all()
-            serializer = MessageSerializer(replies, many=True, context={'request': request})
-            return Response(serializer.data)
+            parent_message = Message.objects.get(id=message_id)
         except Message.DoesNotExist:
-            return Response({'error': 'Message not found'}, status=404)
+            raise Http404
+        
+        # Check if user is a participant in the chat
+        if request.user not in parent_message.chat.participants.all():
+            return Response({"detail": "You do not have permission to view replies to this message."}, 
+                           status=status.HTTP_403_FORBIDDEN)
+        
+        replies = Message.objects.filter(parent=parent_message)
+        serializer = MessageSerializer(replies, many=True, context={'request': request})
+        return Response(serializer.data)
+        
+    def post(self, request, message_id):
+        try:
+            parent_message = Message.objects.get(id=message_id)
+        except Message.DoesNotExist:
+            raise Http404
+            
+        # Check if user is a participant in the chat
+        if request.user not in parent_message.chat.participants.all():
+            return Response({"detail": "You do not have permission to reply to this message."}, 
+                           status=status.HTTP_403_FORBIDDEN)
+                           
+        # Create a new message as a reply
+        serializer = MessageSerializer(data=request.data, context={'request': request})
+        if serializer.is_valid():
+            serializer.save(
+                sender=request.user,
+                chat=parent_message.chat,
+                parent=parent_message
+            )
+            
+            # Update the chat's updated_at timestamp
+            parent_message.chat.save()
+            
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class MessageReactionView(APIView):
+    """
+    Add, update or remove a reaction to a message.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def post(self, request, message_id):
+        try:
+            message = Message.objects.get(id=message_id)
+        except Message.DoesNotExist:
+            raise Http404
+            
+        # Check if user is a participant in the chat
+        if request.user not in message.chat.participants.all():
+            return Response({"detail": "You do not have permission to react to this message."}, 
+                           status=status.HTTP_403_FORBIDDEN)
+        
+        emoji = request.data.get('emoji')
+        if not emoji:
+            return Response({"detail": "Emoji is required."}, status=status.HTTP_400_BAD_REQUEST)
+            
+        # Check if user already reacted to this message
+        try:
+            reaction = MessageReaction.objects.get(message=message, user=request.user)
+            # Update the existing reaction
+            reaction.emoji = emoji
+            reaction.save()
+        except MessageReaction.DoesNotExist:
+            # Create a new reaction
+            reaction = MessageReaction.objects.create(
+                message=message,
+                user=request.user,
+                emoji=emoji
+            )
+            
+        serializer = MessageReactionSerializer(reaction, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        
+    def delete(self, request, message_id):
+        try:
+            message = Message.objects.get(id=message_id)
+        except Message.DoesNotExist:
+            raise Http404
+            
+        # Delete the reaction
+        try:
+            reaction = MessageReaction.objects.get(message=message, user=request.user)
+            reaction.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except MessageReaction.DoesNotExist:
+            return Response({"detail": "You have not reacted to this message."}, 
+                           status=status.HTTP_404_NOT_FOUND)
+
+class MessageStatusView(APIView):
+    """
+    Update the read status of a message.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def post(self, request, message_id):
+        try:
+            message = Message.objects.get(id=message_id)
+        except Message.DoesNotExist:
+            raise Http404
+            
+        # Check if user is a participant in the chat but not the sender
+        if request.user not in message.chat.participants.all():
+            return Response({"detail": "You do not have permission to update this message status."}, 
+                           status=status.HTTP_403_FORBIDDEN)
+                           
+        if request.user == message.sender:
+            return Response({"detail": "You cannot mark your own messages as read."}, 
+                          status=status.HTTP_400_BAD_REQUEST)
+        
+        # Mark as read
+        message.is_read = True
+        message.save()
+        
+        return Response({"detail": "Message marked as read."}, status=status.HTTP_200_OK)
+
+class TypingStatusView(APIView):
+    """
+    Notify when a user is typing in a chat.
+    This could be implemented with WebSockets for real-time updates.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def post(self, request, chat_id):
+        try:
+            chat = Chat.objects.get(id=chat_id)
+        except Chat.DoesNotExist:
+            raise Http404
+            
+        # Check if user is a participant
+        if request.user not in chat.participants.all():
+            return Response({"detail": "You are not a participant in this chat."}, 
+                           status=status.HTTP_403_FORBIDDEN)
+                           
+        # In a real implementation, we would broadcast this via WebSocket
+        # For now, we'll just return a success response
+        return Response({"detail": "Typing status updated."}, status=status.HTTP_200_OK)
 
 class MutualFollowersView(APIView):
     """

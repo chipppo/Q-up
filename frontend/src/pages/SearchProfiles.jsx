@@ -16,6 +16,13 @@ const TIME_PERIODS = [
   { id: "overnight", name: "Overnight (2-5 AM)", hours: ["02:00", "03:00", "04:00", "05:00"] }
 ];
 
+// Utility function to safely format image URLs
+const formatImageUrl = (url) => {
+  if (!url) return null;
+  if (url.startsWith('http')) return url;
+  return `${API.defaults.baseURL}${url}`;
+};
+
 function SearchProfiles() {
   // State for search and filters
   const [query, setQuery] = useState("");
@@ -519,7 +526,7 @@ function UserCard({ user }) {
       <Link to={`/profile/${user.username}`} className="user-card-link">
         <div className="user-card-avatar">
           <img 
-            src={`${API.defaults.baseURL}${user.avatar_url}`}
+            src={formatImageUrl(user.avatar_url)}
             alt={`${user.display_name || user.username}'s avatar`} 
           />
         </div>

@@ -399,6 +399,7 @@ class Message(models.Model):
     parent = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='replies')
     is_edited = models.BooleanField(default=False)
     is_read = models.BooleanField(default=False)
+    is_delivered = models.BooleanField(default=True)  # Added field for delivered status
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -414,3 +415,20 @@ class Message(models.Model):
             if os.path.isfile(self.image.path):
                 os.remove(self.image.path)
         super().delete(*args, **kwargs)
+
+class MessageReaction(models.Model):
+    """
+    Model to store emoji reactions to messages.
+    Each user can have only one reaction per message.
+    """
+    message = models.ForeignKey(Message, on_delete=models.CASCADE, related_name='reactions')
+    user = models.ForeignKey(MyUser, on_delete=models.CASCADE, related_name='message_reactions')
+    emoji = models.CharField(max_length=20)  # Store the emoji code
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        unique_together = ('message', 'user')  # One reaction per user per message
+        ordering = ['created_at']
+        
+    def __str__(self):
+        return f"{self.user.username} reacted with {self.emoji} to message {self.message.id}"
