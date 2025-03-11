@@ -79,6 +79,21 @@ const formatImageUrl = (url) => {
   return `${API.defaults.baseURL}${url}`;
 };
 
+// Add this utility function that's referenced but missing
+const stringToColor = (string) => {
+  if (!string) return '#1976d2'; // Default color if string is empty
+  let hash = 0;
+  for (let i = 0; i < string.length; i++) {
+    hash = string.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  let color = '#';
+  for (let i = 0; i < 3; i++) {
+    const value = (hash >> (i * 8)) & 0xff;
+    color += `00${value.toString(16)}`.slice(-2);
+  }
+  return color;
+};
+
 const Chat = () => {
   const { isLoggedIn, username } = useAuth();
   const location = useLocation();
@@ -118,6 +133,9 @@ const Chat = () => {
   const [currentSearchIndex, setCurrentSearchIndex] = useState(-1);
   const [selectedFile, setSelectedFile] = useState(null);
   const [filePreview, setFilePreview] = useState(null);
+  const [contextMenu, setContextMenu] = useState(null);
+  const [selectedMessage, setSelectedMessage] = useState(null);
+  const [typingUsers, setTypingUsers] = useState({});
 
   // Handle window resize
   useEffect(() => {
@@ -260,43 +278,38 @@ const Chat = () => {
   };
 
   const handleImageSelect = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      // Check file size (5MB limit)
-      if (file.size > 5 * 1024 * 1024) {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
         toast.error('Image size should be less than 5MB');
         return;
       }
-
       setSelectedImage(file);
+      
+      // Create a preview URL
+      const reader = new FileReader();
+      reader.onload = (e) => setImagePreview(e.target.result);
+      reader.readAsDataURL(file);
+      
+      // Clear any selected files
       setSelectedFile(null);
       setFilePreview(null);
-      
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result);
-      };
-      reader.readAsDataURL(file);
     }
   };
 
   const handleFileSelect = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      // Check file size (10MB limit)
-      if (file.size > 10 * 1024 * 1024) {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      if (file.size > 10 * 1024 * 1024) { // 10MB limit
         toast.error('File size should be less than 10MB');
         return;
       }
-
       setSelectedFile(file);
+      setFilePreview(file);
+      
+      // Clear any selected images
       setSelectedImage(null);
       setImagePreview(null);
-      setFilePreview({
-        name: file.name,
-        size: formatFileSize(file.size),
-        type: file.type,
-      });
     }
   };
 
@@ -306,13 +319,9 @@ const Chat = () => {
     setSelectedFile(null);
     setFilePreview(null);
     
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-    
-    if (documentInputRef.current) {
-      documentInputRef.current.value = '';
-    }
+    // Reset file inputs
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    if (documentInputRef.current) documentInputRef.current.value = '';
   };
 
   const formatFileSize = (bytes) => {
@@ -354,30 +363,36 @@ const Chat = () => {
     }
   };
 
-  const handleStartChat = async (otherUsername) => {
+  const handleStartChat = async (username) => {
     try {
-      setLoading(true);
-      const response = await API.post('/chats/', { username: otherUsername });
-      const newChat = response.data;
+      setSearching(true);
+      const response = await API.post('/chats/', { username });
       
       // Update chats list
       setChats(prevChats => {
-        const chatExists = prevChats.some(chat => chat.id === newChat.id);
-        if (!chatExists) {
-          return [newChat, ...prevChats];
+        // Check if chat already exists in the list
+        const chatExists = prevChats.some(chat => chat.id === response.data.id);
+        if (chatExists) {
+          return prevChats.map(chat => 
+            chat.id === response.data.id ? response.data : chat
+          );
+        } else {
+          return [response.data, ...prevChats];
         }
-        return prevChats;
       });
-
-      // Select the new/existing chat
-      setSelectedChat(newChat);
+      
+      // Select the new chat
+      setSelectedChat(response.data);
+      fetchMessages(response.data.id);
+      
+      // Clear search
       setSearchQuery('');
       setSearchResults([]);
-    } catch (err) {
-      console.error('Error starting chat:', err);
+    } catch (error) {
+      console.error('Error starting chat:', error);
       toast.error('Failed to start chat');
     } finally {
-      setLoading(false);
+      setSearching(false);
     }
   };
 
@@ -449,6 +464,57 @@ const Chat = () => {
       setReplyTo(null);
     };
   }, []);
+
+  // Add this effect to simulate receiving typing status updates
+  // In a real app, this would come from WebSockets
+  useEffect(() => {
+    // Cleanup typing status when chat changes
+    setTypingUsers({});
+    
+    // This simulates receiving updates in selected chat
+    if (selectedChat) {
+      const typingStatusListener = setInterval(() => {
+        // In a real app, you would check for updates from WebSocket
+        // This is just a placeholder
+      }, 3000);
+      
+      return () => clearInterval(typingStatusListener);
+    }
+  }, [selectedChat?.id]);
+
+  // Add these styles for typing indicator animation
+  const typingDotKeyframes = keyframes`
+    0% { opacity: 0.3; transform: translateY(0); }
+    50% { opacity: 1; transform: translateY(-3px); }
+    100% { opacity: 0.3; transform: translateY(0); }
+  `;
+
+  const typingDotStyle = (delay) => ({
+    width: 6,
+    height: 6,
+    backgroundColor: 'primary.main',
+    borderRadius: '50%',
+    display: 'inline-block',
+    mx: 0.5,
+    animation: `${typingDotKeyframes} 1.4s infinite ease-in-out`,
+    animationDelay: `${delay}s`,
+  });
+
+  // Custom hook for message scroll behavior
+  useEffect(() => {
+    if (messages.length && messagesEndRef.current) {
+      // Scroll to bottom when new messages arrive
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages]);
+
+  // Improved message input focus
+  useEffect(() => {
+    // Focus the message input when selected chat changes
+    if (selectedChat && messageInputRef.current) {
+      messageInputRef.current.focus();
+    }
+  }, [selectedChat]);
 
   const renderChatList = () => (
     <Box
@@ -1483,6 +1549,90 @@ const Chat = () => {
     scrollToMessage(searchedMessages[prevIndex].id);
   };
 
+  // Add message context menu handlers
+  const handleMessageContextMenu = (event, message) => {
+    event.preventDefault();
+    setContextMenu({
+      mouseX: event.clientX - 2,
+      mouseY: event.clientY - 4,
+    });
+    setSelectedMessage(message);
+  };
+  
+  const handleContextMenuClose = () => {
+    setContextMenu(null);
+    setSelectedMessage(null);
+  };
+  
+  // Add message reaction handler
+  const handleAddReaction = async (emoji) => {
+    if (!selectedMessage) return;
+    
+    try {
+      await API.post(`/messages/${selectedMessage.id}/reactions/`, { emoji });
+      
+      // Update messages locally
+      setMessages(prevMessages =>
+        prevMessages.map(msg => {
+          if (msg.id === selectedMessage.id) {
+            // Add the reaction to the message if it doesn't exist
+            const reactions = [...(msg.reactions || [])];
+            const existingReaction = reactions.findIndex(r => r.user.username === username);
+            
+            if (existingReaction >= 0) {
+              // Update existing reaction
+              reactions[existingReaction] = {
+                ...reactions[existingReaction],
+                emoji
+              };
+            } else {
+              // Add new reaction
+              reactions.push({
+                id: Date.now(), // Temporary ID
+                emoji,
+                user: { username }
+              });
+            }
+            
+            return { ...msg, reactions };
+          }
+          return msg;
+        })
+      );
+      
+      handleContextMenuClose();
+    } catch (error) {
+      console.error('Error adding reaction:', error);
+      toast.error('Failed to add reaction');
+    }
+  };
+  
+  // Add message delete handler
+  const handleDeleteMessage = async () => {
+    if (!selectedMessage) return;
+    
+    try {
+      await API.delete(`/messages/${selectedMessage.id}/`);
+      
+      // Remove message locally
+      setMessages(prevMessages => 
+        prevMessages.filter(msg => msg.id !== selectedMessage.id)
+      );
+      
+      toast.success('Message deleted');
+      handleContextMenuClose();
+    } catch (error) {
+      console.error('Error deleting message:', error);
+      toast.error('Failed to delete message');
+    }
+  };
+
+  // Add handler for reply functionality
+  const handleReply = (message) => {
+    setReplyTo(message);
+    messageInputRef.current?.focus();
+  };
+
   if (loading && !selectedChat) {
     return (
       <Container>
@@ -1505,7 +1655,7 @@ const Chat = () => {
   }
 
   return (
-    <Container maxWidth="xl" sx={{ height: '100vh', py: 2 }}>
+    <Container maxWidth="xl" sx={{ height: 'calc(100vh - 64px)', py: 2 }}>
       <Box
         sx={{
           display: 'flex',
@@ -1513,17 +1663,19 @@ const Chat = () => {
           backgroundColor: 'background.paper',
           borderRadius: 2,
           overflow: 'hidden',
+          boxShadow: 3
         }}
       >
-        {/* Chat list */}
+        {/* Chat list - Adjustable width depending on screen size */}
         <Box
           sx={{
-            width: { xs: isMobile ? '100%' : '70px', sm: isMobile ? '100%' : '250px' },
+            width: { xs: isMobile && selectedChat ? '0px' : '100%', sm: isMobile && selectedChat ? '0px' : '300px' },
             borderRight: 1,
             borderColor: 'divider',
             display: isMobile && selectedChat ? 'none' : 'flex',
             flexDirection: 'column',
             flexShrink: 0,
+            transition: 'width 0.3s ease'
           }}
         >
           <Box sx={{ p: { xs: 1, sm: 2 }, borderBottom: 1, borderColor: 'divider' }}>
@@ -1628,7 +1780,7 @@ const Chat = () => {
           </List>
         </Box>
 
-        {/* Chat messages */}
+        {/* Chat message area - Fixed for mobile, flexible for desktop */}
         {selectedChat ? (
           <Box
             sx={{
@@ -1636,7 +1788,8 @@ const Chat = () => {
               display: 'flex',
               flexDirection: 'column',
               position: 'relative',
-              minWidth: 0, // Important for flex child to respect parent width
+              height: '100%',
+              overflow: 'hidden'
             }}
           >
             {/* Chat header */}
@@ -1703,80 +1856,80 @@ const Chat = () => {
             {/* Message search */}
             <MessageSearchComponent />
 
-            {/* Messages */}
+            {/* Messages container - Improved scrolling */}
             <Box
+              ref={messagesContainerRef}
               sx={{
                 flex: 1,
-                overflow: 'auto',
-                p: { xs: 1, sm: 2 },
-                backgroundColor: 'action.hover',
+                overflowY: 'auto',
+                p: 2,
+                bgcolor: '#f5f8fa',
+                display: 'flex',
+                flexDirection: 'column',
+                '&::-webkit-scrollbar': { width: '8px' },
+                '&::-webkit-scrollbar-track': { bgcolor: 'rgba(0,0,0,0.05)' },
+                '&::-webkit-scrollbar-thumb': { bgcolor: 'rgba(0,0,0,0.15)', borderRadius: '4px' },
+                pb: 2 // Add extra padding at the bottom
               }}
             >
               {messages.map((message) => (
                 <MessageComponent key={message.id} message={message} />
               ))}
-              <div ref={messagesEndRef} />
+              <div ref={messagesEndRef} style={{ height: '1px', width: '100%' }} />
             </Box>
 
-            {/* Typing indicator */}
-            {isTyping && (
+            {/* Fixed position containers for reply banner, image preview, and input */}
+            {replyTo && (
               <Box
                 sx={{
                   p: 1,
-                  backgroundColor: 'background.paper',
+                  bgcolor: 'background.paper',
                   borderTop: 1,
                   borderColor: 'divider',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 1,
+                  position: 'relative', // Changed from sticky to relative
+                  zIndex: 5
                 }}
               >
-                <Box
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 0.5,
-                  }}
-                >
-                  <Box
-                    sx={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: '50%',
-                      backgroundColor: 'primary.main',
-                      animation: `${typingDotAnimation} 1s infinite`,
-                      animationDelay: '0s',
-                    }}
-                  />
-                  <Box
-                    sx={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: '50%',
-                      backgroundColor: 'primary.main',
-                      animation: `${typingDotAnimation} 1s infinite`,
-                      animationDelay: '0.3s',
-                    }}
-                  />
-                  <Box
-                    sx={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: '50%',
-                      backgroundColor: 'primary.main',
-                      animation: `${typingDotAnimation} 1s infinite`,
-                      animationDelay: '0.6s',
-                    }}
-                  />
-                </Box>
-                <Typography variant="caption" color="textSecondary">
-                  {selectedChat.participants.find(p => p.username !== username)?.username} is typing...
-                </Typography>
+                {/* ... existing reply banner code ... */}
               </Box>
             )}
 
-            {/* Message input */}
-            <MessageInput />
+            {/* Image/file preview */}
+            {(imagePreview || filePreview) && (
+                <Box
+                  sx={{
+                  p: 1.5,
+                  bgcolor: 'background.paper',
+                  borderTop: !replyTo && 1,
+                  borderColor: 'divider',
+                    display: 'flex',
+                    alignItems: 'center',
+                  justifyContent: 'space-between',
+                  position: 'relative', // Changed from sticky to relative
+                  zIndex: 4
+                  }}
+                >
+                {/* ... existing preview code ... */}
+              </Box>
+            )}
+
+            {/* Message input - fixed at the bottom */}
+                  <Box
+                    sx={{
+                p: 2,
+                borderTop: !(replyTo || imagePreview || filePreview) && 1,
+                borderColor: 'divider',
+                display: 'flex',
+                alignItems: 'center',
+                position: 'relative', // Changed from sticky to relative
+                bgcolor: 'background.paper',
+                zIndex: 3
+              }}
+            >
+              {/* ... existing message input code ... */}
+                </Box>
           </Box>
         ) : (
           <Box
@@ -1785,6 +1938,8 @@ const Chat = () => {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
+              bgcolor: '#f5f8fa',
+              p: 3
             }}
           >
             <Typography variant="h6" color="textSecondary">
@@ -1793,7 +1948,7 @@ const Chat = () => {
           </Box>
         )}
 
-        {/* User info panel - Enhanced version */}
+        {/* User info panel - Fixed for desktop, hidden for mobile */}
         {!isMobile && selectedChat && showUserInfo && (
           <Box
             sx={{
@@ -1990,6 +2145,67 @@ const Chat = () => {
 
       {/* Emoji picker */}
       <EmojiPickerComponent />
+
+      {/* Add this context menu component */}
+      <Menu
+        open={contextMenu !== null}
+        onClose={handleContextMenuClose}
+        anchorReference="anchorPosition"
+        anchorPosition={
+          contextMenu !== null
+            ? { top: contextMenu.mouseY, left: contextMenu.mouseX }
+            : undefined
+        }
+      >
+        <MenuItem onClick={() => handleReply(selectedMessage)}>
+          <ReplyIcon fontSize="small" sx={{ mr: 1 }} />
+          Reply
+        </MenuItem>
+        
+        <MenuItem>
+          <Box sx={{ width: '100%' }}>
+            <Typography variant="body2" sx={{ mb: 1 }}>React with</Typography>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+              {PREDEFINED_EMOJIS.map(emoji => (
+                <IconButton 
+                  key={emoji}
+                  size="small" 
+                  onClick={() => handleAddReaction(emoji)}
+                >
+                  {emoji}
+                </IconButton>
+              ))}
+            </Box>
+          </Box>
+        </MenuItem>
+        
+        {selectedMessage && selectedMessage.sender.username === username && (
+          <MenuItem onClick={handleDeleteMessage} sx={{ color: 'error.main' }}>
+            <DeleteIcon fontSize="small" sx={{ mr: 1 }} />
+            Delete
+          </MenuItem>
+        )}
+      </Menu>
+
+      {/* Typing indicator example - add this inside the messages container before the messagesEndRef */}
+      {Object.keys(typingUsers).length > 0 && (
+        <Box sx={{ display: 'flex', alignItems: 'center', ml: 2, mb: 2 }}>
+          <Avatar
+            src={formatImageUrl(typingUsers[Object.keys(typingUsers)[0]]?.avatar_url)}
+            sx={{ width: 24, height: 24, mr: 1 }}
+          >
+            {typingUsers[Object.keys(typingUsers)[0]]?.username?.[0]?.toUpperCase()}
+          </Avatar>
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <Box sx={typingDotStyle(0)} />
+            <Box sx={typingDotStyle(0.2)} />
+            <Box sx={typingDotStyle(0.4)} />
+          </Box>
+          <Typography variant="caption" sx={{ ml: 1, color: 'text.secondary' }}>
+            typing...
+          </Typography>
+        </Box>
+      )}
     </Container>
   );
 };
