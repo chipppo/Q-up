@@ -123,6 +123,8 @@ const Chat = () => {
   const [typingTimeout, setTypingTimeout] = useState(null);
   const [highlightedMessageId, setHighlightedMessageId] = useState(null);
   const messagesEndRef = useRef(null);
+  const messagesContainerRef = useRef(null);
+  const messageInputRef = useRef(null);
   const fileInputRef = useRef(null);
   const documentInputRef = useRef(null);
   const messageRefs = useRef({});
@@ -610,8 +612,11 @@ const Chat = () => {
                     primary={otherParticipant?.display_name || otherParticipant?.username}
                     secondary={
                       chat.last_message
-                        ? `${chat.last_message.sender?.username === username ? 'You' : chat.last_message.sender?.username}: ${
-                            chat.last_message.image
+                        ? `${chat.last_message.sender === username ? 'You' : 
+                            (typeof chat.last_message.sender === 'object' ? 
+                              chat.last_message.sender?.username : 
+                              chat.last_message.sender) || 'Unknown'}: ${
+                            chat.last_message.has_image || chat.last_message.image
                               ? '📷 Image'
                               : chat.last_message.content
                           }`
@@ -968,6 +973,18 @@ const Chat = () => {
     const isShortMessage = messageLength < 20 && !message.image && !message.file;
     const isHighlighted = message.id === highlightedMessageId;
     const hasFile = message.file;
+    const [menuAnchorEl, setMenuAnchorEl] = React.useState(null);
+
+    const handleMenuClick = (event) => {
+      event.stopPropagation();
+      setMenuAnchorEl(event.currentTarget);
+      setSelectedMessageForMenu(message);
+    };
+
+    const handleMenuClose = () => {
+      setMenuAnchorEl(null);
+      setSelectedMessageForMenu(null);
+    };
 
     return (
       <Box
@@ -1030,159 +1047,142 @@ const Chat = () => {
             </Avatar>
           </ListItemAvatar>
 
-          <Box sx={{ maxWidth: { xs: '80%', sm: '85%' } }}>
+          <Box sx={{ maxWidth: { xs: '80%', sm: '85%' }, position: 'relative' }}>
             <Typography variant="caption" color="textSecondary">
               {message.sender.username}
             </Typography>
 
-            <Paper
-              elevation={1}
-              sx={{
-                p: 1.5,
-                backgroundColor: isOwnMessage ? 'primary.main' : 'background.paper',
-                color: isOwnMessage ? 'primary.contrastText' : 'text.primary',
-                borderRadius: 2,
-                maxWidth: '100%',
-                width: isShortMessage ? 'auto' : undefined,
-                position: 'relative',
-                wordBreak: 'break-word',
-                cursor: isEditing ? 'default' : 'pointer',
-                display: 'inline-block',
-              }}
-              onClick={(e) => {
-                if (!isEditing) {
-                  handleMessageMenuOpen(e, message);
-                }
-              }}
-            >
-              {isEditing ? (
-                <Box sx={{ display: 'flex', gap: 1 }}>
-                  <TextField
-                    fullWidth
-                    value={editContent}
-                    onChange={(e) => setEditContent(e.target.value)}
-                    size="small"
-                    autoFocus
-                    multiline
-                    maxRows={4}
-                  />
-                  <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                    <IconButton
+            <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+              <Paper
+                elevation={1}
+                sx={{
+                  p: 1.5,
+                  backgroundColor: isOwnMessage ? 'primary.main' : 'background.paper',
+                  color: isOwnMessage ? 'primary.contrastText' : 'text.primary',
+                  borderRadius: 2,
+                  maxWidth: '100%',
+                  width: isShortMessage ? 'auto' : undefined,
+                  position: 'relative',
+                  wordBreak: 'break-word',
+                }}
+              >
+                {isEditing ? (
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    <TextField
+                      fullWidth
+                      value={editContent}
+                      onChange={(e) => setEditContent(e.target.value)}
                       size="small"
-                      onClick={() => handleEditMessage(message.id)}
-                      color="primary"
-                    >
-                      <CheckIcon fontSize="small" />
-                    </IconButton>
-                    <IconButton
-                      size="small"
-                      onClick={() => {
-                        setEditingMessage(null);
-                        setEditContent('');
+                      autoFocus
+                      multiline
+                      maxRows={4}
+                      sx={{
+                        '& .MuiInputBase-input': {
+                          direction: 'ltr',
+                          textAlign: 'left'
+                        }
                       }}
-                    >
-                      <CloseIcon fontSize="small" />
-                    </IconButton>
-                  </Box>
-                </Box>
-              ) : (
-                <>
-                  {message.content && (
-                    <Typography variant="body1" sx={{ wordBreak: 'break-word' }}>
-                      {message.content}
-                    </Typography>
-                  )}
-
-                  {message.image && (
-                    <Box sx={{ mt: message.content ? 1 : 0 }}>
-                      <img
-                        src={message.image}
-                        alt="Message attachment"
-                        style={{ maxWidth: '100%', borderRadius: 8 }}
-                        onError={(e) => {
-                          e.target.onerror = null;
-                          e.target.src = 'https://via.placeholder.com/200x150?text=Image+Not+Available';
-                        }}
-                      />
-                    </Box>
-                  )}
-
-                  {hasFile && (
-                    <Box 
-                      sx={{ 
-                        mt: message.content ? 1 : 0,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 1,
-                        bgcolor: isOwnMessage ? 'rgba(0, 0, 0, 0.1)' : 'rgba(0, 0, 0, 0.05)',
-                        p: 1,
-                        borderRadius: 1,
-                      }}
-                    >
-                      <AttachFileIcon fontSize="small" />
-                      <Box sx={{ flexGrow: 1 }}>
-                        <Typography variant="body2" noWrap>
-                          {message.file.name}
-                        </Typography>
-                        <Typography variant="caption" color={isOwnMessage ? 'primary.contrastText' : 'textSecondary'}>
-                          {message.file.size}
-                        </Typography>
-                      </Box>
-                      <IconButton 
-                        size="small" 
-                        href={message.file.url} 
-                        download
-                        sx={{ 
-                          color: isOwnMessage ? 'primary.contrastText' : 'primary.main',
-                          '&:hover': {
-                            bgcolor: isOwnMessage ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
-                          }
+                    />
+                    <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                      <IconButton
+                        size="small"
+                        onClick={() => handleEditMessage(message.id)}
+                        color="primary"
+                      >
+                        <CheckIcon fontSize="small" />
+                      </IconButton>
+                      <IconButton
+                        size="small"
+                        onClick={() => {
+                          setEditingMessage(null);
+                          setEditContent('');
                         }}
                       >
-                        <DownloadIcon fontSize="small" />
+                        <CloseIcon fontSize="small" />
                       </IconButton>
                     </Box>
-                  )}
-                </>
-              )}
-            </Paper>
+                  </Box>
+                ) : (
+                  <>
+                    {message.content && (
+                      <Typography variant="body1" sx={{ wordBreak: 'break-word' }}>
+                        {message.content}
+                      </Typography>
+                    )}
 
-            <Box
-              sx={{
-                display: 'flex',
-                justifyContent: isOwnMessage ? 'flex-end' : 'flex-start',
-                alignItems: 'center',
-                mt: 0.5,
-                gap: 1,
-              }}
-            >
-              <Typography variant="caption" color="textSecondary">
-                {formatTime(message.created_at)}
-              </Typography>
-              {message.is_edited && (
-                <Typography variant="caption" color="textSecondary">
-                  (edited)
-                </Typography>
+                    {message.image && (
+                      <Box sx={{ mt: message.content ? 1 : 0 }}>
+                        <img
+                          src={message.image}
+                          alt="Message attachment"
+                          style={{ maxWidth: '100%', borderRadius: 8 }}
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = 'https://via.placeholder.com/200x150?text=Image+Not+Available';
+                          }}
+                        />
+                      </Box>
+                    )}
+                  </>
+                )}
+              </Paper>
+
+              {!isEditing && (
+                <IconButton
+                  size="small"
+                  onClick={handleMenuClick}
+                  sx={{
+                    opacity: 0.7,
+                    '&:hover': { opacity: 1 },
+                    transition: 'opacity 0.2s',
+                    alignSelf: 'center',
+                  }}
+                >
+                  <MoreIcon fontSize="small" />
+                </IconButton>
               )}
-              {isOwnMessage && (
-                <Box sx={{ display: 'flex', alignItems: 'center', ml: 0.5 }}>
-                  {!message.is_delivered && !message.is_read && (
-                    <Tooltip title="Sending...">
-                      <CircularProgress size={10} color="inherit" />
-                    </Tooltip>
-                  )}
-                  {message.is_delivered && !message.is_read && (
-                    <Tooltip title="Delivered">
-                      <DoneAllIcon fontSize="small" color="action" sx={{ fontSize: 12 }} />
-                    </Tooltip>
-                  )}
-                  {message.is_read && (
-                    <Tooltip title="Read">
-                      <DoneAllIcon fontSize="small" color="primary" sx={{ fontSize: 12 }} />
-                    </Tooltip>
-                  )}
-                </Box>
-              )}
+
+              <Menu
+                anchorEl={menuAnchorEl}
+                open={Boolean(menuAnchorEl)}
+                onClose={handleMenuClose}
+                anchorOrigin={{
+                  vertical: 'bottom',
+                  horizontal: isOwnMessage ? 'right' : 'left',
+                }}
+                transformOrigin={{
+                  vertical: 'top',
+                  horizontal: isOwnMessage ? 'right' : 'left',
+                }}
+              >
+                <MenuItem onClick={() => {
+                  handleReplyMessage(message);
+                  handleMenuClose();
+                }}>
+                  <ReplyIcon sx={{ mr: 1 }} /> Reply
+                </MenuItem>
+                {message.sender.username === username && [
+                  <MenuItem 
+                    key="edit" 
+                    onClick={() => {
+                      setEditingMessage(message);
+                      setEditContent(message.content || '');
+                      handleMenuClose();
+                    }}
+                  >
+                    <EditIcon sx={{ mr: 1 }} /> Edit
+                  </MenuItem>,
+                  <MenuItem 
+                    key="delete" 
+                    onClick={() => {
+                      handleDeleteMessage(message.id);
+                      handleMenuClose();
+                    }}
+                  >
+                    <DeleteIcon sx={{ mr: 1 }} /> Delete
+                  </MenuItem>
+                ]}
+              </Menu>
             </Box>
           </Box>
         </Box>
@@ -1633,6 +1633,37 @@ const Chat = () => {
     messageInputRef.current?.focus();
   };
 
+  const handleEditMessage = async (messageId) => {
+    if (!editContent.trim()) {
+      toast.error('Message cannot be empty');
+      return;
+    }
+
+    try {
+      const response = await API.patch(`/messages/${messageId}/`, {
+        content: editContent
+      });
+
+      // Update the message in the local state
+      setMessages(prevMessages =>
+        prevMessages.map(msg =>
+          msg.id === messageId
+            ? { ...msg, content: editContent, is_edited: true }
+            : msg
+        )
+      );
+
+      // Clear editing state
+      setEditingMessage(null);
+      setEditContent('');
+
+      toast.success('Message updated successfully');
+    } catch (error) {
+      console.error('Error editing message:', error);
+      toast.error(error.response?.data?.detail || 'Failed to edit message');
+    }
+  };
+
   if (loading && !selectedChat) {
     return (
       <Container>
@@ -1753,8 +1784,11 @@ const Chat = () => {
                         primary={otherParticipant?.display_name || otherParticipant?.username}
                         secondary={
                           chat.last_message
-                            ? `${chat.last_message.sender?.username === username ? 'You' : chat.last_message.sender?.username}: ${
-                                chat.last_message.image
+                            ? `${chat.last_message.sender === username ? 'You' : 
+                                (typeof chat.last_message.sender === 'object' ? 
+                                  chat.last_message.sender?.username : 
+                                  chat.last_message.sender) || 'Unknown'}: ${
+                                chat.last_message.has_image || chat.last_message.image
                                   ? '📷 Image'
                                   : chat.last_message.content
                               }`
