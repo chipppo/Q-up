@@ -1,46 +1,56 @@
 /* Dashboard.css */
 .dashboard-header {
-  background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
-  color: white !important;
+  background: linear-gradient(135deg, var(--color-bg-tertiary) 0%, var(--color-bg-secondary) 100%);
+  color: var(--color-text-primary) !important;
   margin-bottom: 2rem;
-  border-radius: 8px !important;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1) !important;
+  border-radius: var(--border-radius) !important;
+  box-shadow: var(--box-shadow-md) !important;
+  border-left: 4px solid var(--color-primary);
 }
 
 .dashboard-header h1, .dashboard-header h4 {
-  color: white !important;
+  color: var(--color-text-primary) !important;
 }
 
 .dashboard-header h6 {
-  color: rgba(255, 255, 255, 0.8) !important;
+  color: var(--color-text-secondary) !important;
   margin-top: 0.5rem;
 }
 
 /* Quick links styling */
 .quick-link-button {
-  transition: all 0.2s ease-in-out !important;
+  transition: all var(--transition-fast) !important;
+  background-color: var(--color-bg-tertiary) !important;
+  color: var(--color-text-primary) !important;
 }
 
 .quick-link-button:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--box-shadow-sm);
+  background-color: var(--color-bg-elevated) !important;
+  border-color: var(--color-primary) !important;
 }
 
 /* Activity list styling */
 .activity-list-item {
-  transition: background-color 0.2s ease-in-out;
+  transition: background-color var(--transition-fast);
+  background-color: var(--color-bg-secondary) !important;
+  margin-bottom: 8px !important;
+  border-radius: var(--border-radius) !important;
 }
 
 .activity-list-item:hover {
-  background-color: rgba(0, 0, 0, 0.04);
+  background-color: var(--color-bg-tertiary) !important;
 }
 
 .activity-avatar {
-  background-color: #2196f3 !important;
+  background-color: var(--color-primary) !important;
+  color: var(--color-bg-primary) !important;
 }
 
 .game-avatar {
-  background-color: #4caf50 !important;
+  background-color: var(--color-secondary) !important;
+  color: var(--color-text-primary) !important;
 }
 
 /* Post card styling */
@@ -48,15 +58,18 @@
   height: 100%;
   display: flex;
   flex-direction: column;
-  transition: transform 0.2s ease-in-out;
+  transition: transform var(--transition-fast);
+  background-color: var(--color-bg-secondary) !important;
 }
 
 .post-card:hover {
   transform: translateY(-4px);
+  box-shadow: var(--box-shadow-md);
 }
 
 .post-content {
   flex-grow: 1;
+  color: var(--color-text-primary) !important;
 }
 
 /* Game stats styling */
@@ -64,6 +77,8 @@
   max-height: 400px;
   overflow-y: auto;
   padding-right: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: #555 var(--color-bg-secondary);
 }
 
 .game-stats-container::-webkit-scrollbar {
@@ -71,32 +86,35 @@
 }
 
 .game-stats-container::-webkit-scrollbar-track {
-  background-color: rgba(0, 0, 0, 0.05);
+  background-color: var(--color-bg-secondary);
   border-radius: 4px;
 }
 
 .game-stats-container::-webkit-scrollbar-thumb {
-  background-color: rgba(0, 0, 0, 0.2);
+  background-color: #555;
   border-radius: 4px;
 }
 
 .game-stats-container::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(0, 0, 0, 0.3);
+  background-color: #777;
 }
 
 .game-stat-item {
   display: flex;
   align-items: center;
   padding: 16px;
-  border-radius: 8px;
+  border-radius: var(--border-radius);
   margin-bottom: 12px;
-  transition: all 0.2s ease;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all var(--transition-fast);
+  box-shadow: var(--box-shadow-sm);
+  background-color: var(--color-bg-secondary) !important;
+  border: 1px solid #444;
 }
 
 .game-stat-item:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--box-shadow-md);
+  border-color: var(--color-primary);
 }
 
 .game-logo {
@@ -105,6 +123,7 @@
   border-radius: 8px;
   object-fit: cover;
   margin-right: 16px;
+  box-shadow: var(--box-shadow-sm);
 }
 
 .rank-icon {
@@ -112,6 +131,7 @@
   height: 40px;
   border-radius: 50%;
   object-fit: contain;
+  box-shadow: var(--box-shadow-sm);
 }
 
 /* Responsive adjustments */
@@ -129,4 +149,5 @@
 .dashboard-container {
   min-height: calc(100vh - 64px);
   padding: 24px;
+  background-color: var(--color-bg-primary);
 } 

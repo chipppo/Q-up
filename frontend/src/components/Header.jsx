@@ -213,7 +213,8 @@ const Header = () => {
                   sx={{ 
                     width: 32, 
                     height: 32,
-                    border: '2px solid white',
+                    border: '2px solid',
+                    borderColor: 'primary.main',
                     bgcolor: userData?.avatar_url ? 'transparent' : stringToColor(username || '')
                   }}
                 >
@@ -299,7 +300,7 @@ const Header = () => {
                 to="/register"
                 color="inherit"
                 variant="outlined"
-                sx={{ borderColor: 'white', '&:hover': { borderColor: 'white' } }}
+                sx={{ borderColor: 'primary.main', '&:hover': { borderColor: 'primary.light' } }}
               >
                 Register
               </Button>

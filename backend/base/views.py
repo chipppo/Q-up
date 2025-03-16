@@ -1186,10 +1186,7 @@ class MessageDetailView(APIView):
         if message.sender != request.user:
             return Response({"detail": "You can only edit your own messages."}, status=status.HTTP_403_FORBIDDEN)
         
-        # Check if it's not too old to edit (optional time limit)
-        time_limit = timezone.now() - timezone.timedelta(hours=24)  # 24 hour limit
-        if message.created_at < time_limit:
-            return Response({"detail": "Messages can only be edited within 24 hours of sending."}, status=status.HTTP_403_FORBIDDEN)
+        # The 24-hour time limit check has been removed as requested
         
         serializer = MessageSerializer(message, data=request.data, partial=True, context={'request': request})
         if serializer.is_valid():

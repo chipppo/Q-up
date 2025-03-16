@@ -8,17 +8,19 @@
 }
 
 .message-bubble.sent {
-  background-color: #0084ff;
-  color: white;
+  background-color: var(--color-primary);
+  color: var(--color-bg-primary);
   margin-left: auto;
   border-top-right-radius: 5px;
+  box-shadow: var(--box-shadow-sm);
 }
 
 .message-bubble.received {
-  background-color: #f0f0f0;
-  color: black;
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-text-primary);
   margin-right: auto;
   border-top-left-radius: 5px;
+  box-shadow: var(--box-shadow-sm);
 }
 
 .message-image {
@@ -26,42 +28,44 @@
   max-height: 300px;
   border-radius: 10px;
   margin-top: 5px;
+  box-shadow: var(--box-shadow-sm);
 }
 
 .message-timestamp {
   font-size: 0.7rem;
-  color: #888;
+  color: var(--color-text-tertiary);
   margin-top: 2px;
   text-align: right;
 }
 
 .reply-bubble {
-  background-color: rgba(0, 0, 0, 0.05);
+  background-color: rgba(0, 255, 170, 0.1);
   padding: 5px 10px;
   border-radius: 5px;
   margin-bottom: 5px;
   font-size: 0.9rem;
-  border-left: 3px solid #0084ff;
+  border-left: 3px solid var(--color-primary);
 }
 
 .chat-list-item {
-  transition: background-color 0.2s ease;
+  transition: background-color var(--transition-fast);
 }
 
 .chat-list-item:hover {
-  background-color: rgba(0, 0, 0, 0.05);
+  background-color: var(--color-bg-tertiary);
 }
 
 .chat-list-item.selected {
-  background-color: rgba(0, 0, 0, 0.1);
+  background-color: rgba(0, 255, 170, 0.1);
+  border-left: 3px solid var(--color-primary);
 }
 
 .message-input-container {
   display: flex;
   align-items: center;
   padding: 10px;
-  background-color: white;
-  border-top: 1px solid #eee;
+  background-color: var(--color-bg-secondary);
+  border-top: 1px solid #444;
 }
 
 .message-input {
@@ -70,13 +74,15 @@
   padding: 10px;
   border: none;
   border-radius: 20px;
-  background-color: #f0f0f0;
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-text-primary);
   resize: none;
 }
 
 .message-input:focus {
   outline: none;
-  background-color: #e8e8e8;
+  background-color: var(--color-bg-elevated);
+  box-shadow: 0 0 0 2px rgba(0, 255, 170, 0.2);
 }
 
 .image-preview {
@@ -88,60 +94,63 @@
   max-width: 200px;
   max-height: 200px;
   border-radius: 10px;
+  box-shadow: var(--box-shadow-sm);
 }
 
 .remove-image-button {
   position: absolute;
   top: -10px;
   right: -10px;
-  background-color: white;
+  background-color: var(--color-bg-secondary);
   border-radius: 50%;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  box-shadow: var(--box-shadow-sm);
+  color: var(--color-text-primary);
 }
 
 .messages-container {
   flex-grow: 1;
   overflow-y: auto;
   padding: 20px;
-  background-color: #f9f9f9;
+  background-color: var(--color-bg-primary);
 }
 
 .highlighted-message {
-  background-color: rgba(255, 255, 0, 0.2);
+  background-color: rgba(255, 214, 0, 0.2) !important;
   animation: highlight-fade 3s ease-in-out;
 }
 
 @keyframes highlight-fade {
-  0% { background-color: rgba(255, 255, 0, 0.4); }
+  0% { background-color: rgba(255, 214, 0, 0.4); }
   100% { background-color: transparent; }
 }
 
 .emoji-reaction {
   display: inline-block;
-  background-color: #f0f0f0;
+  background-color: var(--color-bg-tertiary);
   border-radius: 12px;
   padding: 2px 8px;
   margin-right: 4px;
   margin-top: 4px;
   font-size: 0.9rem;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: background-color var(--transition-fast);
 }
 
 .emoji-reaction:hover {
-  background-color: #e0e0e0;
+  background-color: var(--color-bg-elevated);
 }
 
 .emoji-reaction.selected {
-  background-color: #bbdefb;
+  background-color: rgba(0, 255, 170, 0.2);
+  border: 1px solid var(--color-primary);
 }
 
 .typing-indicator {
   display: flex;
   align-items: center;
   padding: 5px 10px;
-  background-color: white;
-  border-top: 1px solid #eee;
+  background-color: var(--color-bg-secondary);
+  border-top: 1px solid #444;
 }
 
 .typing-dots {
@@ -153,12 +162,30 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background-color: #888;
+  background-color: var(--color-text-secondary);
   margin-right: 4px;
+  animation: typing-animation 1.4s infinite ease-in-out;
+}
+
+.typing-dot:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.typing-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typing-dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes typing-animation {
+  0%, 60%, 100% { transform: translateY(0); }
+  30% { transform: translateY(-5px); }
 }
 
 .message-status {
   font-size: 0.7rem;
-  color: #888;
+  color: var(--color-text-tertiary);
   margin-left: 4px;
 } 

@@ -90,9 +90,9 @@ function Home() {
                     py: 1.5,
                     px: 4,
                     fontSize: '1.1rem',
-                    background: 'linear-gradient(45deg, #1976d2, #2196f3)',
+                    background: 'linear-gradient(45deg, #00FFAA, #33FFBB)',
                     '&:hover': {
-                      background: 'linear-gradient(45deg, #1565c0, #1976d2)',
+                      background: 'linear-gradient(45deg, #00CC88, #00FFAA)',
                     }
                   }}
                 >
@@ -200,9 +200,9 @@ function Home() {
                     py: 1.5,
                     px: 6,
                     fontSize: '1.1rem',
-                    background: 'linear-gradient(45deg, #1976d2, #2196f3)',
+                    background: 'linear-gradient(45deg, #00FFAA, #33FFBB)',
                     '&:hover': {
-                      background: 'linear-gradient(45deg, #1565c0, #1976d2)',
+                      background: 'linear-gradient(45deg, #00CC88, #00FFAA)',
                     }
                   }}
                 >
