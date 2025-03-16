@@ -1,3 +1,44 @@
+/* Define theme variables */
+:root {
+  /* Main colors */
+  --color-bg-primary: #121212;
+  --color-bg-secondary: #1E1E1E;
+  --color-bg-tertiary: #2A2A2A;
+  --color-bg-elevated: #333333;
+  
+  /* Accent colors */
+  --color-primary: #00FFAA;
+  --color-primary-light: #33FFBB;
+  --color-primary-dark: #00CC88;
+  
+  --color-secondary: #FF00AA;
+  --color-secondary-light: #FF33BB;
+  --color-secondary-dark: #CC0088;
+  
+  /* Functional colors */
+  --color-success: #00E676;
+  --color-warning: #FFD600;
+  --color-error: #FF1744;
+  
+  /* Text colors */
+  --color-text-primary: #FFFFFF;
+  --color-text-secondary: #AAAAAA;
+  --color-text-tertiary: #777777;
+  
+  /* Border and shadow */
+  --border-radius: 8px;
+  --box-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --box-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --box-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
+  --glow-primary: 0 0 10px rgba(0, 255, 170, 0.5);
+  --glow-secondary: 0 0 10px rgba(255, 0, 170, 0.5);
+  
+  /* Transitions */
+  --transition-fast: 0.2s ease;
+  --transition-normal: 0.3s ease;
+  --transition-slow: 0.5s ease;
+}
+
 /* Reset some basic styles */
 * {
   margin: 0;
@@ -6,11 +47,95 @@
 }
 
 body {
-  font-family: Arial, sans-serif;
+  font-family: 'Poppins', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  line-height: 1.5;
 }
 
 h1, h2, h3 {
-  color: #333;
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+a {
+  color: var(--color-primary);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+
+a:hover {
+  color: var(--color-primary-light);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: #555;
+  border-radius: var(--border-radius);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #777;
+}
+
+/* Basic button styling */
+button {
+  background-color: var(--color-primary);
+  color: var(--color-bg-primary);
+  border: none;
+  border-radius: var(--border-radius);
+  padding: 8px 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+button:hover {
+  background-color: var(--color-primary-light);
+  box-shadow: var(--glow-primary);
+}
+
+button.secondary {
+  background-color: var(--color-secondary);
+  color: var(--color-text-primary);
+}
+
+button.secondary:hover {
+  background-color: var(--color-secondary-light);
+  box-shadow: var(--glow-secondary);
+}
+
+/* Input styling */
+input, textarea, select {
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-text-primary);
+  border: 1px solid #444;
+  border-radius: var(--border-radius);
+  padding: 10px;
+  transition: border-color var(--transition-fast);
+}
+
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(0, 255, 170, 0.2);
+}
+
+/* Card styling */
+.card {
+  background-color: var(--color-bg-secondary);
+  border-radius: var(--border-radius);
+  padding: 16px;
+  box-shadow: var(--box-shadow-md);
 }
 
 header {
@@ -60,26 +185,7 @@ main {
   margin-top: 50px;
 }
 
-.card {
-  width: 200px;
-  border: 1px solid #ddd;
-  padding: 10px;
-  text-align: center;
-}
-
 .card img {
   width: 100%;
   height: auto;
-}
-
-button {
-  padding: 10px 20px;
-  background-color: #4CAF50;
-  color: white;
-  border: none;
-  cursor: pointer;
-}
-
-button:hover {
-  background-color: #45a049;
 }

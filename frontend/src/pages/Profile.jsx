@@ -135,11 +135,11 @@ function ViewProfile({ user, gameStats, isFollowing, onFollowToggle, isLoggedIn,
               <Box sx={{ mt: 1 }}>
                 <Typography variant="body2">
                   <strong>Active:</strong> {formatActiveHours(user?.active_hours, user?.timezone_offset)}
-                  <span style={{ fontSize: '0.8rem', color: '#666', fontStyle: 'italic', display: 'block', marginTop: '2px' }}>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--color-text-tertiary)', fontStyle: 'italic', display: 'block', marginTop: '2px' }}>
                     (Times shown in {user?.timezone || 'local'} timezone)
                   </span>
                   {formatActiveHours(user?.active_hours, user?.timezone_offset).includes('*') && (
-                    <span style={{ fontSize: '0.8rem', color: '#666', fontStyle: 'italic', display: 'block', marginTop: '2px' }}>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--color-text-tertiary)', fontStyle: 'italic', display: 'block', marginTop: '2px' }}>
                       * Partially active during this time period
                     </span>
                   )}
@@ -366,7 +366,7 @@ function ViewProfile({ user, gameStats, isFollowing, onFollowToggle, isLoggedIn,
               />
             ))
           ) : (
-            <Typography sx={{ mt: 1, textAlign: 'center', py: 4, bgcolor: '#f5f5f5', borderRadius: 1 }}>
+            <Typography sx={{ mt: 1, textAlign: 'center', py: 4, bgcolor: 'background.paper', borderRadius: 1 }}>
               No posts yet
             </Typography>
           )}

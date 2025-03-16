@@ -1,8 +1,12 @@
 /* src/components/Header.css */
 header {
-    background-color: #333;
+    background-color: var(--color-bg-secondary);
     padding: 10px 20px;
-    color: white;
+    color: var(--color-text-primary);
+    box-shadow: var(--box-shadow-md);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
   }
   
   nav {
@@ -12,29 +16,61 @@ header {
   }
   
   nav a {
-    color: white;
+    color: var(--color-text-primary);
     text-decoration: none;
     margin: 0 10px;
+    transition: color var(--transition-fast);
+    font-weight: 500;
   }
   
   nav a:hover {
-    text-decoration: underline;
+    color: var(--color-primary);
   }
   
   nav button {
-    background-color: #ff4d4d;
-    color: white;
+    background-color: var(--color-secondary);
+    color: var(--color-text-primary);
     border: none;
     padding: 5px 10px;
     cursor: pointer;
-    border-radius: 5px;
+    border-radius: var(--border-radius);
+    transition: all var(--transition-fast);
   }
   
   nav button:hover {
-    background-color: #ff1a1a;
+    background-color: var(--color-secondary-light);
+    box-shadow: var(--glow-secondary);
   }
   
   nav span {
     margin-right: 10px;
     font-weight: bold;
+    color: var(--color-text-primary);
+  }
+
+  .logo {
+    font-weight: 700;
+    font-size: 1.5rem;
+    color: var(--color-primary);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+  }
+
+  .logo:hover {
+    text-shadow: 0 0 8px rgba(0, 255, 170, 0.6);
+  }
+
+  .nav-links {
+    display: flex;
+    align-items: center;
+  }
+
+  .user-avatar {
+    border: 2px solid var(--color-primary);
+    transition: all var(--transition-fast);
+  }
+
+  .user-avatar:hover {
+    box-shadow: var(--glow-primary);
   }

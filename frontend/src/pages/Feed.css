@@ -2,39 +2,47 @@
   max-width: 800px;
   margin: 0 auto;
   padding: 20px;
+  background-color: var(--color-bg-primary);
 }
 
 .feed-header {
   margin-bottom: 30px;
   text-align: center;
+  background-color: var(--color-bg-secondary);
+  padding: 20px;
+  border-radius: var(--border-radius);
+  box-shadow: var(--box-shadow-md);
+  border-left: 4px solid var(--color-primary);
 }
 
 .feed-header h1 {
   font-size: 2.5rem;
   margin-bottom: 10px;
-  color: #333;
+  color: var(--color-text-primary);
+  text-shadow: 0 0 10px rgba(0, 255, 170, 0.3);
 }
 
 .feed-header p {
-  color: #666;
+  color: var(--color-text-secondary);
   font-size: 1.1rem;
 }
 
 .empty-feed {
   text-align: center;
   padding: 50px 0;
-  background-color: #f9f9f9;
-  border-radius: 8px;
+  background-color: var(--color-bg-secondary);
+  border-radius: var(--border-radius);
   margin: 20px 0;
+  box-shadow: var(--box-shadow-md);
 }
 
 .empty-feed h3 {
-  color: #555;
+  color: var(--color-text-primary);
   margin-bottom: 15px;
 }
 
 .empty-feed p {
-  color: #777;
+  color: var(--color-text-secondary);
 }
 
 .load-more-container {
@@ -46,20 +54,23 @@
 .load-more-button {
   padding: 10px 25px;
   font-size: 1rem;
-  background-color: #f0f0f0;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-text-primary);
+  border: 1px solid #444;
+  border-radius: var(--border-radius);
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all var(--transition-fast);
 }
 
 .load-more-button:hover {
-  background-color: #e0e0e0;
+  background-color: var(--color-bg-elevated);
+  box-shadow: var(--box-shadow-sm);
+  border-color: var(--color-primary);
 }
 
 .end-message {
   text-align: center;
-  color: #888;
+  color: var(--color-text-secondary);
   margin: 30px 0;
   font-style: italic;
 }

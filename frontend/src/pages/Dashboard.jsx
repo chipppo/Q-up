@@ -169,8 +169,8 @@ function Dashboard() {
           display: 'flex',
           flexDirection: { xs: 'column', sm: 'row' },
           alignItems: 'center',
-          background: 'linear-gradient(to right, #1976d2, #64b5f6)',
-          color: 'white',
+          background: 'linear-gradient(to right, #00FFAA, #33FFBB)',
+          color: 'background.default',
           borderRadius: 2,
         }}
       >
@@ -181,7 +181,8 @@ function Dashboard() {
             height: 80,
             mr: { xs: 0, sm: 3 },
             mb: { xs: 2, sm: 0 },
-            border: '3px solid white',
+            border: '3px solid',
+            borderColor: 'primary.main',
             bgcolor: userData?.avatar_url ? 'transparent' : stringToColor(username || '')
           }}
         >
@@ -334,7 +335,7 @@ function Dashboard() {
                           bottom: -8, 
                           right: -8, 
                           bgcolor: 'primary.main', 
-                          color: 'white', 
+                          color: 'background.default', 
                           borderRadius: '10px', 
                           px: 1, 
                           py: 0.5,
@@ -447,12 +448,13 @@ function Dashboard() {
                     <ListItem 
                       key={chat.id} 
                       divider 
-                      button
+                      component="li"
                       onClick={() => navigate('/chat', { state: { selectedChatId: chat.id } })}
                       sx={{ 
                         '&:hover': { 
                           backgroundColor: 'rgba(0, 0, 0, 0.04)' 
-                        } 
+                        },
+                        cursor: 'pointer'
                       }}
                     >
                       <ListItemAvatar>

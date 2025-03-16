@@ -160,13 +160,17 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 FRONTEND_URL = 'http://localhost:5173'  # Update this in production
 
 # Email settings for Gmail
+# To use Gmail, you need to:
+# 1. Enable 2-Step Verification in your Google account
+# 2. Generate an App Password: Google Account > Security > App Passwords
+# 3. Use that App Password below instead of your regular password
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'your-email@gmail.com'  # Replace with your Gmail address
-EMAIL_HOST_PASSWORD = 'your-app-password'  # Replace with your app password
-DEFAULT_FROM_EMAIL = 'Q-up Support <your-email@gmail.com>'  # Replace with your email
+EMAIL_HOST_USER = 'qupbot@gmail.com'  # Replace with your Gmail address
+EMAIL_HOST_PASSWORD = 'aovngiuobwwrlcrz'  # Replace with your app password
+DEFAULT_FROM_EMAIL = 'Q-up Support qupbot@gmail.com'  # Replace with your email
 
 # Password reset settings
 PASSWORD_RESET_TIMEOUT = 3600  # 1 hour timeout for password reset links

@@ -16,28 +16,48 @@ import { ThemeProvider, createTheme } from '@mui/material';
 import EditProfileForm from "./components/EditProfileForm";
 import Chat from "./pages/Chat";
 import ResetPassword from "./pages/ResetPassword";
+import { CssBaseline } from '@mui/material';
+import { Box, CircularProgress } from '@mui/material';
+import { Suspense } from 'react';
 
+// Gaming Neon Theme
 const theme = createTheme({
   palette: {
+    mode: 'dark',
     primary: {
-      main: '#1976d2',
-      light: '#42a5f5',
-      dark: '#1565c0',
-      contrastText: '#fff',
+      main: '#00FFAA',
+      light: '#33FFBB',
+      dark: '#00CC88',
+      contrastText: '#121212',
     },
     secondary: {
-      main: '#9c27b0',
-      light: '#ba68c8',
-      dark: '#7b1fa2',
-      contrastText: '#fff',
+      main: '#FF00AA',
+      light: '#FF33BB',
+      dark: '#CC0088',
+      contrastText: '#FFFFFF',
+    },
+    success: {
+      main: '#00E676',
+      light: '#33EB91',
+      dark: '#00B85C',
+    },
+    warning: {
+      main: '#FFD600',
+      light: '#FFDF33',
+      dark: '#CCAB00',
+    },
+    error: {
+      main: '#FF1744',
+      light: '#FF4569',
+      dark: '#CC1236',
     },
     background: {
-      default: '#f5f7fa',
-      paper: '#ffffff',
+      default: '#121212',
+      paper: '#1E1E1E',
     },
     text: {
-      primary: '#1a1a1a',
-      secondary: '#666666',
+      primary: '#FFFFFF',
+      secondary: '#AAAAAA',
     },
   },
   typography: {
@@ -105,6 +125,31 @@ const theme = createTheme({
     borderRadius: 8,
   },
   components: {
+    MuiCssBaseline: {
+      styleOverrides: {
+        body: {
+          scrollbarColor: "#6b6b6b #2b2b2b",
+          "&::-webkit-scrollbar, & *::-webkit-scrollbar": {
+            backgroundColor: "#2b2b2b",
+            width: "8px",
+          },
+          "&::-webkit-scrollbar-thumb, & *::-webkit-scrollbar-thumb": {
+            borderRadius: 8,
+            backgroundColor: "#6b6b6b",
+            minHeight: 24,
+          },
+          "&::-webkit-scrollbar-thumb:focus, & *::-webkit-scrollbar-thumb:focus": {
+            backgroundColor: "#959595",
+          },
+          "&::-webkit-scrollbar-thumb:active, & *::-webkit-scrollbar-thumb:active": {
+            backgroundColor: "#959595",
+          },
+          "&::-webkit-scrollbar-thumb:hover, & *::-webkit-scrollbar-thumb:hover": {
+            backgroundColor: "#959595",
+          },
+        },
+      },
+    },
     MuiButton: {
       styleOverrides: {
         root: {
@@ -114,9 +159,9 @@ const theme = createTheme({
           fontWeight: 500,
         },
         contained: {
-          boxShadow: 'none',
+          boxShadow: '0 0 10px rgba(0, 255, 170, 0.5)',
           '&:hover': {
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
+            boxShadow: '0 0 15px rgba(0, 255, 170, 0.7)',
           },
         },
       },
@@ -124,7 +169,8 @@ const theme = createTheme({
     MuiPaper: {
       styleOverrides: {
         root: {
-          boxShadow: '0 2px 12px rgba(0, 0, 0, 0.08)',
+          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.25)',
+          backgroundImage: 'none',
         },
       },
     },
@@ -137,57 +183,107 @@ const theme = createTheme({
         },
       },
     },
+    MuiCard: {
+      styleOverrides: {
+        root: {
+          backgroundImage: 'none',
+        },
+      },
+    },
+    MuiAppBar: {
+      styleOverrides: {
+        root: {
+          backgroundImage: 'none',
+          backgroundColor: '#1A1A1A',
+          boxShadow: '0 2px 10px rgba(0, 0, 0, 0.5)',
+        },
+      },
+    },
+    MuiDrawer: {
+      styleOverrides: {
+        paper: {
+          backgroundImage: 'none',
+          backgroundColor: '#1A1A1A',
+        },
+      },
+    },
+    MuiDialog: {
+      styleOverrides: {
+        paper: {
+          backgroundImage: 'none',
+        },
+      },
+    },
   },
 });
 
 function App() {
   return (
     <ThemeProvider theme={theme}>
+      <CssBaseline />
       <AuthProvider>
         <Router>
-          <Header />
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/reset-password/:uidb64/:token" element={<ResetPassword />} />
-            <Route
-              path="/dashboard"
-              element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/feed"
-              element={
-                <ProtectedRoute>
-                  <Feed />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/chat"
-              element={
-                <ProtectedRoute>
-                  <Chat />
-                </ProtectedRoute>
-              }
-            />
-            <Route path="/search-profiles" element={<SearchProfiles />} />
-            {/* <Route path="/search" element={<Search />} /> */}
-            <Route path="/profile/:username" element={<Profile />} /> {/* Public route */}
-            <Route 
-              path="/profile/:username/edit" 
-              element={
-                <ProtectedRoute>
-                  <EditProfileForm />
-                </ProtectedRoute>
-              } 
-            />
-          </Routes>
-          <Footer />
+          <Box 
+            sx={{ 
+              display: 'flex',
+              flexDirection: 'column',
+              minHeight: '100vh'  // Ensure at least full viewport height
+            }}
+          >
+            <Header />
+            <Box 
+              component="main" 
+              sx={{ 
+                flexGrow: 1,
+                pb: 8 // Add padding at the bottom to prevent footer overlap
+              }}
+            >
+              <Suspense fallback={<CircularProgress sx={{ position: 'absolute', top: '50%', left: '50%' }} />}>
+                <Routes>
+                  <Route path="/" element={<Home />} />
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/register" element={<Register />} />
+                  <Route path="/reset-password/:uidb64/:token" element={<ResetPassword />} />
+                  <Route
+                    path="/dashboard"
+                    element={
+                      <ProtectedRoute>
+                        <Dashboard />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/feed"
+                    element={
+                      <ProtectedRoute>
+                        <Feed />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/chat"
+                    element={
+                      <ProtectedRoute>
+                        <Chat />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route path="/search-profiles" element={<SearchProfiles />} />
+                  {/* <Route path="/search" element={<Search />} /> */}
+                  <Route path="/profile/:username" element={<Profile />} /> {/* Public route */}
+                  <Route 
+                    path="/profile/:username/edit" 
+                    element={
+                      <ProtectedRoute>
+                        <EditProfileForm />
+                      </ProtectedRoute>
+                    } 
+                  />
+                </Routes>
+              </Suspense>
+            </Box>
+            <Footer />
+          </Box>
         </Router>
       </AuthProvider>
     </ThemeProvider>

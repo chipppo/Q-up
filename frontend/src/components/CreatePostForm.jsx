@@ -159,7 +159,7 @@ const CreatePostForm = ({ onPostCreated }) => {
                   top: 8,
                   right: 8,
                   bgcolor: 'rgba(0, 0, 0, 0.5)',
-                  color: 'white',
+                  color: 'background.default',
                   '&:hover': {
                     bgcolor: 'rgba(0, 0, 0, 0.7)',
                   },
