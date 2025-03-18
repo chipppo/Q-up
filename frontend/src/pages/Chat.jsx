@@ -31,6 +31,12 @@ import {
   Zoom,
   ListItemButton,
   ListItemIcon,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+  Link,
 } from '@mui/material';
 import {
   Send as SendIcon,
@@ -55,6 +61,8 @@ import {
   KeyboardArrowUp as KeyboardArrowUpIcon,
   KeyboardArrowDown as KeyboardArrowDownIcon,
   Download as DownloadIcon,
+  Block as BlockIcon,
+  Report as ReportIcon,
 } from '@mui/icons-material';
 import EmojiPicker from 'emoji-picker-react';
 import { useAuth } from '../context/AuthContext';
@@ -87,6 +95,90 @@ const stringToColor = (string) => {
   return color;
 };
 
+// Define the Message component for rendering individual messages
+const Message = memo(({ message }) => {
+  const { username } = useAuth();
+  const isOwnMessage = typeof message.sender === 'string' 
+    ? message.sender === username 
+    : message.sender?.username === username;
+  
+  const senderName = typeof message.sender === 'string' 
+    ? message.sender 
+    : message.sender?.display_name || message.sender?.username || 'Unknown';
+  
+  const messageTime = message.timestamp || message.created_at || new Date();
+  
+  return (
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: isOwnMessage ? 'flex-end' : 'flex-start',
+        mb: 2,
+        maxWidth: '80%',
+        alignSelf: isOwnMessage ? 'flex-end' : 'flex-start',
+      }}
+    >
+      {!isOwnMessage && (
+        <Typography variant="caption" color="text.secondary" sx={{ ml: 1, mb: 0.5 }}>
+          {senderName}
+        </Typography>
+      )}
+      
+      <div className={`message-bubble ${isOwnMessage ? 'sent' : 'received'}`}>
+        {message.reply_to && (
+          <Box 
+            className="reply-preview"
+            sx={{
+              borderLeft: '3px solid',
+              borderColor: 'primary.main',
+              pl: 1,
+              py: 0.5,
+              opacity: 0.7,
+              mb: 1,
+              fontSize: '0.85rem',
+            }}
+          >
+            {typeof message.reply_to === 'string' ? message.reply_to : message.reply_to?.content || ''}
+          </Box>
+        )}
+        
+        {message.content && (
+          <Typography variant="body1">{message.content}</Typography>
+        )}
+        
+        {(message.image || message.has_image) && (
+          <Box mt={message.content ? 1 : 0}>
+            <img 
+              src={formatImageUrl(message.image)}
+              alt="Message attachment" 
+              className="message-image"
+              style={{ maxWidth: '100%', borderRadius: '8px' }}
+            />
+          </Box>
+        )}
+      </div>
+      
+      <Typography 
+        variant="caption" 
+        color="text.secondary"
+        sx={{ mt: 0.5, mr: isOwnMessage ? 1 : 0, ml: isOwnMessage ? 0 : 1 }}
+      >
+        {new Date(messageTime).toLocaleTimeString([], { 
+          hour: '2-digit', 
+          minute: '2-digit',
+          hour12: true
+        })}
+        {isOwnMessage && message.is_read !== undefined && (
+          <span style={{ marginLeft: '5px' }}>
+            {message.is_read ? <DoneAllIcon fontSize="inherit" /> : <CheckIcon fontSize="inherit" />}
+          </span>
+        )}
+      </Typography>
+    </Box>
+  );
+});
+
 const Chat = () => {
   const { isLoggedIn, username } = useAuth();
   const location = useLocation();
@@ -111,7 +203,7 @@ const Chat = () => {
   const [emojiAnchorEl, setEmojiAnchorEl] = useState(null);
   const [messageMenuAnchorEl, setMessageMenuAnchorEl] = useState(null);
   const [selectedMessageForMenu, setSelectedMessageForMenu] = useState(null);
-  const [showUserInfo, setShowUserInfo] = useState(!isMobile);
+  const [showUserInfo, setShowUserInfo] = useState(false);
   const [highlightedMessageId, setHighlightedMessageId] = useState(null);
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
@@ -261,212 +353,68 @@ const Chat = () => {
   };
 
   // Message input component
-  const MessageInput = memo(() => {
+  const MessageInput = () => {
+    const { username } = useAuth();
+    const [message, setMessage] = useState('');
+    
+    const handleSendMessage = () => {
+      if (!message.trim() || !selectedChat) return;
+      
+      // Correct API structure: POST /chats/{chat_id}/messages/
+      const messageData = {
+        content: message
+        // chat_id is in the URL path, not the payload
+      };
+      
+      API.post(`/chats/${selectedChat.id}/messages/`, messageData)
+        .then(response => {
+          setMessage('');
+          console.log('Message sent successfully:', response.data);
+        })
+        .catch(err => {
+          console.error('Error sending message:', err);
+          toast.error('Failed to send message');
+        });
+    };
+    
     return (
       <Box
         sx={{
-          p: { xs: 1, sm: 2 },
-          borderTop: 1,
+          display: 'flex',
+          alignItems: 'center',
+          p: 1,
+          borderTop: '1px solid',
           borderColor: 'divider',
-          backgroundColor: 'background.paper',
+          bgcolor: 'background.paper',
         }}
       >
-        {replyTo && (
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1,
-              p: 1,
-              mb: 1,
-              backgroundColor: 'action.hover',
-              borderRadius: 1,
-              borderLeft: '4px solid',
-              borderColor: 'primary.main',
-            }}
-          >
-            <ReplyIcon color="action" fontSize="small" />
-            <Box sx={{ flex: 1 }}>
-              <Typography variant="caption" color="textSecondary" fontWeight="bold">
-                Replying to {replyTo.sender.username}
-              </Typography>
-              <Typography variant="body2" noWrap>
-                {replyTo.content || (replyTo.image ? '📷 Image' : '')}
-              </Typography>
-            </Box>
-            <IconButton size="small" onClick={() => setReplyTo(null)}>
-              <CloseIcon fontSize="small" />
-            </IconButton>
-          </Box>
-        )}
-
-        {(imagePreview || filePreview) && (
-          <Box
-            sx={{
-              mb: 2,
-              p: 1,
-              borderRadius: 1,
-              backgroundColor: 'action.hover',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1,
-            }}
-          >
-            {imagePreview && (
-              <Box sx={{ position: 'relative', maxWidth: 100 }}>
-                <img
-                  src={imagePreview}
-                  alt="Selected"
-                  style={{ 
-                    maxWidth: '100%', 
-                    borderRadius: 4,
-                    maxHeight: 80,
-                    objectFit: 'cover' 
-                  }}
-                />
-                <Chip
-                  label="Image"
-                  size="small"
-                  color="primary"
-                  sx={{ 
-                    position: 'absolute',
-                    top: 4,
-                    left: 4,
-                    fontSize: '0.65rem',
-                    height: 20,
-                  }}
-                />
-              </Box>
-            )}
-            
-            {filePreview && (
-              <Box sx={{ 
-                display: 'flex', 
-                flexDirection: 'column',
-                bgcolor: 'background.paper',
-                border: 1,
-                borderColor: 'divider',
-                borderRadius: 1,
-                p: 1,
-                maxWidth: 200,
-              }}>
-                <Typography variant="caption" noWrap fontWeight="bold">
-                  {filePreview.name}
-                </Typography>
-                <Typography variant="caption" color="textSecondary">
-                  {filePreview.size}
-                </Typography>
-                <Chip 
-                  label={filePreview.type.split('/')[1]?.toUpperCase() || 'FILE'} 
-                  size="small"
-                  sx={{ 
-                    alignSelf: 'flex-start', 
-                    mt: 0.5,
-                    height: 20,
-                    fontSize: '0.65rem',
-                  }}
-                />
-              </Box>
-            )}
-            
-            <IconButton size="small" onClick={handleRemoveFile} sx={{ ml: 'auto' }}>
-              <CloseIcon fontSize="small" />
-            </IconButton>
-          </Box>
-        )}
-
-        <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-end' }}>
-          <IconButton
-            id="emoji-button"
-            onClick={handleEmojiButtonClick}
-            color={Boolean(emojiAnchorEl) ? 'primary' : 'default'}
-            size="small"
-          >
-            <EmojiIcon fontSize="small" />
-          </IconButton>
-
-          <IconButton 
-            onClick={() => fileInputRef.current?.click()}
-            size="small"
-            color={selectedImage ? 'primary' : 'default'}
-          >
-            <ImageIcon fontSize="small" />
-          </IconButton>
-
-          <IconButton 
-            onClick={() => documentInputRef.current?.click()}
-            size="small"
-            color={selectedFile ? 'primary' : 'default'}
-          >
-            <AttachFileIcon fontSize="small" />
-          </IconButton>
-
-          <input
-            type="file"
-            ref={fileInputRef}
-            style={{ display: 'none' }}
-            onChange={handleImageSelect}
-            accept="image/*"
-          />
-          
-          <input
-            type="file"
-            ref={documentInputRef}
-            style={{ display: 'none' }}
-            onChange={handleFileSelect}
-            accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.zip,.rar"
-          />
-          
-          <TextField
-            id="message-input"
-            fullWidth
-            multiline
-            maxRows={4}
-            value={newMessage}
-            onChange={(e) => {
-              setNewMessage(e.target.value);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleSendMessage(e);
-              }
-            }}
-            placeholder={replyTo ? `Reply to ${replyTo.sender.username}...` : "Type a message..."}
-            variant="outlined"
-            size="small"
-            inputRef={messageInputRef}
-            sx={{
-              '& .MuiOutlinedInput-root': {
-                borderRadius: 2,
-                backgroundColor: 'background.paper'
-              }
-            }}
-          />
-
-          <IconButton
-            onClick={handleSendMessage}
-            disabled={!newMessage.trim() && !selectedImage && !selectedFile}
-            color="primary"
-            size="small"
-            sx={{
-              backgroundColor: (!newMessage.trim() && !selectedImage && !selectedFile) ? 'transparent' : 'primary.main',
-              color: (!newMessage.trim() && !selectedImage && !selectedFile) ? 'action.disabled' : 'white',
-              '&:hover': {
-                backgroundColor: (!newMessage.trim() && !selectedImage && !selectedFile) ? 'transparent' : 'primary.dark',
-              }
-            }}
-          >
-            {sending ? (
-              <CircularProgress size={20} color="inherit" />
-            ) : (
-              <SendIcon fontSize="small" />
-            )}
-          </IconButton>
-        </Box>
+        <TextField
+          fullWidth
+          placeholder="Type a message..."
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          onKeyPress={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              handleSendMessage();
+            }
+          }}
+          variant="outlined"
+          size="small"
+          multiline
+          maxRows={4}
+          sx={{ mr: 1 }}
+        />
+        <IconButton 
+          color="primary" 
+          onClick={handleSendMessage}
+          disabled={!message.trim() || !selectedChat}
+        >
+          <SendIcon />
+        </IconButton>
       </Box>
     );
-  });
+  };
 
   // Add the missing MessageMenu component and related functions
   const handleMessageMenuOpen = (event, message) => {
@@ -938,17 +886,8 @@ const Chat = () => {
     }
   }, [editingMessage]);
 
-  const renderChatList = () => (
-    <Box
-      sx={{
-        width: isMobile && selectedChat ? '0' : '300px',
-        display: isMobile && selectedChat ? 'none' : 'flex',
-        flexDirection: 'column',
-        borderRight: '1px solid #444',
-        height: '100%'
-      }}
-    >
-      <Box sx={{ p: 2, borderBottom: '1px solid #444' }}>
+  const renderChatListHeader = () => (
+    <Box>
         {location.state?.returnTo && (
           <IconButton onClick={handleBack} sx={{ mb: 1 }}>
             <ArrowBackIcon />
@@ -956,7 +895,8 @@ const Chat = () => {
         )}
         <TextField
           fullWidth
-          placeholder="Search mutual followers..."
+        size="small"
+        placeholder="Search users..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           InputProps={{
@@ -969,22 +909,32 @@ const Chat = () => {
               <InputAdornment position="end">
                 <CircularProgress size={20} />
               </InputAdornment>
-            )
+          ),
+        }}
+        sx={{
+          '& .MuiOutlinedInput-root': {
+            backgroundColor: 'background.paper',
+          }
           }}
         />
       </Box>
+  );
 
-      <List sx={{ flexGrow: 1, overflow: 'auto' }}>
+  const renderChatList = () => (
+    <Box sx={{ overflow: 'auto' }}>
         {searchQuery ? (
-          searchResults.map((user) => (
+        // Show search results
+        searchResults.length > 0 ? (
+          <List>
+            {searchResults.map((user) => (
             <ListItem
               key={user.username}
-              component="div"
+                button
               onClick={() => handleStartChat(user.username)}
-              sx={{ cursor: 'pointer' }}
+                sx={{ py: 1 }}
             >
               <ListItemAvatar>
-                <Avatar src={formatImageUrl(user.avatar_url)} alt={user.username}>
+                  <Avatar src={formatImageUrl(user.avatar_url)}>
                   {user.username[0].toUpperCase()}
                 </Avatar>
               </ListItemAvatar>
@@ -993,73 +943,79 @@ const Chat = () => {
                 secondary="Start new chat"
               />
             </ListItem>
-          ))
+            ))}
+          </List>
+        ) : searching ? (
+          <Box sx={{ p: 2, textAlign: 'center' }}>
+            <CircularProgress size={24} />
+          </Box>
         ) : (
-          chats.map((chat) => {
+          <Box sx={{ p: 2, textAlign: 'center' }}>
+            <Typography color="text.secondary">No users found</Typography>
+          </Box>
+        )
+      ) : (
+        // Show existing chats
+        <List>
+          {chats.map((chat) => {
             const otherParticipant = chat.participants.find(p => p.username !== username);
             return (
-              <ListItem
+              <ListItemButton
                 key={chat.id}
-                disablePadding
                 selected={selectedChat?.id === chat.id}
                 onClick={() => handleChatSelect(chat)}
                 sx={{ 
-                  '&.Mui-selected': {
-                    backgroundColor: 'action.selected',
-                  },
+                  py: 1.5,
+                  borderLeft: selectedChat?.id === chat.id ? '3px solid' : 'none',
+                  borderColor: 'primary.main',
+                  bgcolor: selectedChat?.id === chat.id ? 'action.selected' : 'transparent',
                   '&:hover': {
-                    backgroundColor: 'action.hover',
+                    bgcolor: 'action.hover',
                   },
                 }}
               >
-                <ListItemButton sx={{ py: { xs: 1, sm: 1.5 } }}>
-                  <ListItemAvatar sx={{ minWidth: { xs: 40, sm: 50 } }}>
+                <ListItemAvatar>
                     <Badge
                       color="primary"
                       badgeContent={chat.unread_count}
                       invisible={!chat.unread_count}
                     >
                       <Avatar 
-                        src={formatImageUrl(otherParticipant?.avatar_url || '')}
-                        alt={otherParticipant?.username || ''}
-                        sx={{ width: { xs: 32, sm: 40 }, height: { xs: 32, sm: 40 } }}
+                      src={formatImageUrl(otherParticipant?.avatar_url)}
+                      alt={otherParticipant?.username}
                       >
-                        {otherParticipant?.username?.[0]?.toUpperCase() || '?'}
+                      {otherParticipant?.username?.[0]?.toUpperCase()}
                       </Avatar>
                     </Badge>
                   </ListItemAvatar>
                   <ListItemText
                     primary={otherParticipant?.display_name || otherParticipant?.username}
                     secondary={
-                      chat.last_message
-                        ? `${chat.last_message.sender === username ? 'You' : 
-                            (typeof chat.last_message.sender === 'object' ? 
-                              chat.last_message.sender?.username : 
-                              chat.last_message.sender) || 'Unknown'}: ${
-                            chat.last_message.has_image || chat.last_message.image
-                              ? '📷 Image'
-                              : chat.last_message.content
-                          }`
-                        : 'No messages yet'
+                    chat.last_message ? (
+                      <Typography 
+                        noWrap 
+                        variant="body2" 
+                        color="text.secondary"
+                        sx={{ maxWidth: '180px' }}
+                      >
+                        {chat.last_message.sender === username ? 'You: ' : ''}
+                        {chat.last_message.has_image && !chat.last_message.content ? 
+                          '📷 Image' : chat.last_message.content}
+                      </Typography>
+                    ) : 'No messages yet'
                     }
                     primaryTypographyProps={{
-                      noWrap: true,
-                      sx: { display: { xs: 'none', sm: 'block' } }
+                    fontWeight: chat.unread_count ? 'bold' : 'normal',
                     }}
                     secondaryTypographyProps={{
-                      noWrap: true,
-                      sx: { 
-                        maxWidth: '180px',
-                        display: { xs: 'none', sm: 'block' }
-                      }
+                    fontWeight: chat.unread_count ? 'medium' : 'normal',
                     }}
                   />
                 </ListItemButton>
-              </ListItem>
             );
-          })
-        )}
+          })}
       </List>
+      )}
     </Box>
   );
 
@@ -1096,7 +1052,7 @@ const Chat = () => {
 
           <Box className="messages-container">
             {messages.map((message) => (
-              <MessageComponent key={message.id} message={message} />
+              <Message key={message.id} message={message} />
             ))}
             <div ref={messagesEndRef} />
           </Box>
@@ -1121,263 +1077,6 @@ const Chat = () => {
       )}
     </Box>
   );
-
-  const MessageComponent = ({ message }) => {
-    const isOwnMessage = message.sender.username === username;
-    const isEditing = editingMessage?.id === message.id;
-    const messageLength = message.content?.length || 0;
-    const isShortMessage = messageLength < 20 && !message.image && !message.file;
-    const isHighlighted = message.id === highlightedMessageId;
-    const hasFile = message.file;
-    const [showOptionsButton, setShowOptionsButton] = useState(false);
-    const [menuAnchorEl, setMenuAnchorEl] = useState(null);
-
-    const handleMenuClick = (event) => {
-      event.stopPropagation();
-      setMenuAnchorEl(event.currentTarget);
-    };
-    
-    const handleMenuClose = () => {
-      setMenuAnchorEl(null);
-    };
-
-    return (
-      <Box
-        ref={el => messageRefs.current[message.id] = el}
-        sx={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: isOwnMessage ? 'flex-end' : 'flex-start',
-          mb: 2,
-          width: '100%',
-          transition: 'all 0.3s ease',
-          backgroundColor: isHighlighted ? 'rgba(255, 236, 179, 0.4)' : 'transparent',
-          padding: isHighlighted ? 1 : 0,
-          borderRadius: 1,
-        }}
-        onMouseEnter={() => setShowOptionsButton(true)}
-        onMouseLeave={() => setShowOptionsButton(false)}
-      >
-        {message.parent_message && (
-          <Box
-            sx={{
-              backgroundColor: 'action.hover',
-              borderRadius: 1,
-              p: 1,
-              mb: 1,
-              maxWidth: '80%',
-              cursor: 'pointer',
-              border: '1px solid',
-              borderColor: 'divider',
-            }}
-            onClick={() => scrollToMessage(message.parent_message.id)}
-          >
-            <Typography variant="caption" color="textSecondary" sx={{ fontWeight: 'bold' }}>
-              Reply to {message.parent_message.sender?.username || 'Unknown'}
-            </Typography>
-            <Typography variant="body2" noWrap>
-              {message.parent_message.content || (message.parent_message.image ? '📷 Image' : '')}
-            </Typography>
-          </Box>
-        )}
-
-        <Box
-          sx={{
-            display: 'flex',
-            alignItems: 'flex-start',
-            flexDirection: isOwnMessage ? 'row-reverse' : 'row',
-            gap: 1,
-            width: '100%',
-            maxWidth: '100%',
-          }}
-        >
-          <ListItemAvatar sx={{ minWidth: { xs: 36, sm: 48 } }}>
-            <Avatar 
-              src={formatImageUrl(message.sender.avatar_url || '')}
-              alt={message.sender.username || ''}
-              sx={{ 
-                width: { xs: 28, sm: 36 }, 
-                height: { xs: 28, sm: 36 } 
-              }}
-            >
-              {message.sender.username?.[0]?.toUpperCase() || '?'}
-            </Avatar>
-          </ListItemAvatar>
-
-          <Box sx={{ maxWidth: { xs: '80%', sm: '85%' }, position: 'relative' }}>
-            <Typography variant="caption" color="textSecondary">
-              {message.sender.username}
-            </Typography>
-
-            <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
-              <Paper
-                elevation={1}
-                sx={{
-                  p: 1.5,
-                  backgroundColor: isOwnMessage ? 'primary.main' : 'background.default',
-                  color: isOwnMessage ? 'primary.contrastText' : 'text.primary',
-                  borderRadius: 2,
-                  maxWidth: '100%',
-                  width: isShortMessage ? 'auto' : undefined,
-                  position: 'relative',
-                  wordBreak: 'break-word',
-                }}
-              >
-                {isEditing ? (
-                  <Box sx={{ display: 'flex', gap: 1 }}>
-                    <TextField
-                      fullWidth
-                      value={editContent}
-                      onChange={(e) => setEditContent(e.target.value)}
-                      inputRef={editInputRef}
-                      size="small"
-                      multiline
-                      maxRows={4}
-                      autoFocus
-                      sx={{
-                        '& .MuiInputBase-input': {
-                          textAlign: 'left'
-                        },
-                        '& .MuiOutlinedInput-root': {
-                          backgroundColor: 'background.paper'
-                        }
-                      }}
-                    />
-                    <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                      <IconButton
-                        size="small"
-                        onClick={() => {
-                          handleEditMessage(message.id, editContent);
-                        }}
-                        color="primary"
-                        sx={{
-                          backgroundColor: 'primary.main',
-                          color: 'primary.contrastText',
-                          '&:hover': {
-                            backgroundColor: 'primary.dark',
-                          },
-                          mb: 1
-                        }}
-                      >
-                        <CheckIcon fontSize="small" />
-                      </IconButton>
-                      <IconButton
-                        size="small"
-                        onClick={() => {
-                          setEditingMessage(null);
-                        }}
-                        sx={{
-                          backgroundColor: 'action.hover',
-                          '&:hover': {
-                            backgroundColor: 'action.selected',
-                          }
-                        }}
-                      >
-                        <CloseIcon fontSize="small" />
-                      </IconButton>
-                    </Box>
-                  </Box>
-                ) : (
-                  <>
-                    {message.content && (
-                      <Typography variant="body1" sx={{ wordBreak: 'break-word' }}>
-                        {message.content}
-                      </Typography>
-                    )}
-
-                    {message.image && (
-                      <Box sx={{ mt: message.content ? 1 : 0 }}>
-                        <img
-                          src={message.image}
-                          alt="Message attachment"
-                          style={{ maxWidth: '100%', borderRadius: 8 }}
-                          onError={(e) => {
-                            e.target.onerror = null;
-                            e.target.src = 'https://via.placeholder.com/200x150?text=Image+Not+Available';
-                          }}
-                        />
-                      </Box>
-                    )}
-                  </>
-                )}
-              </Paper>
-
-              {!isEditing && (
-                <IconButton
-                  size="small"
-                  onClick={handleMenuClick}
-                  sx={{
-                    opacity: showOptionsButton ? 0.9 : 0,
-                    transition: 'opacity 0.2s',
-                    alignSelf: 'center',
-                    color: isOwnMessage ? 'primary.contrastText' : 'text.primary',
-                    backgroundColor: isOwnMessage ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)',
-                    '&:hover': {
-                      opacity: 1,
-                      backgroundColor: isOwnMessage ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.15)'
-                    }
-                  }}
-                >
-                  <MoreIcon fontSize="small" />
-                </IconButton>
-              )}
-
-              <Menu
-                anchorEl={menuAnchorEl}
-                open={Boolean(menuAnchorEl)}
-                onClose={handleMenuClose}
-                anchorOrigin={{
-                  vertical: 'bottom',
-                  horizontal: isOwnMessage ? 'right' : 'left',
-                }}
-                transformOrigin={{
-                  vertical: 'top',
-                  horizontal: isOwnMessage ? 'right' : 'left',
-                }}
-                slotProps={{
-                  paper: {
-                    elevation: 3,
-                    sx: { 
-                      mt: 1,
-                      minWidth: 120
-                    }
-                  }
-                }}
-              >
-                <MenuItem onClick={() => {
-                  handleReplyMessage(message);
-                  handleMenuClose();
-                }}>
-                  <ReplyIcon sx={{ mr: 1 }} /> Reply
-                </MenuItem>
-                {message.sender.username === username && [
-                  <MenuItem 
-                    key="edit" 
-                    onClick={() => {
-                      setEditingMessage(message);
-                      setEditContent(message.content || '');
-                      handleMenuClose();
-                    }}
-                  >
-                    <EditIcon sx={{ mr: 1 }} /> Edit
-                  </MenuItem>,
-                  <MenuItem 
-                    key="delete" 
-                    onClick={() => {
-                      handleDeleteMessage(message.id);
-                      handleMenuClose();
-                    }}
-                  >
-                    <DeleteIcon sx={{ mr: 1 }} /> Delete
-                  </MenuItem>
-                ]}
-              </Menu>
-            </Box>
-          </Box>
-        </Box>
-      </Box>
-    );
-  };
 
   const MessageSearchComponent = () => (
     <Box
@@ -1592,95 +1291,491 @@ const Chat = () => {
     }
   };
 
-  if (loading && !selectedChat) {
-    return (
-      <Container>
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}>
-          <CircularProgress />
-        </Box>
-      </Container>
-    );
-  }
+  // Add this component to handle the user info panel content
+  const UserInfoContent = ({ otherUser, onClose }) => {
+    const navigate = useNavigate();
+    const [blockDialogOpen, setBlockDialogOpen] = useState(false);
 
-  if (error) {
-    return (
-      <Container>
-        <Box sx={{ textAlign: 'center', mt: 4 }}>
-          <Typography color="error" gutterBottom>{error}</Typography>
-          <Button variant="contained" onClick={fetchChats}>Try Again</Button>
-        </Box>
-      </Container>
-    );
-  }
+    // Helper function to format active hours into groups of consecutive hours
+    const formatActiveHours = (hours) => {
+      if (!hours || !Array.isArray(hours) || hours.length === 0) return [];
+      
+      // Sort hours numerically
+      const sortedHours = [...hours].sort((a, b) => parseInt(a) - parseInt(b));
+      
+      // Group consecutive hours
+      const groups = [];
+      let currentGroup = [sortedHours[0]];
+      
+      for (let i = 1; i < sortedHours.length; i++) {
+        const current = parseInt(sortedHours[i]);
+        const previous = parseInt(sortedHours[i-1]);
+        
+        if (current === previous + 1) {
+          // Hour is consecutive, add to current group
+          currentGroup.push(sortedHours[i]);
+        } else {
+          // Hour is not consecutive, start new group
+          groups.push([...currentGroup]);
+          currentGroup = [sortedHours[i]];
+        }
+      }
+      
+      // Add the last group
+      groups.push(currentGroup);
+      return groups;
+    };
 
+    const handleBlockUser = async () => {
+      try {
+        // This would call an API to block the user
+        // await API.post(`/users/${otherUser.username}/block/`);
+        toast.success(`You have blocked ${otherUser.username}`);
+        setBlockDialogOpen(false);
+        // Optionally navigate away or refresh the chat list
+      } catch (error) {
+        console.error('Error blocking user:', error);
+        toast.error('Failed to block user');
+      }
+    };
+
+    return (
+      <Box className="user-info-content" sx={{ p: 2 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+          <Typography variant="h6" component="h2">
+            User Profile
+          </Typography>
+          <IconButton onClick={onClose} size="small">
+            <CloseIcon />
+          </IconButton>
+        </Box>
+
+        {/* User Profile Header */}
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 3 }}>
+          <Avatar
+            src={formatImageUrl(otherUser?.avatar_url)}
+            sx={{ width: 120, height: 120, mb: 2 }}
+          >
+            {otherUser?.username?.[0]?.toUpperCase()}
+          </Avatar>
+          <Typography variant="h6">
+            {otherUser?.display_name || otherUser?.username}
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            @{otherUser?.username}
+          </Typography>
+          <Button 
+            variant="outlined" 
+            onClick={() => navigate(`/profile/${otherUser?.username}`)}
+            startIcon={<PersonIcon />}
+            fullWidth
+          >
+            View Full Profile
+          </Button>
+        </Box>
+
+        <Divider sx={{ my: 2 }} />
+
+        {/* User Basic Info */}
+        <Box>
+          <Typography variant="subtitle2" gutterBottom fontWeight="bold" color="primary">
+            Basic Information
+          </Typography>
+          <List dense disablePadding>
+            {otherUser?.bio && (
+              <ListItem sx={{ px: 0, py: 1 }}>
+                <ListItemIcon sx={{ minWidth: 36 }}>
+                  <PersonIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText 
+                  primary="Bio"
+                  secondary={otherUser.bio}
+                  primaryTypographyProps={{ variant: 'body2', color: 'text.secondary' }}
+                  secondaryTypographyProps={{ variant: 'body2' }}
+                />
+              </ListItem>
+            )}
+            {otherUser?.email && (
+              <ListItem sx={{ px: 0, py: 1 }}>
+                <ListItemIcon sx={{ minWidth: 36 }}>
+                  <EmailIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText 
+                  primary="Email"
+                  secondary={otherUser.email}
+                  primaryTypographyProps={{ variant: 'body2', color: 'text.secondary' }}
+                  secondaryTypographyProps={{ variant: 'body2' }}
+                />
+              </ListItem>
+            )}
+            <ListItem sx={{ px: 0, py: 1 }}>
+              <ListItemIcon sx={{ minWidth: 36 }}>
+                <AccessTimeIcon fontSize="small" />
+              </ListItemIcon>
+              <ListItemText 
+                primary="Joined"
+                secondary={otherUser?.created_at ? new Date(otherUser.created_at).toLocaleDateString() : 'Not available'}
+                primaryTypographyProps={{ variant: 'body2', color: 'text.secondary' }}
+                secondaryTypographyProps={{ variant: 'body2' }}
+              />
+            </ListItem>
+          </List>
+        </Box>
+
+        <Divider sx={{ my: 2 }} />
+
+        {/* Gaming Info */}
+        <Box>
+          <Typography variant="subtitle2" gutterBottom fontWeight="bold" color="primary">
+            Gaming Information
+          </Typography>
+          
+          {/* Platforms */}
+          {otherUser?.platforms && otherUser.platforms.length > 0 && (
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="body2" color="text.secondary" gutterBottom>
+                Platforms
+              </Typography>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                {otherUser.platforms.map((platform, idx) => (
+                  <Chip 
+                    key={idx}
+                    label={platform}
+                    size="small"
+                    sx={{ 
+                      fontSize: '0.75rem',
+                      height: 24,
+                      bgcolor: 'action.selected'
+                    }}
+                  />
+                ))}
+              </Box>
+            </Box>
+          )}
+          
+          {/* Languages */}
+          {otherUser?.language_preference && otherUser.language_preference.length > 0 && (
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="body2" color="text.secondary" gutterBottom>
+                Languages
+              </Typography>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                {otherUser.language_preference.map((lang, idx) => (
+                  <Chip 
+                    key={idx}
+                    label={lang}
+                    size="small"
+                    sx={{ 
+                      fontSize: '0.75rem',
+                      height: 24,
+                      bgcolor: 'action.selected'
+                    }}
+                  />
+                ))}
+              </Box>
+            </Box>
+          )}
+          
+          {/* Mic Available */}
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="body2" color="text.secondary" gutterBottom>
+              Microphone
+            </Typography>
+            <Chip 
+              icon={otherUser?.mic_available ? <CheckIcon /> : <CloseIcon />}
+              label={otherUser?.mic_available ? "Available" : "Not Available"}
+              size="small"
+              color={otherUser?.mic_available ? "success" : "default"}
+              sx={{ 
+                fontSize: '0.75rem',
+                height: 24
+              }}
+            />
+          </Box>
+          
+          {/* Active Hours */}
+          {otherUser?.active_hours && otherUser.active_hours.length > 0 && (
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="body2" color="text.secondary" gutterBottom>
+                Active Hours (User's local time)
+              </Typography>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                {formatActiveHours(otherUser.active_hours).map((group, idx) => (
+                  <Chip 
+                    key={idx}
+                    label={`${group[0]} - ${group[group.length-1]}`}
+                    size="small"
+                    className="active-hour-chip"
+                    sx={{ 
+                      fontSize: '0.75rem',
+                      height: 24,
+                      alignSelf: 'flex-start',
+                    }}
+                  />
+                ))}
+              </Box>
+            </Box>
+          )}
+        </Box>
+
+        <Divider sx={{ my: 2 }} />
+
+        {/* Social Links */}
+        {otherUser?.social_links && otherUser.social_links.length > 0 && (
+          <>
+            <Typography variant="subtitle2" gutterBottom fontWeight="bold" color="primary">
+              Social Links
+            </Typography>
+            <List dense disablePadding>
+              {otherUser.social_links.map((link, idx) => (
+                <ListItem key={idx} sx={{ px: 0, py: 0.5 }}>
+                  <ListItemIcon sx={{ minWidth: 36 }}>
+                    <LinkIcon fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText 
+                    primary={
+                      <Link 
+                        href={link.startsWith('http') ? link : `https://${link}`} 
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        sx={{ color: 'primary.main' }}
+                      >
+                        {link}
+                      </Link>
+                    }
+                  />
+                </ListItem>
+              ))}
+            </List>
+            <Divider sx={{ my: 2 }} />
+          </>
+        )}
+
+        {/* Actions */}
+        <Box>
+          <Typography variant="subtitle2" gutterBottom fontWeight="bold" color="primary">
+            Actions
+          </Typography>
+          <Button 
+            variant="outlined" 
+            color="error"
+            startIcon={<BlockIcon />}
+            fullWidth
+            onClick={() => setBlockDialogOpen(true)}
+            sx={{ mb: 1 }}
+          >
+            Block User
+          </Button>
+          <Button 
+            variant="outlined"
+            startIcon={<ReportIcon />}
+            fullWidth
+          >
+            Report User
+          </Button>
+        </Box>
+        
+        {/* Block User Dialog */}
+        <Dialog
+          open={blockDialogOpen}
+          onClose={() => setBlockDialogOpen(false)}
+        >
+          <DialogTitle>Block User?</DialogTitle>
+          <DialogContent>
+            <DialogContentText>
+              Are you sure you want to block {otherUser?.username}? 
+              You will no longer receive messages from this user.
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setBlockDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleBlockUser} color="error" variant="contained">
+              Block
+            </Button>
+          </DialogActions>
+        </Dialog>
+      </Box>
+    );
+  };
+
+  // Add this function before the return statement
+  const renderChatHeader = () => {
+    const otherUser = selectedChat?.participants.find(p => p.username !== username);
+    
+    return (
+      <Box sx={{ 
+        p: 2, 
+        borderBottom: '1px solid',
+        borderColor: 'divider',
+        display: 'flex', 
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        backgroundColor: 'background.paper',
+      }}>
+        <Box 
+          sx={{ 
+            display: 'flex', 
+            alignItems: 'center',
+            cursor: 'pointer',
+            flex: 1,
+          }}
+          onClick={() => navigate(`/profile/${otherUser?.username}`)}
+        >
+          {isMobile && (
+            <IconButton onClick={(e) => {
+              e.stopPropagation();
+              setSelectedChat(null);
+            }} sx={{ mr: 1 }}>
+              <ArrowBackIcon />
+            </IconButton>
+          )}
+          
+          <Avatar
+            sx={{ width: 40, height: 40 }}
+            src={formatImageUrl(otherUser?.avatar_url)}
+          >
+            {otherUser?.username?.[0]?.toUpperCase()}
+          </Avatar>
+          <Box sx={{ ml: 2 }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
+              {otherUser?.display_name || otherUser?.username}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              {otherUser?.status || 'Offline'}
+            </Typography>
+        </Box>
+        </Box>
+
+        <IconButton 
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowUserInfo(!showUserInfo);
+          }}
+          color={showUserInfo ? "primary" : "default"}
+        >
+          <InfoIcon />
+        </IconButton>
+      </Box>
+    );
+  };
+
+  // Update the main container and layout to match Instagram's behavior
   return (
-    <Container maxWidth="xl" sx={{ height: 'calc(100vh - 64px)', py: 2 }}>
-      <Paper 
-        elevation={3} 
+    <Box 
         sx={{ 
+        position: 'fixed',
+        top: 64, // Height of the main navbar
+        left: 0,
+        right: 0,
+        bottom: 0,
           display: 'flex', 
-          height: '100%', 
           overflow: 'hidden',
-          bgcolor: 'background.paper'
+        bgcolor: 'background.default',
+        width: '100%' // Ensure full width
+      }}
+    >
+      {/* Chat list - fixed width */}
+      <Box
+        sx={{
+          width: isMobile && selectedChat ? '0' : '300px',
+          display: isMobile && selectedChat ? 'none' : 'flex',
+          flexDirection: 'column',
+          borderRight: '1px solid',
+          borderColor: 'divider',
+          overflow: 'hidden',
+          bgcolor: 'background.paper',
+          flexShrink: 0,
         }}
       >
+        <Box sx={{ 
+          p: 2, 
+          borderBottom: '1px solid',
+          borderColor: 'divider',
+        }}>
+          {renderChatListHeader()}
+        </Box>
+
+        <Box sx={{ 
+          flexGrow: 1,
+          overflow: 'auto',
+        }}>
         {renderChatList()}
+        </Box>
+      </Box>
         
+      {/* Main chat area - flexible width */}
         <Box sx={{ 
           display: 'flex', 
           flexDirection: 'column', 
-          width: '100%', 
-          height: '100%' 
-        }}>
-          {showMessageSearch && <MessageSearchComponent />}
-          {renderChatMessages()}
-        </Box>
-      </Paper>
+        flexGrow: 1,
+        height: '100%',
+        overflow: 'hidden',
+        width: showUserInfo ? 'calc(100% - 600px)' : 'calc(100% - 300px)', // Adjust width based on drawer
+      }}>
+        {selectedChat ? (
+          <>
+            {renderChatHeader()}
+            <Box 
+              className="messages-container"
+              sx={{
+                flexGrow: 1,
+                overflow: 'auto',
+                width: '100%',
+              }}
+            >
+              {messages.map((message) => (
+                <Message key={message.id} message={message} />
+              ))}
+              <div ref={messagesEndRef} />
+            </Box>
+            <MessageInput />
+          </>
+        ) : (
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              height: '100%',
+            }}
+          >
+            <Typography variant="h6" color="textSecondary">
+              Select a chat or search for users to start messaging
+            </Typography>
+          </Box>
+        )}
+      </Box>
+
+      {/* Drawer - fixed width */}
+      <Drawer
+        variant="persistent"
+        anchor="right"
+        open={showUserInfo}
+        sx={{
+          width: 300,
+          flexShrink: 0,
+          '& .MuiDrawer-paper': {
+            width: 300,
+            boxSizing: 'border-box',
+            bgcolor: 'background.paper',
+            borderLeft: '1px solid',
+            borderColor: 'divider',
+            height: '100%',
+            top: 'auto',
+            position: 'relative',
+          },
+        }}
+      >
+        <UserInfoContent 
+          otherUser={selectedChat?.participants.find(p => p.username !== username)} 
+          onClose={() => setShowUserInfo(false)}
+        />
+      </Drawer>
 
       <MessageMenu />
-
       <EmojiPickerComponent />
-
-      <Menu
-        open={contextMenu !== null}
-        onClose={handleContextMenuClose}
-        anchorReference="anchorPosition"
-        anchorPosition={
-          contextMenu !== null
-            ? { top: contextMenu.mouseY, left: contextMenu.mouseX }
-            : undefined
-        }
-      >
-        <MenuItem onClick={() => handleReplyMessage(selectedMessage)}>
-          <ReplyIcon fontSize="small" sx={{ mr: 1 }} />
-          Reply
-        </MenuItem>
-        
-        <MenuItem>
-          <Box sx={{ width: '100%' }}>
-            <Typography variant="body2" sx={{ mb: 1 }}>React with</Typography>
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-              {PREDEFINED_EMOJIS.map(emoji => (
-                <IconButton 
-                  key={emoji}
-                  size="small" 
-                  onClick={() => handleAddReaction(emoji)}
-                >
-                  {emoji}
-                </IconButton>
-              ))}
-            </Box>
-          </Box>
-        </MenuItem>
-        
-        {selectedMessage && selectedMessage.sender.username === username && (
-          <MenuItem onClick={handleDeleteMessage} sx={{ color: 'error.main' }}>
-            <DeleteIcon fontSize="small" sx={{ mr: 1 }} />
-            Delete
-          </MenuItem>
-        )}
-      </Menu>
-    </Container>
+    </Box>
   );
 };
 

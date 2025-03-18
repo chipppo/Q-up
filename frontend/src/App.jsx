@@ -1,5 +1,5 @@
 // src/App.jsx
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext.jsx";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
@@ -217,73 +217,82 @@ const theme = createTheme({
   },
 });
 
+// Create a wrapper component to conditionally render the footer
+const AppContent = () => {
+  const location = useLocation();
+  const showFooter = location.pathname !== '/chat';
+
+  return (
+    <Box 
+      sx={{ 
+        display: 'flex',
+        flexDirection: 'column',
+        minHeight: '100vh'
+      }}
+    >
+      <Header />
+      <Box 
+        component="main" 
+        sx={{ 
+          flexGrow: 1,
+          pb: showFooter ? 8 : 0 // Only add padding if footer is shown
+        }}
+      >
+        <Suspense fallback={<CircularProgress sx={{ position: 'absolute', top: '50%', left: '50%' }} />}>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/reset-password/:uidb64/:token" element={<ResetPassword />} />
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/feed"
+              element={
+                <ProtectedRoute>
+                  <Feed />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/chat"
+              element={
+                <ProtectedRoute>
+                  <Chat />
+                </ProtectedRoute>
+              }
+            />
+            <Route path="/search-profiles" element={<SearchProfiles />} />
+            <Route path="/profile/:username" element={<Profile />} />
+            <Route 
+              path="/profile/:username/edit" 
+              element={
+                <ProtectedRoute>
+                  <EditProfileForm />
+                </ProtectedRoute>
+              } 
+            />
+          </Routes>
+        </Suspense>
+      </Box>
+      {showFooter && <Footer />}
+    </Box>
+  );
+};
+
 function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <AuthProvider>
         <Router>
-          <Box 
-            sx={{ 
-              display: 'flex',
-              flexDirection: 'column',
-              minHeight: '100vh'  // Ensure at least full viewport height
-            }}
-          >
-            <Header />
-            <Box 
-              component="main" 
-              sx={{ 
-                flexGrow: 1,
-                pb: 8 // Add padding at the bottom to prevent footer overlap
-              }}
-            >
-              <Suspense fallback={<CircularProgress sx={{ position: 'absolute', top: '50%', left: '50%' }} />}>
-                <Routes>
-                  <Route path="/" element={<Home />} />
-                  <Route path="/login" element={<Login />} />
-                  <Route path="/register" element={<Register />} />
-                  <Route path="/reset-password/:uidb64/:token" element={<ResetPassword />} />
-                  <Route
-                    path="/dashboard"
-                    element={
-                      <ProtectedRoute>
-                        <Dashboard />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/feed"
-                    element={
-                      <ProtectedRoute>
-                        <Feed />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/chat"
-                    element={
-                      <ProtectedRoute>
-                        <Chat />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route path="/search-profiles" element={<SearchProfiles />} />
-                  {/* <Route path="/search" element={<Search />} /> */}
-                  <Route path="/profile/:username" element={<Profile />} /> {/* Public route */}
-                  <Route 
-                    path="/profile/:username/edit" 
-                    element={
-                      <ProtectedRoute>
-                        <EditProfileForm />
-                      </ProtectedRoute>
-                    } 
-                  />
-                </Routes>
-              </Suspense>
-            </Box>
-            <Footer />
-          </Box>
+          <AppContent />
         </Router>
       </AuthProvider>
     </ThemeProvider>
