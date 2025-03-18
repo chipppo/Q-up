@@ -188,4 +188,37 @@
   font-size: 0.7rem;
   color: var(--color-text-tertiary);
   margin-left: 4px;
+}
+
+/* Update drawer styles for mobile */
+@media (max-width: 600px) {
+  .MuiDrawer-paper {
+    width: 100% !important;
+    height: 100% !important;
+    position: fixed !important;
+  }
+}
+
+/* Update these styles to ensure proper page filling */
+html, body, #root {
+  height: 100vh;
+  width: 100vw;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* Fix scrolling in the info panel */
+.user-info-content {
+  height: 100%;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Style active hour chips */
+.active-hour-chip {
+  margin: 4px;
+  background-color: rgba(0, 255, 170, 0.1);
+  border: 1px solid rgba(0, 255, 170, 0.3);
 } 
