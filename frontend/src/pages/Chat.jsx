@@ -41,7 +41,7 @@ import {
 import {
   Send as SendIcon,
   Image as ImageIcon,
-  MoreVert as MoreIcon,
+  MoreVert as MoreVertIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
   Reply as ReplyIcon,
@@ -106,7 +106,7 @@ const stringToColor = (string) => {
 };
 
 // Define the Message component for rendering individual messages
-const Message = memo(({ message }) => {
+const Message = memo(({ message, highlightedId, onMenuOpen }) => {
   const { username } = useAuth();
   const isOwnMessage = typeof message.sender === 'string' 
     ? message.sender === username 
@@ -143,6 +143,8 @@ const Message = memo(({ message }) => {
     document.body.removeChild(link);
   };
   
+  const isHighlighted = highlightedId === message.id;
+  
   return (
     <Box
       sx={{
@@ -160,57 +162,78 @@ const Message = memo(({ message }) => {
         </Typography>
       )}
       
-      <div className={`message-bubble ${isOwnMessage ? 'sent' : 'received'}`}>
-        {message.reply_to && (
-          <Box 
-            className="reply-preview"
-            sx={{
-              borderLeft: '3px solid',
-              borderColor: 'primary.main',
-              pl: 1,
-              py: 0.5,
-              opacity: 0.7,
-              mb: 1,
-              fontSize: '0.85rem',
-            }}
-          >
-            {typeof message.reply_to === 'string' ? message.reply_to : message.reply_to?.content || ''}
-          </Box>
-        )}
-        
-        {message.content && (
-          <Typography variant="body1">{message.content}</Typography>
-        )}
-        
-        {(message.image || message.has_image) && (
-          <Box mt={message.content ? 1 : 0}>
-            {isImageAttachment(formatImageUrl(message.image)) ? (
-              <img 
-                src={formatImageUrl(message.image)}
-                alt="Message attachment" 
-                className="message-image"
-                style={{ maxWidth: '100%', borderRadius: '8px' }}
-              />
-            ) : (
-              <Box 
-                className="file-attachment"
-                onClick={() => handleFileDownload(formatImageUrl(message.image), getFileName(message.image))}
-              >
-                <AttachFileIcon />
-                <Box sx={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', ml: 1 }}>
-                  <Typography className="file-name" variant="body2" noWrap sx={{ fontWeight: 'medium' }}>
-                    {getFileName(message.image)}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    Click to download
-                  </Typography>
+      <Box sx={{ position: 'relative', display: 'flex', alignItems: 'flex-start' }}>
+        <div 
+          className={`message-bubble ${isOwnMessage ? 'sent' : 'received'} ${isHighlighted ? 'highlighted-message' : ''}`}
+          id={`message-${message.id}`}
+          style={{ 
+            backgroundColor: isHighlighted ? 'rgba(255, 214, 0, 0.2)' : undefined 
+          }}
+        >
+          {message.reply_to && (
+            <Box 
+              className="reply-preview"
+              sx={{
+                borderLeft: '3px solid',
+                borderColor: 'primary.main',
+                pl: 1,
+                py: 0.5,
+                opacity: 0.7,
+                mb: 1,
+                fontSize: '0.85rem',
+              }}
+            >
+              {typeof message.reply_to === 'string' ? message.reply_to : message.reply_to?.content || ''}
+            </Box>
+          )}
+          
+          {message.content && (
+            <Typography variant="body1">{message.content}</Typography>
+          )}
+          
+          {(message.image || message.has_image) && (
+            <Box mt={message.content ? 1 : 0}>
+              {isImageAttachment(formatImageUrl(message.image)) ? (
+                <img 
+                  src={formatImageUrl(message.image)}
+                  alt="Message attachment" 
+                  className="message-image"
+                  style={{ maxWidth: '100%', borderRadius: '8px' }}
+                />
+              ) : (
+                <Box 
+                  className="file-attachment"
+                  onClick={() => handleFileDownload(formatImageUrl(message.image), getFileName(message.image))}
+                >
+                  <AttachFileIcon />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', ml: 1 }}>
+                    <Typography className="file-name" variant="body2" noWrap sx={{ fontWeight: 'medium' }}>
+                      {getFileName(message.image)}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Click to download
+                    </Typography>
+                  </Box>
+                  <DownloadIcon sx={{ ml: 'auto' }} />
                 </Box>
-                <DownloadIcon sx={{ ml: 'auto' }} />
-              </Box>
-            )}
-          </Box>
-        )}
-      </div>
+              )}
+            </Box>
+          )}
+        </div>
+        
+        <IconButton 
+          size="small" 
+          onClick={(e) => onMenuOpen(e, message)}
+          sx={{ 
+            opacity: 0.5, 
+            ml: 0.5, 
+            visibility: 'visible',
+            '&:hover': { opacity: 1 } 
+          }}
+        >
+          <MoreVertIcon fontSize="small" />
+        </IconButton>
+      </Box>
       
       <Typography 
         variant="caption" 
@@ -231,6 +254,75 @@ const Message = memo(({ message }) => {
     </Box>
   );
 });
+
+// Add an EditMessageForm component before the main Chat component
+const EditMessageForm = ({ message, onSave, onCancel }) => {
+  const [content, setContent] = useState(message.content || '');
+  const inputRef = useRef(null);
+  
+  useEffect(() => {
+    if (inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, []);
+  
+  const handleSave = () => {
+    if (content.trim()) {
+      onSave(message.id, content);
+    }
+  };
+  
+  return (
+    <Box
+      sx={{
+        p: 1,
+        borderTop: '1px solid',
+        borderColor: 'divider',
+        bgcolor: 'action.selected',
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
+      <Box sx={{ mb: 1 }}>
+        <Typography variant="body2" color="text.secondary">
+          Editing message
+        </Typography>
+      </Box>
+      
+      <TextField
+        fullWidth
+        value={content}
+        onChange={(e) => setContent(e.target.value)}
+        onKeyPress={(e) => {
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleSave();
+          }
+        }}
+        variant="outlined"
+        size="small"
+        multiline
+        maxRows={4}
+        inputRef={inputRef}
+        sx={{ mb: 1 }}
+      />
+      
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+        <Button variant="outlined" size="small" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button 
+          variant="contained" 
+          size="small" 
+          onClick={handleSave}
+          disabled={!content.trim()}
+        >
+          Save
+        </Button>
+      </Box>
+    </Box>
+  );
+};
 
 const Chat = () => {
   const { isLoggedIn, username } = useAuth();
@@ -888,7 +980,15 @@ const Chat = () => {
                   <ListItemText
                 primary={chat.participants.find(p => p.username !== username)?.display_name || 
                          chat.participants.find(p => p.username !== username)?.username}
-                secondary={chat.last_message?.content || 'New chat'}
+                secondary={
+                  chat.last_message?.has_image 
+                    ? 'Sent a photo' 
+                    : chat.last_message?.content 
+                      ? chat.last_message?.content 
+                      : chat.last_message?.has_file 
+                        ? 'Sent a file' 
+                        : 'New chat'
+                }
               />
             </ListItem>
           ))}
@@ -909,33 +1009,56 @@ const Chat = () => {
     >
       {selectedChat ? (
         <>
-          <Box sx={{ p: 2, borderBottom: '1px solid #444', display: 'flex', alignItems: 'center' }}>
-            {isMobile && (
-              <IconButton onClick={() => setSelectedChat(null)} sx={{ mr: 1 }}>
-                <ArrowBackIcon />
+          <Box sx={{ p: 2, borderBottom: '1px solid #444', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              {isMobile && (
+                <IconButton onClick={() => setSelectedChat(null)} sx={{ mr: 1 }}>
+                  <ArrowBackIcon />
+                </IconButton>
+              )}
+              <Avatar
+                sx={{ width: 40, height: 40 }}
+                src={formatImageUrl(selectedChat.participants.find(p => p.username !== username)?.avatar_url || '')}
+                alt={selectedChat.participants.find(p => p.username !== username)?.username || ''}
+              >
+                {selectedChat.participants.find(p => p.username !== username)?.username?.[0]?.toUpperCase() || '?'}
+              </Avatar>
+              <Typography variant="h6" sx={{ ml: 2 }}>
+                {selectedChat.participants.find(p => p.username !== username)?.display_name ||
+                selectedChat.participants.find(p => p.username !== username)?.username}
+              </Typography>
+            </Box>
+            
+            <Box>
+              <IconButton 
+                onClick={() => setShowMessageSearch(!showMessageSearch)}
+                color={showMessageSearch ? "primary" : "default"}
+              >
+                <SearchIcon />
               </IconButton>
-            )}
-            <Avatar
-              sx={{ width: 40, height: 40 }}
-              src={formatImageUrl(selectedChat.participants.find(p => p.username !== username)?.avatar_url || '')}
-              alt={selectedChat.participants.find(p => p.username !== username)?.username || ''}
-            >
-              {selectedChat.participants.find(p => p.username !== username)?.username?.[0]?.toUpperCase() || '?'}
-            </Avatar>
-            <Typography variant="h6" sx={{ ml: 2 }}>
-              {selectedChat.participants.find(p => p.username !== username)?.display_name ||
-               selectedChat.participants.find(p => p.username !== username)?.username}
-            </Typography>
+            </Box>
           </Box>
+
+          {showMessageSearch && (
+            <MessageSearchComponent />
+          )}
 
           <Box className="messages-container">
             {messages.map((message) => (
-              <Message key={message.id} message={message} />
+              <Message key={message.id} message={message} highlightedId={highlightedMessageId} onMenuOpen={handleMessageMenuOpen} />
             ))}
             <div ref={messagesEndRef} />
           </Box>
 
-          <MessageInput />
+          {editingMessage ? (
+            <EditMessageForm 
+              message={editingMessage} 
+              onSave={handleEditMessage} 
+              onCancel={() => setEditingMessage(null)} 
+            />
+          ) : (
+            <MessageInput />
+          )}
         </>
       ) : (
         <Box
@@ -945,7 +1068,6 @@ const Chat = () => {
             alignItems: 'center',
             justifyContent: 'center',
             height: '100%',
-            bgcolor: 'background.paper'
           }}
         >
           <Typography variant="h6" color="text.secondary">
@@ -1474,11 +1596,20 @@ const Chat = () => {
               className="messages-container"
             >
               {messages.map((message) => (
-                <Message key={message.id} message={message} />
+                <Message key={message.id} message={message} highlightedId={highlightedMessageId} onMenuOpen={handleMessageMenuOpen} />
               ))}
               <div ref={messagesEndRef} />
             </Box>
-            <MessageInput />
+            
+            {editingMessage ? (
+              <EditMessageForm 
+                message={editingMessage} 
+                onSave={handleEditMessage} 
+                onCancel={() => setEditingMessage(null)} 
+              />
+            ) : (
+              <MessageInput />
+            )}
           </>
         ) : (
           <Box

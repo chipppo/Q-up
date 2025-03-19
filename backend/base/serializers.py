@@ -439,7 +439,8 @@ class ChatSerializer(serializers.ModelSerializer):
                     'content': last_message.content[:50] + '...' if len(last_message.content) > 50 else last_message.content,
                     'sender': last_message.sender.username,
                     'created_at': last_message.created_at,
-                    'has_image': bool(last_message.image)
+                    'has_image': bool(last_message.image),
+                    'has_file': bool(hasattr(last_message, 'file') and last_message.file)
                 }
             return None
         except Exception as e:
