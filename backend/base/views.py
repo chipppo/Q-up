@@ -1123,11 +1123,15 @@ class MessageListView(APIView):
             # Handle image
             if 'image' in request.FILES:
                 message.image = request.FILES['image']
+            
+            # Handle file (use the same image field for files)
+            if 'file' in request.FILES:
+                message.image = request.FILES['file']
                 
             # Validate that at least content or image is provided
             if not message.content and not message.image:
                 return Response(
-                    {'detail': 'Either content or image must be provided'},
+                    {'detail': 'Either content, image, or file must be provided'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
                 
