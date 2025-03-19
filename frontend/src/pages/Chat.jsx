@@ -63,6 +63,8 @@ import {
   Download as DownloadIcon,
   Block as BlockIcon,
   Report as ReportIcon,
+  Mic as MicIcon,
+  MicOff as MicOffIcon,
 } from '@mui/icons-material';
 import EmojiPicker from 'emoji-picker-react';
 import { useAuth } from '../context/AuthContext';
@@ -72,6 +74,18 @@ import './Chat.css';
 import { keyframes } from '@emotion/react';
 
 const PREDEFINED_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '😡', '🎉', '��', '🙏', '🔥'];
+
+// Define time periods with their corresponding hours - add this near the top of the file
+const TIME_PERIODS = [
+  { id: "earlyMorning", name: "Early Morning (5-8 AM)", hours: ["05:00", "06:00", "07:00", "08:00"] },
+  { id: "morning", name: "Morning (8-11 AM)", hours: ["08:00", "09:00", "10:00", "11:00"] },
+  { id: "noon", name: "Noon (11 AM-2 PM)", hours: ["11:00", "12:00", "13:00", "14:00"] },
+  { id: "afternoon", name: "Afternoon (2-5 PM)", hours: ["14:00", "15:00", "16:00", "17:00"] },
+  { id: "evening", name: "Evening (5-8 PM)", hours: ["17:00", "18:00", "19:00", "20:00"] },
+  { id: "night", name: "Night (8-11 PM)", hours: ["20:00", "21:00", "22:00", "23:00"] },
+  { id: "lateNight", name: "Late Night (11 PM-2 AM)", hours: ["23:00", "00:00", "01:00", "02:00"] },
+  { id: "overnight", name: "Overnight (2-5 AM)", hours: ["02:00", "03:00", "04:00", "05:00"] }
+];
 
 // Utility function to safely format image URLs
 const formatImageUrl = (url) => {
@@ -354,64 +368,251 @@ const Chat = () => {
 
   // Message input component
   const MessageInput = () => {
-    const { username } = useAuth();
     const [message, setMessage] = useState('');
+    const [selectedImage, setSelectedImage] = useState(null);
+    const [imagePreview, setImagePreview] = useState(null);
+    const [selectedFile, setSelectedFile] = useState(null);
+    const [filePreview, setFilePreview] = useState(null);
+    const [sending, setSending] = useState(false);
     
-    const handleSendMessage = () => {
-      if (!message.trim() || !selectedChat) return;
+    const handleSendMessage = async (e) => {
+      e?.preventDefault();
       
-      // Correct API structure: POST /chats/{chat_id}/messages/
-      const messageData = {
-        content: message
-        // chat_id is in the URL path, not the payload
-      };
+      if ((!message.trim() && !selectedImage && !selectedFile) || !selectedChat) {
+        return;
+      }
       
-      API.post(`/chats/${selectedChat.id}/messages/`, messageData)
-        .then(response => {
-          setMessage('');
-          console.log('Message sent successfully:', response.data);
-        })
-        .catch(err => {
-          console.error('Error sending message:', err);
-          toast.error('Failed to send message');
+      setSending(true);
+      
+      try {
+        // Create form data for file upload
+        const formData = new FormData();
+        
+        // Add message content if present
+        if (message.trim()) {
+          formData.append('content', message.trim());
+        }
+        
+        // Add image if present
+        if (selectedImage) {
+          formData.append('image', selectedImage);
+        }
+        
+        // Add file if present
+        if (selectedFile) {
+          formData.append('file', selectedFile);
+        }
+        
+        // Add reply_to if replying to a message
+        if (replyTo) {
+          formData.append('parent', replyTo.id);
+        }
+        
+        const response = await API.post(`/chats/${selectedChat.id}/messages/`, formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
         });
+        
+        // Add the new message to the messages array
+        setMessages(prevMessages => [...prevMessages, response.data]);
+        
+        // Reset form state
+        setMessage('');
+        setSelectedImage(null);
+        setImagePreview(null);
+        setSelectedFile(null);
+        setFilePreview(null);
+        setReplyTo(null);
+        
+        // Scroll to the bottom of the messages
+        scrollToBottom();
+        
+        // Refresh the chat list to update the latest message
+        fetchChats();
+      } catch (error) {
+        console.error('Error sending message:', error);
+        toast.error('Failed to send message. Please try again.');
+      } finally {
+        setSending(false);
+      }
     };
-    
+
+    const handleImageSelect = (e) => {
+      if (e.target.files && e.target.files[0]) {
+        const file = e.target.files[0];
+        if (file.size > 5 * 1024 * 1024) { // 5MB limit
+          toast.error('Image size should be less than 5MB');
+          return;
+        }
+        setSelectedImage(file);
+        
+        // Create a preview URL
+        const reader = new FileReader();
+        reader.onload = (e) => setImagePreview(e.target.result);
+        reader.readAsDataURL(file);
+        
+        // Clear any selected files
+        setSelectedFile(null);
+        setFilePreview(null);
+      }
+    };
+
+    const handleFileSelect = (e) => {
+      if (e.target.files && e.target.files[0]) {
+        const file = e.target.files[0];
+        if (file.size > 10 * 1024 * 1024) { // 10MB limit
+          toast.error('File size should be less than 10MB');
+          return;
+        }
+        setSelectedFile(file);
+        setFilePreview(file);
+        
+        // Clear any selected images
+        setSelectedImage(null);
+        setImagePreview(null);
+      }
+    };
+
+    const handleRemoveFile = () => {
+      if (selectedImage) {
+        setSelectedImage(null);
+        setImagePreview(null);
+      }
+      if (selectedFile) {
+        setSelectedFile(null);
+        setFilePreview(null);
+      }
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      if (documentInputRef.current) {
+        documentInputRef.current.value = '';
+      }
+    };
+
     return (
       <Box
         sx={{
           display: 'flex',
-          alignItems: 'center',
+          flexDirection: 'column',
           p: 1,
           borderTop: '1px solid',
           borderColor: 'divider',
           bgcolor: 'background.paper',
         }}
       >
-        <TextField
-          fullWidth
-          placeholder="Type a message..."
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          onKeyPress={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault();
-              handleSendMessage();
-            }
-          }}
-          variant="outlined"
-          size="small"
-          multiline
-          maxRows={4}
-          sx={{ mr: 1 }}
-        />
-        <IconButton 
-          color="primary" 
-          onClick={handleSendMessage}
-          disabled={!message.trim() || !selectedChat}
-        >
-          <SendIcon />
-        </IconButton>
+        {replyTo && (
+          <Box 
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              p: 1,
+              bgcolor: 'action.selected',
+              borderRadius: 1,
+              mb: 1,
+            }}
+          >
+            <Typography variant="body2" color="text.secondary">
+              Replying to {replyTo.sender.username}
+            </Typography>
+            <IconButton size="small" onClick={() => setReplyTo(null)}>
+              <CloseIcon fontSize="small" />
+            </IconButton>
+          </Box>
+        )}
+        
+        {(imagePreview || filePreview) && (
+          <Box sx={{ position: 'relative', mb: 1 }}>
+            {imagePreview && (
+              <img 
+                src={imagePreview} 
+                alt="Preview" 
+                style={{ maxWidth: '200px', maxHeight: '200px', borderRadius: '8px' }} 
+              />
+            )}
+            {filePreview && (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <AttachFileIcon />
+                <Typography variant="body2">{filePreview.name}</Typography>
+              </Box>
+            )}
+            <IconButton 
+              size="small" 
+              onClick={handleRemoveFile}
+              sx={{ position: 'absolute', top: -8, right: -8 }}
+            >
+              <CloseIcon fontSize="small" />
+            </IconButton>
+          </Box>
+        )}
+        
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <input
+            type="file"
+            accept="image/*"
+            style={{ display: 'none' }}
+            ref={fileInputRef}
+            onChange={handleImageSelect}
+          />
+          <input
+            type="file"
+            style={{ display: 'none' }}
+            ref={documentInputRef}
+            onChange={handleFileSelect}
+          />
+          
+          <IconButton 
+            size="small" 
+            onClick={() => fileInputRef.current?.click()}
+            color="primary"
+          >
+            <ImageIcon />
+          </IconButton>
+          
+          <IconButton 
+            size="small" 
+            onClick={() => documentInputRef.current?.click()}
+            color="primary"
+          >
+            <AttachFileIcon />
+          </IconButton>
+          
+          <IconButton 
+            size="small" 
+            onClick={handleEmojiButtonClick}
+            color="primary"
+          >
+            <EmojiIcon />
+          </IconButton>
+          
+          <TextField
+            fullWidth
+            placeholder="Type a message..."
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSendMessage();
+              }
+            }}
+            variant="outlined"
+            size="small"
+            multiline
+            maxRows={4}
+            sx={{ mr: 1 }}
+          />
+          
+          <IconButton
+            color="primary"
+            onClick={handleSendMessage}
+            disabled={(!message.trim() && !selectedImage && !selectedFile) || !selectedChat || sending}
+          >
+            {sending ? <CircularProgress size={24} /> : <SendIcon />}
+          </IconButton>
+        </Box>
       </Box>
     );
   };
@@ -1296,34 +1497,38 @@ const Chat = () => {
     const navigate = useNavigate();
     const [blockDialogOpen, setBlockDialogOpen] = useState(false);
 
-    // Helper function to format active hours into groups of consecutive hours
-    const formatActiveHours = (hours) => {
-      if (!hours || !Array.isArray(hours) || hours.length === 0) return [];
+    // Helper function to format active hours for display
+    const formatActiveHours = (activeHours, timezoneOffset = 0) => {
+      if (!activeHours || !Array.isArray(activeHours) || activeHours.length === 0) {
+        return [];
+      }
       
-      // Sort hours numerically
-      const sortedHours = [...hours].sort((a, b) => parseInt(a) - parseInt(b));
-      
-      // Group consecutive hours
-      const groups = [];
-      let currentGroup = [sortedHours[0]];
-      
-      for (let i = 1; i < sortedHours.length; i++) {
-        const current = parseInt(sortedHours[i]);
-        const previous = parseInt(sortedHours[i-1]);
+      // Convert hours from UTC to user's local timezone
+      const convertedHours = activeHours.map(hour => {
+        const [hourStr, minuteStr] = hour.split(':');
+        let hourNum = parseInt(hourStr, 10);
         
-        if (current === previous + 1) {
-          // Hour is consecutive, add to current group
-          currentGroup.push(sortedHours[i]);
-        } else {
-          // Hour is not consecutive, start new group
-          groups.push([...currentGroup]);
-          currentGroup = [sortedHours[i]];
+        // Apply timezone offset
+        hourNum = (hourNum + (timezoneOffset || 0) + 24) % 24;
+        
+        // Format back to string with leading zeros
+        return `${hourNum.toString().padStart(2, '0')}:${minuteStr || '00'}`;
+      });
+      
+      // Check which periods the user is active in
+      const activePeriods = [];
+      for (const period of TIME_PERIODS) {
+        // If all hours in the period are active, add the full period
+        if (period.hours.every(hour => convertedHours.includes(hour))) {
+          activePeriods.push(period.name.split(' ')[0]); // Just use the first word
+        }
+        // If some hours in the period are active, add the period with a * to indicate partial
+        else if (period.hours.some(hour => convertedHours.includes(hour))) {
+          activePeriods.push(`${period.name.split(' ')[0]}*`); // Just use the first word with *
         }
       }
       
-      // Add the last group
-      groups.push(currentGroup);
-      return groups;
+      return activePeriods;
     };
 
     const handleBlockUser = async () => {
@@ -1340,260 +1545,133 @@ const Chat = () => {
     };
 
     return (
-      <Box className="user-info-content" sx={{ p: 2 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-          <Typography variant="h6" component="h2">
-            User Profile
-          </Typography>
-          <IconButton onClick={onClose} size="small">
-            <CloseIcon />
-          </IconButton>
-        </Box>
-
-        {/* User Profile Header */}
-        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 3 }}>
-          <Avatar
-            src={formatImageUrl(otherUser?.avatar_url)}
-            sx={{ width: 120, height: 120, mb: 2 }}
+      <Box 
+        className="user-info-content" 
+        sx={{ 
+          p: 2,
+          height: '100%',
+          overflowY: 'auto',
+        }}
+      >
+        {/* Profile header */}
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+          <Avatar 
+            src={formatImageUrl(otherUser?.avatar || otherUser?.avatar_url)} 
+            sx={{ width: 60, height: 60, mr: 2 }}
           >
             {otherUser?.username?.[0]?.toUpperCase()}
           </Avatar>
-          <Typography variant="h6">
-            {otherUser?.display_name || otherUser?.username}
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            @{otherUser?.username}
-          </Typography>
-          <Button 
-            variant="outlined" 
-            onClick={() => navigate(`/profile/${otherUser?.username}`)}
-            startIcon={<PersonIcon />}
-            fullWidth
-          >
-            View Full Profile
-          </Button>
-        </Box>
-
-        <Divider sx={{ my: 2 }} />
-
-        {/* User Basic Info */}
-        <Box>
-          <Typography variant="subtitle2" gutterBottom fontWeight="bold" color="primary">
-            Basic Information
-          </Typography>
-          <List dense disablePadding>
-            {otherUser?.bio && (
-              <ListItem sx={{ px: 0, py: 1 }}>
-                <ListItemIcon sx={{ minWidth: 36 }}>
-                  <PersonIcon fontSize="small" />
-                </ListItemIcon>
-                <ListItemText 
-                  primary="Bio"
-                  secondary={otherUser.bio}
-                  primaryTypographyProps={{ variant: 'body2', color: 'text.secondary' }}
-                  secondaryTypographyProps={{ variant: 'body2' }}
-                />
-              </ListItem>
-            )}
-            {otherUser?.email && (
-              <ListItem sx={{ px: 0, py: 1 }}>
-                <ListItemIcon sx={{ minWidth: 36 }}>
-                  <EmailIcon fontSize="small" />
-                </ListItemIcon>
-                <ListItemText 
-                  primary="Email"
-                  secondary={otherUser.email}
-                  primaryTypographyProps={{ variant: 'body2', color: 'text.secondary' }}
-                  secondaryTypographyProps={{ variant: 'body2' }}
-                />
-              </ListItem>
-            )}
-            <ListItem sx={{ px: 0, py: 1 }}>
-              <ListItemIcon sx={{ minWidth: 36 }}>
-                <AccessTimeIcon fontSize="small" />
-              </ListItemIcon>
-              <ListItemText 
-                primary="Joined"
-                secondary={otherUser?.created_at ? new Date(otherUser.created_at).toLocaleDateString() : 'Not available'}
-                primaryTypographyProps={{ variant: 'body2', color: 'text.secondary' }}
-                secondaryTypographyProps={{ variant: 'body2' }}
-              />
-            </ListItem>
-          </List>
-        </Box>
-
-        <Divider sx={{ my: 2 }} />
-
-        {/* Gaming Info */}
-        <Box>
-          <Typography variant="subtitle2" gutterBottom fontWeight="bold" color="primary">
-            Gaming Information
-          </Typography>
-          
-          {/* Platforms */}
-          {otherUser?.platforms && otherUser.platforms.length > 0 && (
-            <Box sx={{ mb: 2 }}>
-              <Typography variant="body2" color="text.secondary" gutterBottom>
-                Platforms
-              </Typography>
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                {otherUser.platforms.map((platform, idx) => (
-                  <Chip 
-                    key={idx}
-                    label={platform}
-                    size="small"
-                    sx={{ 
-                      fontSize: '0.75rem',
-                      height: 24,
-                      bgcolor: 'action.selected'
-                    }}
-                  />
-                ))}
-              </Box>
-            </Box>
-          )}
-          
-          {/* Languages */}
-          {otherUser?.language_preference && otherUser.language_preference.length > 0 && (
-            <Box sx={{ mb: 2 }}>
-              <Typography variant="body2" color="text.secondary" gutterBottom>
-                Languages
-              </Typography>
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                {otherUser.language_preference.map((lang, idx) => (
-                  <Chip 
-                    key={idx}
-                    label={lang}
-                    size="small"
-                    sx={{ 
-                      fontSize: '0.75rem',
-                      height: 24,
-                      bgcolor: 'action.selected'
-                    }}
-                  />
-                ))}
-              </Box>
-            </Box>
-          )}
-          
-          {/* Mic Available */}
-          <Box sx={{ mb: 2 }}>
-            <Typography variant="body2" color="text.secondary" gutterBottom>
-              Microphone
-            </Typography>
-            <Chip 
-              icon={otherUser?.mic_available ? <CheckIcon /> : <CloseIcon />}
-              label={otherUser?.mic_available ? "Available" : "Not Available"}
-              size="small"
-              color={otherUser?.mic_available ? "success" : "default"}
-              sx={{ 
-                fontSize: '0.75rem',
-                height: 24
-              }}
-            />
+          <Box>
+            <Typography variant="h6">{otherUser?.display_name || otherUser?.username}</Typography>
+            <Typography variant="body2" color="text.secondary">@{otherUser?.username}</Typography>
           </Box>
-          
-          {/* Active Hours */}
-          {otherUser?.active_hours && otherUser.active_hours.length > 0 && (
-            <Box sx={{ mb: 2 }}>
-              <Typography variant="body2" color="text.secondary" gutterBottom>
-                Active Hours (User's local time)
-              </Typography>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                {formatActiveHours(otherUser.active_hours).map((group, idx) => (
-                  <Chip 
-                    key={idx}
-                    label={`${group[0]} - ${group[group.length-1]}`}
-                    size="small"
-                    className="active-hour-chip"
-                    sx={{ 
-                      fontSize: '0.75rem',
-                      height: 24,
-                      alignSelf: 'flex-start',
-                    }}
-                  />
-                ))}
-              </Box>
-            </Box>
-          )}
-        </Box>
-
-        <Divider sx={{ my: 2 }} />
-
-        {/* Social Links */}
-        {otherUser?.social_links && otherUser.social_links.length > 0 && (
-          <>
-            <Typography variant="subtitle2" gutterBottom fontWeight="bold" color="primary">
-              Social Links
-            </Typography>
-            <List dense disablePadding>
-              {otherUser.social_links.map((link, idx) => (
-                <ListItem key={idx} sx={{ px: 0, py: 0.5 }}>
-                  <ListItemIcon sx={{ minWidth: 36 }}>
-                    <LinkIcon fontSize="small" />
-                  </ListItemIcon>
-                  <ListItemText 
-                    primary={
-                      <Link 
-                        href={link.startsWith('http') ? link : `https://${link}`} 
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        sx={{ color: 'primary.main' }}
-                      >
-                        {link}
-                      </Link>
-                    }
-                  />
-                </ListItem>
-              ))}
-            </List>
-            <Divider sx={{ my: 2 }} />
-          </>
-        )}
-
-        {/* Actions */}
-        <Box>
-          <Typography variant="subtitle2" gutterBottom fontWeight="bold" color="primary">
-            Actions
-          </Typography>
-          <Button 
-            variant="outlined" 
-            color="error"
-            startIcon={<BlockIcon />}
-            fullWidth
-            onClick={() => setBlockDialogOpen(true)}
-            sx={{ mb: 1 }}
-          >
-            Block User
-          </Button>
-          <Button 
-            variant="outlined"
-            startIcon={<ReportIcon />}
-            fullWidth
-          >
-            Report User
-          </Button>
         </Box>
         
-        {/* Block User Dialog */}
-        <Dialog
-          open={blockDialogOpen}
-          onClose={() => setBlockDialogOpen(false)}
+        {/* Bio section */}
+        {otherUser?.bio && (
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="subtitle2" color="text.secondary" gutterBottom>Bio</Typography>
+            <Typography variant="body2">{otherUser?.bio}</Typography>
+          </Box>
+        )}
+        
+        {/* Active hours */}
+        {otherUser?.active_hours && otherUser.active_hours.length > 0 && (
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="subtitle2" color="text.secondary" gutterBottom>Active Hours</Typography>
+            <Box 
+              sx={{ 
+                p: 1.5, 
+                bgcolor: 'background.paper', 
+                borderRadius: 1,
+                border: '1px solid',
+                borderColor: 'divider' 
+              }}
+            >
+              <Typography variant="body2">
+                {formatActiveHours(otherUser.active_hours, otherUser.timezone_offset).join(', ')}
+              </Typography>
+              {formatActiveHours(otherUser.active_hours, otherUser.timezone_offset).some(p => p.includes('*')) && (
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, fontStyle: 'italic' }}>
+                  * Partially active during this time
+                </Typography>
+              )}
+            </Box>
+          </Box>
+        )}
+        
+        {/* Platforms */}
+        {otherUser?.platforms && otherUser.platforms.length > 0 && (
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="subtitle2" color="text.secondary" gutterBottom>Platforms</Typography>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap' }}>
+              {otherUser.platforms.map((platform, index) => (
+                <Chip 
+                  key={index} 
+                  label={platform} 
+                  size="small" 
+                  sx={{ m: 0.5, bgcolor: 'rgba(0, 255, 170, 0.1)' }}
+                />
+              ))}
+            </Box>
+          </Box>
+        )}
+        
+        {/* Mic availability */}
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="subtitle2" color="text.secondary" gutterBottom>Mic Available</Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            {otherUser?.mic_available ? (
+              <>
+                <MicIcon sx={{ color: 'success.main', mr: 1 }} />
+                <Typography variant="body2">Yes</Typography>
+              </>
+            ) : (
+              <>
+                <MicOffIcon sx={{ color: 'error.main', mr: 1 }} />
+                <Typography variant="body2">No</Typography>
+              </>
+            )}
+          </Box>
+        </Box>
+        
+        {/* Languages */}
+        {otherUser?.language_preference && otherUser.language_preference.length > 0 && (
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="subtitle2" color="text.secondary" gutterBottom>Languages</Typography>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap' }}>
+              {otherUser.language_preference.map((language, index) => (
+                <Chip 
+                  key={index} 
+                  label={language} 
+                  size="small" 
+                  sx={{ m: 0.5, bgcolor: 'rgba(0, 255, 170, 0.1)' }}
+                />
+              ))}
+            </Box>
+          </Box>
+        )}
+        
+        {/* View profile button */}
+        <Button
+          variant="contained"
+          fullWidth
+          onClick={() => navigate(`/profile/${otherUser?.username}`)}
+          sx={{ mb: 2 }}
         >
-          <DialogTitle>Block User?</DialogTitle>
-          <DialogContent>
-            <DialogContentText>
-              Are you sure you want to block {otherUser?.username}? 
-              You will no longer receive messages from this user.
-            </DialogContentText>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setBlockDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleBlockUser} color="error" variant="contained">
-              Block
-            </Button>
-          </DialogActions>
-        </Dialog>
+          View Full Profile
+        </Button>
+        
+        {/* Block user button */}
+        <Button 
+          variant="outlined" 
+          color="error" 
+          startIcon={<BlockIcon />}
+          onClick={handleBlockUser}
+          fullWidth
+        >
+          Block User
+        </Button>
       </Box>
     );
   };
@@ -1645,16 +1723,6 @@ const Chat = () => {
             </Typography>
         </Box>
         </Box>
-
-        <IconButton 
-          onClick={(e) => {
-            e.stopPropagation();
-            setShowUserInfo(!showUserInfo);
-          }}
-          color={showUserInfo ? "primary" : "default"}
-        >
-          <InfoIcon />
-        </IconButton>
       </Box>
     );
   };
@@ -1662,29 +1730,21 @@ const Chat = () => {
   // Update the main container and layout to match Instagram's behavior
   return (
     <Box 
-        sx={{ 
-        position: 'fixed',
-        top: 64, // Height of the main navbar
-        left: 0,
-        right: 0,
-        bottom: 0,
-          display: 'flex', 
-          overflow: 'hidden',
-        bgcolor: 'background.default',
-        width: '100%' // Ensure full width
+      sx={{ 
+        display: 'flex',
+        height: 'calc(100vh - 64px)',  // subtract header height
+        bgcolor: 'background.default'
       }}
     >
-      {/* Chat list - fixed width */}
+      {/* Left sidebar - Chat list */}
       <Box
         sx={{
-          width: isMobile && selectedChat ? '0' : '300px',
-          display: isMobile && selectedChat ? 'none' : 'flex',
-          flexDirection: 'column',
+          width: 300,
+          height: '100%',
           borderRight: '1px solid',
           borderColor: 'divider',
-          overflow: 'hidden',
-          bgcolor: 'background.paper',
-          flexShrink: 0,
+          display: isMobile && selectedChat ? 'none' : 'flex',
+          flexDirection: 'column',
         }}
       >
         <Box sx={{ 
@@ -1699,29 +1759,37 @@ const Chat = () => {
           flexGrow: 1,
           overflow: 'auto',
         }}>
-        {renderChatList()}
+          {renderChatList()}
         </Box>
       </Box>
         
-      {/* Main chat area - flexible width */}
-        <Box sx={{ 
-          display: 'flex', 
-          flexDirection: 'column', 
-        flexGrow: 1,
-        height: '100%',
-        overflow: 'hidden',
-        width: showUserInfo ? 'calc(100% - 600px)' : 'calc(100% - 300px)', // Adjust width based on drawer
-      }}>
+      {/* Main chat area */}
+      <Box
+        sx={{
+          flexGrow: 1,
+          height: '100%',
+          flexDirection: 'column',
+          display: isMobile && !selectedChat ? 'none' : 'flex',
+          width: {
+            xs: '100%',
+            sm: '100%',
+            md: selectedChat ? 'calc(100% - 300px)' : '100%',  // only account for left sidebar when both are visible
+          },
+        }}
+      >
         {selectedChat ? (
           <>
             {renderChatHeader()}
             <Box 
-              className="messages-container"
-              sx={{
-                flexGrow: 1,
+              sx={{ 
+                flexGrow: 1, 
                 overflow: 'auto',
-                width: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                padding: 2,
+                gap: 2
               }}
+              className="messages-container"
             >
               {messages.map((message) => (
                 <Message key={message.id} message={message} />
@@ -1740,39 +1808,33 @@ const Chat = () => {
               height: '100%',
             }}
           >
-            <Typography variant="h6" color="textSecondary">
-              Select a chat or search for users to start messaging
+            <Typography variant="h6" color="text.secondary">
+              Select a chat to start messaging
             </Typography>
           </Box>
         )}
       </Box>
 
-      {/* Drawer - fixed width */}
-      <Drawer
-        variant="persistent"
-        anchor="right"
-        open={showUserInfo}
+      {/* Right panel - User info */}
+      <Box
         sx={{
           width: 300,
-          flexShrink: 0,
-          '& .MuiDrawer-paper': {
-            width: 300,
-            boxSizing: 'border-box',
-            bgcolor: 'background.paper',
-            borderLeft: '1px solid',
-            borderColor: 'divider',
-            height: '100%',
-            top: 'auto',
-            position: 'relative',
-          },
+          height: '100%',
+          borderLeft: '1px solid',
+          borderColor: 'divider',
+          bgcolor: 'background.paper',
+          display: { xs: 'none', sm: 'none', md: selectedChat ? 'block' : 'none' }
         }}
       >
-        <UserInfoContent 
-          otherUser={selectedChat?.participants.find(p => p.username !== username)} 
-          onClose={() => setShowUserInfo(false)}
-        />
-      </Drawer>
+        {selectedChat && selectedChat.participants && (
+          <UserInfoContent 
+            otherUser={selectedChat.participants.find(p => p.username !== username)}
+            onClose={() => {}} // Empty function as we no longer need the close functionality
+          />
+        )}
+      </Box>
 
+      {/* Include these components for proper functionality */}
       <MessageMenu />
       <EmojiPickerComponent />
     </Box>
