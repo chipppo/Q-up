@@ -31,6 +31,29 @@
   box-shadow: var(--box-shadow-sm);
 }
 
+.file-attachment {
+  display: flex;
+  align-items: center;
+  background-color: rgba(0, 0, 0, 0.1);
+  padding: 10px;
+  border-radius: 8px;
+  margin-top: 5px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.file-attachment:hover {
+  background-color: rgba(0, 0, 0, 0.2);
+}
+
+.file-name {
+  margin-left: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+
 .message-timestamp {
   font-size: 0.7rem;
   color: var(--color-text-tertiary);
@@ -49,6 +72,9 @@
 
 .chat-list-item {
   transition: background-color var(--transition-fast);
+  word-break: break-word;
+  overflow-wrap: break-word;
+  white-space: normal;
 }
 
 .chat-list-item:hover {
@@ -193,10 +219,10 @@
   margin-left: 4px;
 }
 
-/* Update these styles to ensure proper page filling */
-html, body, #root {
+/* Replace the global styles with scoped styles for the chat page only */
+.chat-page-container {
   height: 100vh;
-  width: 100vw;
+  width: 100%;
   margin: 0;
   padding: 0;
   overflow: hidden;
@@ -226,4 +252,14 @@ html, body, #root {
   .message-bubble {
     max-width: 85%;
   }
+}
+
+/* Add styles to prevent horizontal scrolling in the chat sidebar */
+.chat-sidebar {
+  overflow-x: hidden;
+  word-wrap: break-word;
+}
+
+.chat-list-container {
+  overflow-x: hidden;
 } 

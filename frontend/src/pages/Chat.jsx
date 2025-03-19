@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, memo, useCallback } from 'react';
+import React, { useState, useEffect, useRef, memo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -48,7 +48,6 @@ import {
   ArrowBack as ArrowBackIcon,
   Search as SearchIcon,
   Close as CloseIcon,
-  EmojiEmotions as EmojiIcon,
   Check as CheckIcon,
   DoneAll as DoneAllIcon,
   AttachFile as AttachFileIcon,
@@ -66,14 +65,11 @@ import {
   Mic as MicIcon,
   MicOff as MicOffIcon,
 } from '@mui/icons-material';
-import EmojiPicker from 'emoji-picker-react';
 import { useAuth } from '../context/AuthContext';
 import API from '../api/axios';
 import { toast } from 'react-toastify';
 import './Chat.css';
 import { keyframes } from '@emotion/react';
-
-const PREDEFINED_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '😡', '🎉', '��', '🙏', '🔥'];
 
 // Define time periods with their corresponding hours - add this near the top of the file
 const TIME_PERIODS = [
@@ -122,6 +118,31 @@ const Message = memo(({ message }) => {
   
   const messageTime = message.timestamp || message.created_at || new Date();
   
+  // Function to determine if the attachment is an image or a file
+  const isImageAttachment = (url) => {
+    if (!url) return false;
+    const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg'];
+    return imageExtensions.some(ext => url.toLowerCase().endsWith(ext));
+  };
+  
+  // Function to extract file name from URL
+  const getFileName = (url) => {
+    if (!url) return 'File';
+    const parts = url.split('/');
+    return parts[parts.length - 1];
+  };
+  
+  // Handle file download
+  const handleFileDownload = (url, fileName) => {
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    link.target = '_blank';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+  
   return (
     <Box
       sx={{
@@ -163,12 +184,30 @@ const Message = memo(({ message }) => {
         
         {(message.image || message.has_image) && (
           <Box mt={message.content ? 1 : 0}>
-            <img 
-              src={formatImageUrl(message.image)}
-              alt="Message attachment" 
-              className="message-image"
-              style={{ maxWidth: '100%', borderRadius: '8px' }}
-            />
+            {isImageAttachment(formatImageUrl(message.image)) ? (
+              <img 
+                src={formatImageUrl(message.image)}
+                alt="Message attachment" 
+                className="message-image"
+                style={{ maxWidth: '100%', borderRadius: '8px' }}
+              />
+            ) : (
+              <Box 
+                className="file-attachment"
+                onClick={() => handleFileDownload(formatImageUrl(message.image), getFileName(message.image))}
+              >
+                <AttachFileIcon />
+                <Box sx={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', ml: 1 }}>
+                  <Typography className="file-name" variant="body2" noWrap sx={{ fontWeight: 'medium' }}>
+                    {getFileName(message.image)}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Click to download
+                  </Typography>
+                </Box>
+                <DownloadIcon sx={{ ml: 'auto' }} />
+              </Box>
+            )}
           </Box>
         )}
       </div>
@@ -200,7 +239,6 @@ const Chat = () => {
   const [chats, setChats] = useState([]);
   const [selectedChat, setSelectedChat] = useState(null);
   const [messages, setMessages] = useState([]);
-  const [newMessage, setNewMessage] = useState('');
   const [selectedImage, setSelectedImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -213,8 +251,6 @@ const Chat = () => {
   const [searching, setSearching] = useState(false);
   const [editingMessage, setEditingMessage] = useState(null);
   const [editContent, setEditContent] = useState('');
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [emojiAnchorEl, setEmojiAnchorEl] = useState(null);
   const [messageMenuAnchorEl, setMessageMenuAnchorEl] = useState(null);
   const [selectedMessageForMenu, setSelectedMessageForMenu] = useState(null);
   const [showUserInfo, setShowUserInfo] = useState(false);
@@ -236,110 +272,27 @@ const Chat = () => {
   const [contextMenu, setContextMenu] = useState(null);
   const [selectedMessage, setSelectedMessage] = useState(null);
 
-  // Message input handlers
-  const handleSendMessage = async (e) => {
-    e?.preventDefault();
-    
-    if ((!newMessage.trim() && !selectedImage && !selectedFile) || !selectedChat) {
-      return;
-    }
-    
-    setSending(true);
-    
-    try {
-      // Create form data for file upload
-      const formData = new FormData();
-      
-      // Add message content if present
-      if (newMessage.trim()) {
-        formData.append('content', newMessage.trim());
-      }
-      
-      // Add image if present
-      if (selectedImage) {
-        formData.append('image', selectedImage);
-      }
-      
-      // Add file if present
-      if (selectedFile) {
-        formData.append('file', selectedFile);
-      }
-      
-      // Add reply_to if replying to a message
-      if (replyTo) {
-        formData.append('parent', replyTo.id);
-      }
-      
-      const response = await API.post(`/chats/${selectedChat.id}/messages/`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-      
-      // Add the new message to the messages array
-      setMessages(prevMessages => [...prevMessages, response.data]);
-      
-      // Reset form state
-      setNewMessage('');
-      setSelectedImage(null);
-      setImagePreview(null);
-      setSelectedFile(null);
-      setFilePreview(null);
-      setReplyTo(null);
-      
-      // Scroll to the bottom of the messages
-      scrollToBottom();
-      
-      // Refresh the chat list to update the latest message
-      fetchChats();
-    } catch (error) {
-      console.error('Error sending message:', error);
-      toast.error('Failed to send message. Please try again.');
-    } finally {
-      setSending(false);
-    }
-  };
-
-  const handleEmojiButtonClick = (event) => {
-    if (emojiAnchorEl) {
-      setEmojiAnchorEl(null);
-    } else {
-      setEmojiAnchorEl(event.currentTarget);
-    }
-  };
-
+  // Simplified file handlers
   const handleRemoveFile = () => {
-    if (selectedImage) {
-      setSelectedImage(null);
-      setImagePreview(null);
-    }
-    if (selectedFile) {
-      setSelectedFile(null);
-      setFilePreview(null);
-    }
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-    if (documentInputRef.current) {
-      documentInputRef.current.value = '';
-    }
+    setSelectedImage(null);
+    setImagePreview(null);
+    setSelectedFile(null);
+    setFilePreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    if (documentInputRef.current) documentInputRef.current.value = '';
   };
 
   const handleImageSelect = (e) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+      if (file.size > 5 * 1024 * 1024) {
         toast.error('Image size should be less than 5MB');
         return;
       }
       setSelectedImage(file);
-      
-      // Create a preview URL
       const reader = new FileReader();
       reader.onload = (e) => setImagePreview(e.target.result);
       reader.readAsDataURL(file);
-      
-      // Clear any selected files
       setSelectedFile(null);
       setFilePreview(null);
     }
@@ -348,41 +301,37 @@ const Chat = () => {
   const handleFileSelect = (e) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      if (file.size > 10 * 1024 * 1024) { // 10MB limit
+      if (file.size > 10 * 1024 * 1024) {
         toast.error('File size should be less than 10MB');
         return;
       }
       setSelectedFile(file);
       setFilePreview(file);
-      
-      // Clear any selected images
       setSelectedImage(null);
       setImagePreview(null);
     }
   };
 
-  // Add the missing context menu handler
   const handleContextMenuClose = () => {
     setContextMenu(null);
   };
-
+  
   // Message input component
   const MessageInput = () => {
+    const messageInputRef = useRef(null);
     const [message, setMessage] = useState('');
-    const [selectedImage, setSelectedImage] = useState(null);
-    const [imagePreview, setImagePreview] = useState(null);
-    const [selectedFile, setSelectedFile] = useState(null);
-    const [filePreview, setFilePreview] = useState(null);
-    const [sending, setSending] = useState(false);
+    const [localImagePreview, setLocalImagePreview] = useState(null);
+    const [localFilePreview, setLocalFilePreview] = useState(null);
+    const [localSending, setLocalSending] = useState(false);
     
     const handleSendMessage = async (e) => {
-      e?.preventDefault();
+      if (e) e.preventDefault();
       
       if ((!message.trim() && !selectedImage && !selectedFile) || !selectedChat) {
         return;
       }
       
-      setSending(true);
+      setLocalSending(true);
       
       try {
         // Create form data for file upload
@@ -414,6 +363,8 @@ const Chat = () => {
           },
         });
         
+        console.log('Message sent successfully:', response.data);
+        
         // Add the new message to the messages array
         setMessages(prevMessages => [...prevMessages, response.data]);
         
@@ -421,8 +372,10 @@ const Chat = () => {
         setMessage('');
         setSelectedImage(null);
         setImagePreview(null);
+        setLocalImagePreview(null);
         setSelectedFile(null);
         setFilePreview(null);
+        setLocalFilePreview(null);
         setReplyTo(null);
         
         // Scroll to the bottom of the messages
@@ -432,73 +385,47 @@ const Chat = () => {
         fetchChats();
       } catch (error) {
         console.error('Error sending message:', error);
-        toast.error('Failed to send message. Please try again.');
+        console.error('Error details:', error.response?.data || error.message);
+        toast.error(`Failed to send message: ${error.response?.data?.detail || 'Unknown error'}`);
       } finally {
-        setSending(false);
+        setLocalSending(false);
       }
     };
 
-    const handleImageSelect = (e) => {
+    const handleLocalImageSelect = (e) => {
+      handleImageSelect(e);
+      // Also set local preview
       if (e.target.files && e.target.files[0]) {
         const file = e.target.files[0];
-        if (file.size > 5 * 1024 * 1024) { // 5MB limit
-          toast.error('Image size should be less than 5MB');
-          return;
-        }
-        setSelectedImage(file);
-        
-        // Create a preview URL
         const reader = new FileReader();
-        reader.onload = (e) => setImagePreview(e.target.result);
+        reader.onload = (e) => setLocalImagePreview(e.target.result);
         reader.readAsDataURL(file);
-        
-        // Clear any selected files
-        setSelectedFile(null);
-        setFilePreview(null);
       }
     };
 
-    const handleFileSelect = (e) => {
+    const handleLocalFileSelect = (e) => {
+      handleFileSelect(e);
+      // Set local file preview
       if (e.target.files && e.target.files[0]) {
         const file = e.target.files[0];
-        if (file.size > 10 * 1024 * 1024) { // 10MB limit
-          toast.error('File size should be less than 10MB');
-          return;
-        }
-        setSelectedFile(file);
-        setFilePreview(file);
-        
-        // Clear any selected images
-        setSelectedImage(null);
-        setImagePreview(null);
+        setLocalFilePreview(file);
       }
     };
 
-    const handleRemoveFile = () => {
-      if (selectedImage) {
-        setSelectedImage(null);
-        setImagePreview(null);
-      }
-      if (selectedFile) {
-        setSelectedFile(null);
-        setFilePreview(null);
-      }
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-      if (documentInputRef.current) {
-        documentInputRef.current.value = '';
-      }
+    const handleLocalRemoveFile = () => {
+      handleRemoveFile();
+      setLocalImagePreview(null);
+      setLocalFilePreview(null);
     };
-
+    
     return (
-      <Box
-        sx={{
-          display: 'flex',
+          <Box
+            sx={{
+              display: 'flex',
           flexDirection: 'column',
           p: 1,
           borderTop: '1px solid',
-          borderColor: 'divider',
+                borderColor: 'divider',
           bgcolor: 'background.paper',
         }}
       >
@@ -523,25 +450,25 @@ const Chat = () => {
           </Box>
         )}
         
-        {(imagePreview || filePreview) && (
+        {(imagePreview || localImagePreview || filePreview || localFilePreview) && (
           <Box sx={{ position: 'relative', mb: 1 }}>
-            {imagePreview && (
+            {(imagePreview || localImagePreview) && (
               <img 
-                src={imagePreview} 
+                src={imagePreview || localImagePreview} 
                 alt="Preview" 
                 style={{ maxWidth: '200px', maxHeight: '200px', borderRadius: '8px' }} 
               />
             )}
-            {filePreview && (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            {(filePreview || localFilePreview) && (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 1, bgcolor: 'action.selected', borderRadius: 1 }}>
                 <AttachFileIcon />
-                <Typography variant="body2">{filePreview.name}</Typography>
+                <Typography variant="body2">{(filePreview || localFilePreview).name}</Typography>
               </Box>
             )}
             <IconButton 
               size="small" 
-              onClick={handleRemoveFile}
-              sx={{ position: 'absolute', top: -8, right: -8 }}
+              onClick={handleLocalRemoveFile}
+              sx={{ position: 'absolute', top: -8, right: -8, bgcolor: 'background.paper' }}
             >
               <CloseIcon fontSize="small" />
             </IconButton>
@@ -554,13 +481,13 @@ const Chat = () => {
             accept="image/*"
             style={{ display: 'none' }}
             ref={fileInputRef}
-            onChange={handleImageSelect}
+            onChange={handleLocalImageSelect}
           />
           <input
             type="file"
             style={{ display: 'none' }}
             ref={documentInputRef}
-            onChange={handleFileSelect}
+            onChange={handleLocalFileSelect}
           />
           
           <IconButton 
@@ -579,38 +506,34 @@ const Chat = () => {
             <AttachFileIcon />
           </IconButton>
           
-          <IconButton 
-            size="small" 
-            onClick={handleEmojiButtonClick}
-            color="primary"
-          >
-            <EmojiIcon />
-          </IconButton>
-          
           <TextField
             fullWidth
             placeholder="Type a message..."
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             onKeyPress={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleSendMessage();
-              }
-            }}
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSendMessage();
+                }
+              }}
             variant="outlined"
             size="small"
             multiline
             maxRows={4}
             sx={{ mr: 1 }}
+            InputProps={{
+              sx: { fontFamily: 'inherit' }
+            }}
+            inputRef={messageInputRef}
           />
           
           <IconButton
             color="primary"
-            onClick={handleSendMessage}
-            disabled={(!message.trim() && !selectedImage && !selectedFile) || !selectedChat || sending}
-          >
-            {sending ? <CircularProgress size={24} /> : <SendIcon />}
+          onClick={handleSendMessage}
+            disabled={(!message.trim() && !selectedImage && !selectedFile) || !selectedChat || localSending}
+        >
+            {localSending ? <CircularProgress size={24} /> : <SendIcon />}
           </IconButton>
         </Box>
       </Box>
@@ -698,169 +621,8 @@ const Chat = () => {
     );
   };
 
-  // Add missing EmojiPickerComponent
-  const EmojiPickerComponent = () => {
-    if (!emojiAnchorEl) return null;
-    
-    const [customEmojis, setCustomEmojis] = useState(
-      localStorage.getItem('customEmojis') 
-        ? JSON.parse(localStorage.getItem('customEmojis')) 
-        : PREDEFINED_EMOJIS
-    );
-
-    const [customEmojiInput, setCustomEmojiInput] = useState('');
-    const [showCustomizer, setShowCustomizer] = useState(false);
-
-    const addCustomEmoji = () => {
-      if (customEmojiInput.trim() && !customEmojis.includes(customEmojiInput)) {
-        const newCustomEmojis = [...customEmojis, customEmojiInput];
-        setCustomEmojis(newCustomEmojis);
-        localStorage.setItem('customEmojis', JSON.stringify(newCustomEmojis));
-        setCustomEmojiInput('');
-      }
-    };
-
-    const removeCustomEmoji = (emoji) => {
-      const newCustomEmojis = customEmojis.filter(e => e !== emoji);
-      setCustomEmojis(newCustomEmojis);
-      localStorage.setItem('customEmojis', JSON.stringify(newCustomEmojis));
-    };
-    
-    const handleEmojiClick = (emojiData) => {
-      // In the latest version of emoji-picker-react, emojiData is an object with emoji property
-      if (!emojiData) {
-        console.error('Invalid emoji data:', emojiData);
-        return;
-      }
-      
-      // Extract the emoji character
-      const emoji = emojiData.emoji;
-      
-      if (!emoji) {
-        console.error('No emoji character found in:', emojiData);
-        return;
-      }
-
-      if (editingMessage) {
-        // If editing a message, add emoji to edit content
-        setEditContent(prev => prev + emoji);
-      } else {
-        // Add to new message
-        setNewMessage(prev => prev + emoji);
-      }
-      
-      // Close the emoji picker
-      setEmojiAnchorEl(null);
-    };
-    
-    return (
-      <Popover
-        id="emoji-picker-popover"
-        open={Boolean(emojiAnchorEl)}
-        anchorEl={emojiAnchorEl}
-        onClose={() => setEmojiAnchorEl(null)}
-        anchorOrigin={{
-          vertical: 'bottom',
-          horizontal: 'center',
-        }}
-        transformOrigin={{
-          vertical: 'top',
-          horizontal: 'center',
-        }}
-        slotProps={{
-          paper: {
-            sx: { 
-              mt: 1,
-              overflow: 'visible',
-              '& .EmojiPickerReact': {
-                '--epr-hover-bg-color': theme => theme.palette.action.hover,
-                '--epr-focus-bg-color': theme => theme.palette.action.selected,
-                '--epr-highlight-color': theme => theme.palette.primary.main,
-                '--epr-search-border-color': theme => theme.palette.divider,
-                '--epr-category-label-bg-color': theme => theme.palette.background.paper,
-              }
-            }
-          }
-        }}
-      >
-        <Box sx={{ p: 1 }}>
-          <Box>
-            <Typography variant="subtitle2" gutterBottom>
-              Quick Emojis
-              <IconButton 
-                size="small" 
-                onClick={() => setShowCustomizer(!showCustomizer)}
-                sx={{ ml: 1 }}
-                color={showCustomizer ? "primary" : "default"}
-              >
-                <EditIcon fontSize="small" />
-              </IconButton>
-            </Typography>
-
-            {showCustomizer && (
-              <Box sx={{ mb: 2, display: 'flex', alignItems: 'center' }}>
-                <TextField
-                  size="small"
-                  placeholder="Add emoji"
-                  value={customEmojiInput}
-                  onChange={(e) => setCustomEmojiInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      addCustomEmoji();
-                    }
-                  }}
-                  sx={{ mr: 1, flex: 1 }}
-                />
-                <Button
-                  size="small"
-                  variant="contained"
-                  onClick={addCustomEmoji}
-                  disabled={!customEmojiInput.trim()}
-                >
-                  Add
-                </Button>
-              </Box>
-            )}
-
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 1 }}>
-              {customEmojis.map((emoji) => (
-                <Chip
-                  key={emoji}
-                  label={emoji}
-                  onClick={() => handleEmojiClick({ emoji })}
-                  onDelete={showCustomizer ? () => removeCustomEmoji(emoji) : undefined}
-                  sx={{ 
-                    cursor: 'pointer',
-                    py: 0.25,
-                    height: 28,
-                    '& .MuiChip-label': { px: 1 }
-                  }}
-                />
-              ))}
-            </Box>
-          </Box>
-
-          <Divider sx={{ my: 1 }} />
-          
-          <EmojiPicker
-            onEmojiClick={handleEmojiClick}
-            width={300}
-            height={400}
-            searchDisabled={false}
-            skinTonesDisabled
-            previewConfig={{
-              showPreview: false
-            }}
-            lazyLoadEmojis={true}
-          />
-        </Box>
-      </Popover>
-    );
-  };
-
   // Add missing handleReplyMessage function
   const handleReplyMessage = (message) => {
-    if (!message) return;
     setReplyTo(message);
     if (messageInputRef.current) {
       messageInputRef.current.focus();
@@ -869,66 +631,18 @@ const Chat = () => {
 
   // Add missing handleDeleteMessage function
   const handleDeleteMessage = async (messageId) => {
-    if (!messageId) return;
-    
     try {
       await API.delete(`/messages/${messageId}/`);
       
-      // Update local state
-      setMessages(prevMessages => prevMessages.filter(msg => msg.id !== messageId));
-      
-      // Close any open menus
-      setContextMenu(null);
-      setSelectedMessage(null);
-      setMessageMenuAnchorEl(null);
-      setSelectedMessageForMenu(null);
+      // Remove the message from the local state
+      setMessages(prevMessages => 
+        prevMessages.filter(message => message.id !== messageId)
+      );
       
       toast.success('Message deleted successfully');
     } catch (error) {
       console.error('Error deleting message:', error);
       toast.error('Failed to delete message');
-    }
-  };
-
-  // Add missing handleAddReaction function
-  const handleAddReaction = async (emoji) => {
-    if (!selectedMessage) return;
-    
-    try {
-      await API.post(`/messages/${selectedMessage.id}/reactions/`, { emoji });
-      
-      setMessages(prevMessages =>
-        prevMessages.map(msg => {
-          if (msg.id === selectedMessage.id) {
-            const reactions = [...(msg.reactions || [])];
-            const existingReaction = reactions.findIndex(r => r.user.username === username);
-            
-            if (existingReaction >= 0) {
-              reactions[existingReaction] = {
-                ...reactions[existingReaction],
-                emoji
-              };
-            } else {
-              reactions.push({
-                id: Date.now(),
-                emoji,
-                user: { username }
-              });
-            }
-            
-            return { ...msg, reactions };
-          }
-          return msg;
-        })
-      );
-      
-      // Close context menu
-      setContextMenu(null);
-      setSelectedMessage(null);
-      
-    } catch (error) {
-      console.error('Error adding reaction:', error);
-      toast.error('Failed to add reaction');
     }
   };
 
@@ -1044,7 +758,6 @@ const Chat = () => {
 
   // Clean up any open menus or pickers when chat changes
   useEffect(() => {
-    setEmojiAnchorEl(null);
     setMessageMenuAnchorEl(null);
     setSelectedMessageForMenu(null);
     setEditingMessage(null);
@@ -1056,7 +769,6 @@ const Chat = () => {
   useEffect(() => {
     return () => {
       // Clean up any open menus or pickers
-      setEmojiAnchorEl(null);
       setMessageMenuAnchorEl(null);
       setSelectedMessageForMenu(null);
       setEditingMessage(null);
@@ -1156,65 +868,30 @@ const Chat = () => {
           </Box>
         )
       ) : (
-        // Show existing chats
+        // Show chat list when not searching
         <List>
-          {chats.map((chat) => {
-            const otherParticipant = chat.participants.find(p => p.username !== username);
-            return (
-              <ListItemButton
+          {chats.map((chat) => (
+            <ListItem
                 key={chat.id}
+              button
                 selected={selectedChat?.id === chat.id}
                 onClick={() => handleChatSelect(chat)}
-                sx={{ 
-                  py: 1.5,
-                  borderLeft: selectedChat?.id === chat.id ? '3px solid' : 'none',
-                  borderColor: 'primary.main',
-                  bgcolor: selectedChat?.id === chat.id ? 'action.selected' : 'transparent',
-                  '&:hover': {
-                    bgcolor: 'action.hover',
-                  },
-                }}
+              sx={{ py: 1 }}
               >
                 <ListItemAvatar>
-                    <Badge
-                      color="primary"
-                      badgeContent={chat.unread_count}
-                      invisible={!chat.unread_count}
-                    >
                       <Avatar 
-                      src={formatImageUrl(otherParticipant?.avatar_url)}
-                      alt={otherParticipant?.username}
+                  src={formatImageUrl(chat.participants.find(p => p.username !== username)?.avatar_url)}
                       >
-                      {otherParticipant?.username?.[0]?.toUpperCase()}
+                  {chat.participants.find(p => p.username !== username)?.username?.[0]?.toUpperCase()}
                       </Avatar>
-                    </Badge>
                   </ListItemAvatar>
                   <ListItemText
-                    primary={otherParticipant?.display_name || otherParticipant?.username}
-                    secondary={
-                    chat.last_message ? (
-                      <Typography 
-                        noWrap 
-                        variant="body2" 
-                        color="text.secondary"
-                        sx={{ maxWidth: '180px' }}
-                      >
-                        {chat.last_message.sender === username ? 'You: ' : ''}
-                        {chat.last_message.has_image && !chat.last_message.content ? 
-                          '📷 Image' : chat.last_message.content}
-                      </Typography>
-                    ) : 'No messages yet'
-                    }
-                    primaryTypographyProps={{
-                    fontWeight: chat.unread_count ? 'bold' : 'normal',
-                    }}
-                    secondaryTypographyProps={{
-                    fontWeight: chat.unread_count ? 'medium' : 'normal',
-                    }}
-                  />
-                </ListItemButton>
-            );
-          })}
+                primary={chat.participants.find(p => p.username !== username)?.display_name || 
+                         chat.participants.find(p => p.username !== username)?.username}
+                secondary={chat.last_message?.content || 'New chat'}
+              />
+            </ListItem>
+          ))}
       </List>
       )}
     </Box>
@@ -1271,8 +948,8 @@ const Chat = () => {
             bgcolor: 'background.paper'
           }}
         >
-          <Typography variant="h6" color="textSecondary">
-            Select a chat or search for users to start messaging
+          <Typography variant="h6" color="text.secondary">
+            Select a chat to start messaging
           </Typography>
         </Box>
       )}
@@ -1555,7 +1232,7 @@ const Chat = () => {
       >
         {/* Profile header */}
         <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-          <Avatar 
+          <Avatar
             src={formatImageUrl(otherUser?.avatar || otherUser?.avatar_url)} 
             sx={{ width: 60, height: 60, mr: 2 }}
           >
@@ -1566,7 +1243,7 @@ const Chat = () => {
             <Typography variant="body2" color="text.secondary">@{otherUser?.username}</Typography>
           </Box>
         </Box>
-        
+
         {/* Bio section */}
         {otherUser?.bio && (
           <Box sx={{ mb: 3 }}>
@@ -1590,33 +1267,33 @@ const Chat = () => {
             >
               <Typography variant="body2">
                 {formatActiveHours(otherUser.active_hours, otherUser.timezone_offset).join(', ')}
-              </Typography>
+          </Typography>
               {formatActiveHours(otherUser.active_hours, otherUser.timezone_offset).some(p => p.includes('*')) && (
                 <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, fontStyle: 'italic' }}>
                   * Partially active during this time
                 </Typography>
               )}
-            </Box>
+        </Box>
           </Box>
         )}
-        
-        {/* Platforms */}
-        {otherUser?.platforms && otherUser.platforms.length > 0 && (
+          
+          {/* Platforms */}
+          {otherUser?.platforms && otherUser.platforms.length > 0 && (
           <Box sx={{ mb: 3 }}>
             <Typography variant="subtitle2" color="text.secondary" gutterBottom>Platforms</Typography>
             <Box sx={{ display: 'flex', flexWrap: 'wrap' }}>
               {otherUser.platforms.map((platform, index) => (
-                <Chip 
+                  <Chip 
                   key={index} 
-                  label={platform} 
-                  size="small" 
+                    label={platform}
+                    size="small"
                   sx={{ m: 0.5, bgcolor: 'rgba(0, 255, 170, 0.1)' }}
-                />
-              ))}
+                  />
+                ))}
+              </Box>
             </Box>
-          </Box>
-        )}
-        
+          )}
+          
         {/* Mic availability */}
         <Box sx={{ mb: 3 }}>
           <Typography variant="subtitle2" color="text.secondary" gutterBottom>Mic Available</Typography>
@@ -1632,8 +1309,8 @@ const Chat = () => {
                 <Typography variant="body2">No</Typography>
               </>
             )}
-          </Box>
-        </Box>
+              </Box>
+            </Box>
         
         {/* Languages */}
         {otherUser?.language_preference && otherUser.language_preference.length > 0 && (
@@ -1641,16 +1318,16 @@ const Chat = () => {
             <Typography variant="subtitle2" color="text.secondary" gutterBottom>Languages</Typography>
             <Box sx={{ display: 'flex', flexWrap: 'wrap' }}>
               {otherUser.language_preference.map((language, index) => (
-                <Chip 
+            <Chip 
                   key={index} 
                   label={language} 
-                  size="small" 
+              size="small"
                   sx={{ m: 0.5, bgcolor: 'rgba(0, 255, 170, 0.1)' }}
-                />
-              ))}
+                  />
+                ))}
+              </Box>
             </Box>
-          </Box>
-        )}
+          )}
         
         {/* View profile button */}
         <Button
@@ -1663,15 +1340,15 @@ const Chat = () => {
         </Button>
         
         {/* Block user button */}
-        <Button 
-          variant="outlined" 
-          color="error" 
-          startIcon={<BlockIcon />}
+          <Button 
+            variant="outlined" 
+            color="error"
+            startIcon={<BlockIcon />}
           onClick={handleBlockUser}
-          fullWidth
-        >
-          Block User
-        </Button>
+            fullWidth
+          >
+            Block User
+          </Button>
       </Box>
     );
   };
@@ -1730,14 +1407,16 @@ const Chat = () => {
   // Update the main container and layout to match Instagram's behavior
   return (
     <Box 
-      sx={{ 
-        display: 'flex',
+        className="chat-page-container"
+        sx={{ 
+          display: 'flex', 
         height: 'calc(100vh - 64px)',  // subtract header height
         bgcolor: 'background.default'
       }}
     >
       {/* Left sidebar - Chat list */}
       <Box
+        className="chat-sidebar"
         sx={{
           width: 300,
           height: '100%',
@@ -1755,19 +1434,22 @@ const Chat = () => {
           {renderChatListHeader()}
         </Box>
 
-        <Box sx={{ 
-          flexGrow: 1,
-          overflow: 'auto',
-        }}>
-          {renderChatList()}
+        <Box 
+          className="chat-list-container"
+          sx={{ 
+            flexGrow: 1,
+            overflow: 'auto',
+          }}
+        >
+        {renderChatList()}
         </Box>
       </Box>
         
       {/* Main chat area */}
       <Box
         sx={{
-          flexGrow: 1,
-          height: '100%',
+        flexGrow: 1,
+        height: '100%',
           flexDirection: 'column',
           display: isMobile && !selectedChat ? 'none' : 'flex',
           width: {
@@ -1781,8 +1463,8 @@ const Chat = () => {
           <>
             {renderChatHeader()}
             <Box 
-              sx={{ 
-                flexGrow: 1, 
+              sx={{
+                flexGrow: 1,
                 overflow: 'auto',
                 display: 'flex',
                 flexDirection: 'column',
@@ -1820,23 +1502,22 @@ const Chat = () => {
         sx={{
           width: 300,
           height: '100%',
-          borderLeft: '1px solid',
-          borderColor: 'divider',
+            borderLeft: '1px solid',
+            borderColor: 'divider',
           bgcolor: 'background.paper',
           display: { xs: 'none', sm: 'none', md: selectedChat ? 'block' : 'none' }
         }}
       >
         {selectedChat && selectedChat.participants && (
-          <UserInfoContent 
+        <UserInfoContent 
             otherUser={selectedChat.participants.find(p => p.username !== username)}
             onClose={() => {}} // Empty function as we no longer need the close functionality
-          />
+        />
         )}
       </Box>
 
       {/* Include these components for proper functionality */}
       <MessageMenu />
-      <EmojiPickerComponent />
     </Box>
   );
 };
