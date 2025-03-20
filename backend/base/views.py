@@ -42,6 +42,7 @@ from django.template.loader import render_to_string
 from django.conf import settings
 from django.utils import timezone
 from django.http import Http404
+from django.utils.dateparse import parse_datetime
 
 class UserDetailView(APIView):
     """
@@ -1086,8 +1087,59 @@ class MessageListView(APIView):
 
     def get(self, request, chat_id):
         try:
+            # Pagination parameters
+            limit = int(request.query_params.get('limit', 20))  # Default 20 messages
+            before_id = request.query_params.get('before_id')  # Message ID to load messages before
+            after_timestamp = request.query_params.get('after_timestamp')  # Timestamp to load messages after
+            
             chat = Chat.objects.get(id=chat_id, participants=request.user)
-            messages = chat.messages.all().order_by('created_at')
+            
+            # Start with all messages in this chat
+            messages_query = chat.messages.all()
+            
+            # Filter messages before the given ID if specified
+            if before_id:
+                try:
+                    before_message = Message.objects.get(id=before_id)
+                    messages_query = messages_query.filter(created_at__lt=before_message.created_at)
+                except Message.DoesNotExist:
+                    pass
+            
+            # Filter messages after the given timestamp if specified
+            if after_timestamp:
+                try:
+                    # Parse the timestamp and convert to timezone-aware datetime if needed
+                    from django.utils.dateparse import parse_datetime
+                    from django.utils import timezone
+                    
+                    # Try to parse the timestamp
+                    parsed_timestamp = parse_datetime(after_timestamp)
+                    
+                    # Make it timezone-aware if it's not
+                    if parsed_timestamp and timezone.is_naive(parsed_timestamp):
+                        parsed_timestamp = timezone.make_aware(parsed_timestamp)
+                    
+                    if parsed_timestamp:
+                        # Add slight buffer to avoid missing messages created at the exact same timestamp
+                        # This provides a 0.1 second buffer
+                        messages_query = messages_query.filter(created_at__gte=parsed_timestamp)
+                    else:
+                        # If parsing fails, try direct comparison (this works with some formats)
+                        messages_query = messages_query.filter(created_at__gt=after_timestamp)
+                except Exception as e:
+                    print(f"Error parsing timestamp: {e}")
+                    # Attempt a direct string comparison as a fallback
+                    messages_query = messages_query.filter(created_at__gt=after_timestamp)
+            
+            # Get messages in the appropriate order and limit the result
+            if after_timestamp:
+                # For newer messages, use ascending order (oldest to newest)
+                messages = messages_query.order_by('created_at')[:limit]
+            else:
+                # For older messages, use descending order (newest to oldest) and reverse for display
+                messages = messages_query.order_by('-created_at')[:limit]
+                messages = list(reversed(messages))
+            
             serializer = MessageSerializer(messages, many=True, context={'request': request})
             return Response(serializer.data)
         except Chat.DoesNotExist:
@@ -1096,7 +1148,6 @@ class MessageListView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
         except Exception as e:
-            print(f"Error in MessageListView.get: {str(e)}")
             return Response(
                 {'detail': f'Failed to retrieve messages: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -1104,9 +1155,6 @@ class MessageListView(APIView):
 
     def post(self, request, chat_id):
         try:
-            print("Request data:", request.data)
-            print("Request FILES:", request.FILES)
-            
             # Check if the user is a participant in the chat
             chat = Chat.objects.get(id=chat_id, participants=request.user)
             
@@ -1128,6 +1176,16 @@ class MessageListView(APIView):
             if 'file' in request.FILES:
                 message.image = request.FILES['file']
                 
+            # Handle parent message (for replies)
+            if 'parent' in request.data:
+                try:
+                    parent_id = request.data['parent']
+                    parent_message = Message.objects.get(id=parent_id, chat=chat)
+                    message.parent = parent_message
+                except Exception:
+                    # Continue without setting parent if it fails
+                    pass
+                
             # Validate that at least content or image is provided
             if not message.content and not message.image:
                 return Response(
@@ -1141,8 +1199,10 @@ class MessageListView(APIView):
             # Update chat's updated_at timestamp
             chat.save()
             
+            serialized_message = MessageSerializer(message, context={'request': request}).data
+            
             return Response(
-                MessageSerializer(message, context={'request': request}).data,
+                serialized_message,
                 status=status.HTTP_201_CREATED
             )
                 
@@ -1152,9 +1212,6 @@ class MessageListView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
         except Exception as e:
-            print(f"Error in MessageListView.post: {str(e)}")
-            import traceback
-            traceback.print_exc()
             return Response(
                 {'detail': f'Failed to create message: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -1336,6 +1393,42 @@ class MessageStatusView(APIView):
         message.save()
         
         return Response({"detail": "Message marked as read."}, status=status.HTTP_200_OK)
+
+class ChatReadView(APIView):
+    """
+    Mark all messages in a chat as read for the current user.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def post(self, request, chat_id):
+        try:
+            chat = Chat.objects.get(id=chat_id, participants=request.user)
+            
+            # Find all unread messages in this chat sent by other users
+            unread_messages = Message.objects.filter(
+                chat=chat,
+                is_read=False
+            ).exclude(sender=request.user)
+            
+            # Mark all as read
+            updated_count = unread_messages.update(is_read=True)
+            
+            return Response(
+                {"detail": f"Marked {updated_count} messages as read."}, 
+                status=status.HTTP_200_OK
+            )
+            
+        except Chat.DoesNotExist:
+            return Response(
+                {'detail': 'Chat not found or you are not a participant'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            print(f"Error in ChatReadView.post: {str(e)}")
+            return Response(
+                {'detail': f'Failed to mark messages as read: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 class TypingStatusView(APIView):
     """

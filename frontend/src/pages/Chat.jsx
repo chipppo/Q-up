@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, memo } from 'react';
+import React, { useState, useEffect, useRef, memo, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -170,36 +170,36 @@ const Message = memo(({ message, highlightedId, onMenuOpen }) => {
             backgroundColor: isHighlighted ? 'rgba(255, 214, 0, 0.2)' : undefined 
           }}
         >
-          {message.reply_to && (
-            <Box 
-              className="reply-preview"
-              sx={{
-                borderLeft: '3px solid',
-                borderColor: 'primary.main',
-                pl: 1,
-                py: 0.5,
-                opacity: 0.7,
-                mb: 1,
-                fontSize: '0.85rem',
-              }}
-            >
-              {typeof message.reply_to === 'string' ? message.reply_to : message.reply_to?.content || ''}
-            </Box>
-          )}
-          
-          {message.content && (
-            <Typography variant="body1">{message.content}</Typography>
-          )}
-          
-          {(message.image || message.has_image) && (
-            <Box mt={message.content ? 1 : 0}>
+        {message.reply_to && (
+          <Box 
+            className="reply-preview"
+            sx={{
+              borderLeft: '3px solid',
+              borderColor: 'primary.main',
+              pl: 1,
+              py: 0.5,
+              opacity: 0.7,
+              mb: 1,
+              fontSize: '0.85rem',
+            }}
+          >
+            {typeof message.reply_to === 'string' ? message.reply_to : message.reply_to?.content || ''}
+          </Box>
+        )}
+        
+        {message.content && (
+          <Typography variant="body1">{message.content}</Typography>
+        )}
+        
+        {(message.image || message.has_image) && (
+          <Box mt={message.content ? 1 : 0}>
               {isImageAttachment(formatImageUrl(message.image)) ? (
-                <img 
-                  src={formatImageUrl(message.image)}
-                  alt="Message attachment" 
-                  className="message-image"
-                  style={{ maxWidth: '100%', borderRadius: '8px' }}
-                />
+            <img 
+              src={formatImageUrl(message.image)}
+              alt="Message attachment" 
+              className="message-image"
+              style={{ maxWidth: '100%', borderRadius: '8px' }}
+            />
               ) : (
                 <Box 
                   className="file-attachment"
@@ -217,9 +217,9 @@ const Message = memo(({ message, highlightedId, onMenuOpen }) => {
                   <DownloadIcon sx={{ ml: 'auto' }} />
                 </Box>
               )}
-            </Box>
-          )}
-        </div>
+          </Box>
+        )}
+      </div>
         
         <IconButton 
           size="small" 
@@ -334,6 +334,7 @@ const Chat = () => {
   const [selectedImage, setSelectedImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [messagesLoading, setMessagesLoading] = useState(false);
   const [error, setError] = useState(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [showChatList, setShowChatList] = useState(true);
@@ -347,6 +348,8 @@ const Chat = () => {
   const [selectedMessageForMenu, setSelectedMessageForMenu] = useState(null);
   const [showUserInfo, setShowUserInfo] = useState(false);
   const [highlightedMessageId, setHighlightedMessageId] = useState(null);
+  const [hasMoreMessages, setHasMoreMessages] = useState(true);
+  const [olderMessagesLoading, setOlderMessagesLoading] = useState(false);
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
   const messageInputRef = useRef(null);
@@ -354,6 +357,7 @@ const Chat = () => {
   const fileInputRef = useRef(null);
   const documentInputRef = useRef(null);
   const messageRefs = useRef({});
+  const messagesStartRef = useRef(null);
   const [sending, setSending] = useState(false);
   const [showMessageSearch, setShowMessageSearch] = useState(false);
   const [messageSearchQuery, setMessageSearchQuery] = useState('');
@@ -363,13 +367,17 @@ const Chat = () => {
   const [filePreview, setFilePreview] = useState(null);
   const [contextMenu, setContextMenu] = useState(null);
   const [selectedMessage, setSelectedMessage] = useState(null);
+  const [unreadChats, setUnreadChats] = useState({});
+  
+  // Add polling interval reference
+  const pollingIntervalRef = useRef(null);
 
   // Simplified file handlers
   const handleRemoveFile = () => {
-    setSelectedImage(null);
-    setImagePreview(null);
-    setSelectedFile(null);
-    setFilePreview(null);
+      setSelectedImage(null);
+      setImagePreview(null);
+      setSelectedFile(null);
+      setFilePreview(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
     if (documentInputRef.current) documentInputRef.current.value = '';
   };
@@ -407,7 +415,7 @@ const Chat = () => {
   const handleContextMenuClose = () => {
     setContextMenu(null);
   };
-  
+
   // Message input component
   const MessageInput = () => {
     const messageInputRef = useRef(null);
@@ -455,8 +463,6 @@ const Chat = () => {
           },
         });
         
-        console.log('Message sent successfully:', response.data);
-        
         // Add the new message to the messages array
         setMessages(prevMessages => [...prevMessages, response.data]);
         
@@ -470,15 +476,11 @@ const Chat = () => {
         setLocalFilePreview(null);
         setReplyTo(null);
         
-        // Scroll to the bottom of the messages
-        scrollToBottom();
-        
-        // Refresh the chat list to update the latest message
-        fetchChats();
+        // Always scroll to bottom when sending a new message
+        setTimeout(() => scrollToBottom(), 100);
       } catch (error) {
         console.error('Error sending message:', error);
-        console.error('Error details:', error.response?.data || error.message);
-        toast.error(`Failed to send message: ${error.response?.data?.detail || 'Unknown error'}`);
+        toast.error('Failed to send message');
       } finally {
         setLocalSending(false);
       }
@@ -600,25 +602,25 @@ const Chat = () => {
           
           <TextField
             fullWidth
-            placeholder="Type a message..."
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            onKeyPress={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSendMessage();
-                }
-              }}
+          placeholder="Type a message..."
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          onKeyPress={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+              handleSendMessage();
+              }
+            }}
             variant="outlined"
             size="small"
-            multiline
-            maxRows={4}
-            sx={{ mr: 1 }}
+          multiline
+          maxRows={4}
+          sx={{ mr: 1 }}
             InputProps={{
               sx: { fontFamily: 'inherit' }
             }}
             inputRef={messageInputRef}
-          />
+        />
           
           <IconButton
             color="primary"
@@ -776,11 +778,12 @@ const Chat = () => {
     scrollToBottom();
   }, [messages]);
 
-  const scrollToBottom = () => {
+  // Function to scroll to the bottom of chat (defined as useCallback)
+  const scrollToBottom = useCallback(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  };
+  }, []); // Empty dependency array since messagesEndRef is a ref object
 
   const fetchChats = async () => {
     try {
@@ -797,26 +800,234 @@ const Chat = () => {
     }
   };
 
-  const fetchMessages = async (chatId) => {
+  const fetchMessages = async (chatId, options = {}) => {
+    const { reset = true, before_id = null } = options;
+    
+    if (!chatId) return;
+    
     try {
-      const response = await API.get(`/chats/${chatId}/messages/`);
-      setMessages(response.data);
-      scrollToBottom();
+      setMessagesLoading(true);
+      
+      // Build the request URL with pagination parameters
+      let url = `/chats/${chatId}/messages/`;
+      const params = new URLSearchParams();
+      params.append('limit', 20); // Load 20 messages at a time
+      
+      if (before_id) {
+        params.append('before_id', before_id);
+      }
+      
+      url = `${url}?${params.toString()}`;
+      
+      const response = await API.get(url);
+      const newMessages = response.data;
+      
+      if (reset) {
+        setMessages(newMessages);
+        setHasMoreMessages(newMessages.length === 20); // If we got fewer than requested, there are no more
+        
+        // Only scroll to bottom on initial load
+        setTimeout(() => scrollToBottom(), 100);
+        
+        // Mark messages as read when loading a chat
+        if (selectedChat) {
+          markChatAsRead(selectedChat.id);
+        }
+      } else {
+        // Prepend older messages to the existing messages
+        setMessages(prevMessages => [...newMessages, ...prevMessages]);
+        setHasMoreMessages(newMessages.length === 20);
+      }
     } catch (err) {
       console.error('Error fetching messages:', err);
       toast.error('Failed to load messages');
+    } finally {
+      setMessagesLoading(false);
+      setOlderMessagesLoading(false);
+    }
+  };
+  
+  // Function to load more (older) messages
+  const loadMoreMessages = () => {
+    if (!selectedChat || olderMessagesLoading || !hasMoreMessages) return;
+    
+    setOlderMessagesLoading(true);
+    
+    // Get the oldest message ID we currently have
+    const oldestMessage = messages.length > 0 ? messages[0] : null;
+    const before_id = oldestMessage ? oldestMessage.id : null;
+    
+    if (before_id) {
+      fetchMessages(selectedChat.id, { reset: false, before_id });
+    } else {
+      setOlderMessagesLoading(false);
+    }
+  };
+  
+  // Add a function to check if user is at bottom of chat
+  const isUserAtBottom = () => {
+    if (!messagesContainerRef.current) return true;
+    
+    const container = messagesContainerRef.current;
+    const scrollOffset = 30; // Allow some small offset from bottom
+    return container.scrollHeight - container.scrollTop - container.clientHeight <= scrollOffset;
+  };
+  
+  // Function to check for new messages - optimized with useCallback
+  const checkForNewMessages = useCallback(async () => {
+    if (!selectedChat) return;
+    
+    try {
+      // Only get messages newer than our latest message
+      let url = `/chats/${selectedChat.id}/messages/?limit=30`;
+      
+      // If we have messages, only get newer ones based on the latest message timestamp
+      if (messages.length > 0) {
+        const latestMessage = messages[messages.length - 1];
+        // Add timestamp filter instead of fetching all messages
+        url += `&after_timestamp=${encodeURIComponent(latestMessage.created_at)}`;
+      }
+      
+      const response = await API.get(url);
+      const newMessages = response.data;
+      
+      // Create a map of existing message IDs for faster lookup
+      const existingMessageIds = new Set(messages.map(msg => msg.id));
+      
+      // Only add messages we don't already have (more efficient filtering)
+      const uniqueNewMessages = newMessages.filter(newMsg => !existingMessageIds.has(newMsg.id));
+      
+      if (uniqueNewMessages.length > 0) {
+        console.log(`Adding ${uniqueNewMessages.length} new messages`);
+        
+        // Add the new messages
+        setMessages(prevMessages => {
+          // Do one more duplicate check before updating state
+          const currentIds = new Set(prevMessages.map(msg => msg.id));
+          const finalUniqueMessages = uniqueNewMessages.filter(msg => !currentIds.has(msg.id));
+          
+          return [...prevMessages, ...finalUniqueMessages];
+        });
+        
+        // Only scroll to bottom for new messages if user was already at bottom
+        if (isUserAtBottom()) {
+          setTimeout(() => scrollToBottom(), 100);
+        }
+      }
+    } catch (error) {
+      console.error('Error checking for new messages:', error);
+    }
+  }, [selectedChat, messages]);  // Remove isUserAtBottom from dependencies to avoid circular reference
+
+  // Function to check for new messages in all chats (for notification)
+  const checkAllChatsForNewMessages = async () => {
+    try {
+      // Get updated list of chats with unread counts
+      const response = await API.get('/chats/');
+      const updatedChats = response.data;
+      
+      // Update chat list without changing selected chat
+      setChats(updatedChats);
+      
+      // Create a map of chat IDs with unread messages
+      const unreadMap = {};
+      updatedChats.forEach(chat => {
+        if (chat.unread_count > 0) {
+          unreadMap[chat.id] = chat.unread_count;
+        }
+      });
+      
+      setUnreadChats(unreadMap);
+    } catch (error) {
+      console.error('Error checking all chats:', error);
+    }
+  };
+
+  // Add function to mark messages as read
+  const markChatAsRead = async (chatId) => {
+    try {
+      await API.post(`/chats/${chatId}/read/`);
+      
+      // Update unread chat count
+      setUnreadChats(prev => {
+        const updated = {...prev};
+        delete updated[chatId];
+        return updated;
+      });
+      
+      // Update chats list to reflect read status
+      setChats(prev => prev.map(chat => 
+        chat.id === chatId 
+          ? {...chat, unread_count: 0}
+          : chat
+      ));
+    } catch (error) {
+      console.error('Error marking chat as read:', error);
     }
   };
 
   const handleChatSelect = (chat) => {
+    // Clear messages when changing chats
+    setMessages([]);
+    setHasMoreMessages(true);
     setSelectedChat(chat);
+    
     if (chat) {
       fetchMessages(chat.id);
+      
+      // Mark chat as read
+      markChatAsRead(chat.id);
     }
+    
     if (isMobile) {
       setShowChatList(false);
     }
   };
+
+  // Add dedicated useEffect for message polling
+  useEffect(() => {
+    // Only set up polling when a chat is selected
+    if (selectedChat) {
+      // Clear any existing polling interval
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+      }
+      
+      // Check for new messages immediately when chat is selected
+      checkForNewMessages();
+      
+      // Set up polling for new messages every 3 seconds
+      pollingIntervalRef.current = setInterval(() => {
+        checkForNewMessages();
+      }, 3000); // Poll more frequently for better real-time experience
+    }
+    
+    // Clean up when chat changes or component unmounts
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+    };
+  }, [selectedChat, checkForNewMessages]); // Include checkForNewMessages in dependencies
+
+  // Also add less frequent polling for all chats
+  useEffect(() => {
+    // Initial polling setup when component mounts
+    const allChatsPollingInterval = setInterval(() => {
+      if (isLoggedIn) {
+        checkAllChatsForNewMessages();
+      }
+    }, 10000); // Check all chats every 10 seconds
+    
+    // Clean up on unmount
+    return () => {
+      clearInterval(allChatsPollingInterval);
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+      }
+    };
+  }, [isLoggedIn]);
 
   useEffect(() => {
     if (!isLoggedIn) {
@@ -926,7 +1137,12 @@ const Chat = () => {
   );
 
   const renderChatList = () => (
-    <Box sx={{ overflow: 'auto' }}>
+    <Box 
+      sx={{ 
+        flexGrow: 1,
+        overflow: 'auto',
+      }}
+    >
         {searchQuery ? (
         // Show search results
         searchResults.length > 0 ? (
@@ -971,15 +1187,40 @@ const Chat = () => {
               sx={{ py: 1 }}
               >
                 <ListItemAvatar>
+                <Badge
+                  color="primary"
+                  variant="dot"
+                  invisible={!unreadChats[chat.id]}
+                  overlap="circular"
+                  anchorOrigin={{
+                    vertical: 'bottom',
+                    horizontal: 'right',
+                  }}
+                >
                       <Avatar 
                   src={formatImageUrl(chat.participants.find(p => p.username !== username)?.avatar_url)}
                       >
                   {chat.participants.find(p => p.username !== username)?.username?.[0]?.toUpperCase()}
                       </Avatar>
+                </Badge>
                   </ListItemAvatar>
                   <ListItemText
-                primary={chat.participants.find(p => p.username !== username)?.display_name || 
+                primary={
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography>
+                      {chat.participants.find(p => p.username !== username)?.display_name || 
                          chat.participants.find(p => p.username !== username)?.username}
+                    </Typography>
+                    {unreadChats[chat.id] && (
+                      <Chip 
+                        size="small" 
+                        color="primary" 
+                        label={unreadChats[chat.id]} 
+                        sx={{ height: 20, fontSize: '0.7rem' }}
+                      />
+                    )}
+                  </Box>
+                }
                 secondary={
                   chat.last_message?.has_image 
                     ? 'Sent a photo' 
@@ -1001,80 +1242,41 @@ const Chat = () => {
     <Box
       sx={{
         flexGrow: 1,
+        overflow: 'auto',
+        display: 'flex',
         flexDirection: 'column',
-        height: '100%',
-        width: isMobile ? '100%' : 'calc(100% - 300px)',
-        display: (!isMobile || selectedChat) ? 'flex' : 'none'
+        padding: 2,
+        gap: 2
       }}
+      className="messages-container"
+      ref={messagesContainerRef}
     >
-      {selectedChat ? (
-        <>
-          <Box sx={{ p: 2, borderBottom: '1px solid #444', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              {isMobile && (
-                <IconButton onClick={() => setSelectedChat(null)} sx={{ mr: 1 }}>
-                  <ArrowBackIcon />
-                </IconButton>
-              )}
-              <Avatar
-                sx={{ width: 40, height: 40 }}
-                src={formatImageUrl(selectedChat.participants.find(p => p.username !== username)?.avatar_url || '')}
-                alt={selectedChat.participants.find(p => p.username !== username)?.username || ''}
-              >
-                {selectedChat.participants.find(p => p.username !== username)?.username?.[0]?.toUpperCase() || '?'}
-              </Avatar>
-              <Typography variant="h6" sx={{ ml: 2 }}>
-                {selectedChat.participants.find(p => p.username !== username)?.display_name ||
-                selectedChat.participants.find(p => p.username !== username)?.username}
-              </Typography>
-            </Box>
-            
-            <Box>
-              <IconButton 
-                onClick={() => setShowMessageSearch(!showMessageSearch)}
-                color={showMessageSearch ? "primary" : "default"}
-              >
-                <SearchIcon />
-              </IconButton>
-            </Box>
+      {/* Load More Messages Button */}
+      {hasMoreMessages && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+          <Button 
+            variant="outlined" 
+            size="small"
+            onClick={loadMoreMessages}
+            disabled={olderMessagesLoading}
+            startIcon={olderMessagesLoading ? <CircularProgress size={16} /> : null}
+          >
+            {olderMessagesLoading ? 'Loading...' : 'Load Older Messages'}
+          </Button>
           </Box>
-
-          {showMessageSearch && (
-            <MessageSearchComponent />
-          )}
-
-          <Box className="messages-container">
-            {messages.map((message) => (
-              <Message key={message.id} message={message} highlightedId={highlightedMessageId} onMenuOpen={handleMessageMenuOpen} />
-            ))}
-            <div ref={messagesEndRef} />
-          </Box>
-
-          {editingMessage ? (
-            <EditMessageForm 
-              message={editingMessage} 
-              onSave={handleEditMessage} 
-              onCancel={() => setEditingMessage(null)} 
-            />
-          ) : (
-            <MessageInput />
-          )}
-        </>
-      ) : (
-        <Box
-          sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            height: '100%',
-          }}
-        >
-          <Typography variant="h6" color="text.secondary">
-            Select a chat to start messaging
-          </Typography>
-        </Box>
       )}
+      
+      <div ref={messagesStartRef} />
+      
+      {messages.map((message, index) => (
+        <Message 
+          key={`${message.id}-${index}`} 
+          message={message} 
+          highlightedId={highlightedMessageId} 
+          onMenuOpen={handleMessageMenuOpen} 
+        />
+      ))}
+      <div ref={messagesEndRef} />
     </Box>
   );
 
@@ -1475,9 +1677,10 @@ const Chat = () => {
     );
   };
 
-  // Add this function before the return statement
+  // Add the renderChatHeader function back if it was accidentally removed
   const renderChatHeader = () => {
-    const otherUser = selectedChat?.participants.find(p => p.username !== username);
+    if (!selectedChat) return null;
+    const otherUser = selectedChat.participants.find(p => p.username !== username);
     
     return (
       <Box sx={{ 
@@ -1518,88 +1721,71 @@ const Chat = () => {
               {otherUser?.display_name || otherUser?.username}
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              {otherUser?.status || 'Offline'}
+              {otherUser?.status || 'Online'}
             </Typography>
         </Box>
+        </Box>
+        
+        <Box>
+          <IconButton 
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowMessageSearch(!showMessageSearch);
+            }}
+            color={showMessageSearch ? "primary" : "default"}
+          >
+            <SearchIcon />
+          </IconButton>
         </Box>
       </Box>
     );
   };
 
-  // Update the main container and layout to match Instagram's behavior
+  // Update the main content section to use the renderChatHeader function correctly
   return (
     <Box 
-        className="chat-page-container"
         sx={{ 
           display: 'flex', 
-        height: 'calc(100vh - 64px)',  // subtract header height
-        bgcolor: 'background.default'
+        flexDirection: 'row',
+        height: '100vh',
+        width: '100%',
+        bgcolor: 'background.paper'
       }}
     >
-      {/* Left sidebar - Chat list */}
+      {/* Left panel - Chat list */}
       <Box
-        className="chat-sidebar"
         sx={{
-          width: 300,
+          width: isMobile ? '100%' : 300,
           height: '100%',
           borderRight: '1px solid',
           borderColor: 'divider',
           display: isMobile && selectedChat ? 'none' : 'flex',
-          flexDirection: 'column',
+          flexDirection: 'column'
         }}
       >
-        <Box sx={{ 
-          p: 2, 
-          borderBottom: '1px solid',
-          borderColor: 'divider',
-        }}>
           {renderChatListHeader()}
-        </Box>
-
-        <Box 
-          className="chat-list-container"
-          sx={{ 
-            flexGrow: 1,
-            overflow: 'auto',
-          }}
-        >
         {renderChatList()}
-        </Box>
       </Box>
         
-      {/* Main chat area */}
+      {/* Middle panel - Chat messages */}
       <Box
         sx={{
         flexGrow: 1,
-        height: '100%',
           flexDirection: 'column',
-          display: isMobile && !selectedChat ? 'none' : 'flex',
-          width: {
-            xs: '100%',
-            sm: '100%',
-            md: selectedChat ? 'calc(100% - 300px)' : '100%',  // only account for left sidebar when both are visible
-          },
+          height: '100%',
+          width: isMobile ? '100%' : 'calc(100% - 300px)',
+          display: (!isMobile || selectedChat) ? 'flex' : 'none'
         }}
       >
         {selectedChat ? (
           <>
             {renderChatHeader()}
-            <Box 
-              sx={{
-                flexGrow: 1,
-                overflow: 'auto',
-                display: 'flex',
-                flexDirection: 'column',
-                padding: 2,
-                gap: 2
-              }}
-              className="messages-container"
-            >
-              {messages.map((message) => (
-                <Message key={message.id} message={message} highlightedId={highlightedMessageId} onMenuOpen={handleMessageMenuOpen} />
-              ))}
-              <div ref={messagesEndRef} />
-            </Box>
+
+            {showMessageSearch && (
+              <MessageSearchComponent />
+            )}
+
+            {renderChatMessages()}
             
             {editingMessage ? (
               <EditMessageForm 
@@ -1608,7 +1794,7 @@ const Chat = () => {
                 onCancel={() => setEditingMessage(null)} 
               />
             ) : (
-              <MessageInput />
+            <MessageInput />
             )}
           </>
         ) : (

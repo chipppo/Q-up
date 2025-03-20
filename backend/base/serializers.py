@@ -453,15 +453,14 @@ class ChatSerializer(serializers.ModelSerializer):
             if not user or not user.is_authenticated:
                 return 0
                 
-            # Check if the is_read field exists on the Message model
-            from django.db import models
-            message_fields = [f.name for f in obj.messages.model._meta.get_fields()]
+            # Count unread messages sent by others
+            unread_count = obj.messages.filter(
+                is_read=False
+            ).exclude(
+                sender=user
+            ).count()
             
-            if 'is_read' in message_fields:
-                return obj.messages.exclude(sender=user).filter(is_read=False).count()
-            else:
-                # Fallback if is_read field doesn't exist yet
-                return 0
+            return unread_count
+            
         except Exception as e:
-            print(f"Error in get_unread_count: {str(e)}")
             return 0
