@@ -105,12 +105,51 @@ const stringToColor = (string) => {
   return color;
 };
 
+// Define a utility function for formatting message timestamps in a user-friendly way
+const formatMessageTime = (timestamp) => {
+  if (!timestamp) return '';
+  
+  const messageDate = new Date(timestamp);
+  const now = new Date();
+  const diffMs = now - messageDate;
+  const diffSec = Math.floor(diffMs / 1000);
+  const diffMin = Math.floor(diffSec / 60);
+  const diffHour = Math.floor(diffMin / 60);
+  const diffDay = Math.floor(diffHour / 24);
+  
+  // Just now: less than 1 minute ago
+  if (diffMin < 1) return 'just now';
+  
+  // X minutes ago: less than 60 minutes ago
+  if (diffHour < 1) return `${diffMin}m ago`;
+  
+  // Today: format as hour:minute
+  if (diffDay < 1) return messageDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  
+  // Yesterday
+  if (diffDay === 1) return 'Yesterday';
+  
+  // This week: show day name
+  if (diffDay < 7) {
+    return messageDate.toLocaleDateString([], { weekday: 'short' });
+  }
+  
+  // Older: show date
+  return messageDate.toLocaleDateString([], { month: 'short', day: 'numeric' });
+};
+
 // Define the Message component for rendering individual messages
 const Message = memo(({ message, highlightedId, onMenuOpen }) => {
   const { username } = useAuth();
   const isOwnMessage = typeof message.sender === 'string' 
     ? message.sender === username 
     : message.sender?.username === username;
+  
+  // Add React imports
+  const { useEffect } = React;
+  
+  // Get the API
+  const APIInstance = API;
   
   const senderName = typeof message.sender === 'string' 
     ? message.sender 
@@ -144,6 +183,22 @@ const Message = memo(({ message, highlightedId, onMenuOpen }) => {
   };
   
   const isHighlighted = highlightedId === message.id;
+  
+  // Effect to mark messages as read when they're rendered and not from the current user
+  useEffect(() => {
+    if (!isOwnMessage && !message.is_read) {
+      // We don't need to mark our own messages as read
+      const markMessageRead = async () => {
+        try {
+          await APIInstance.post(`/messages/${message.id}/status/`);
+        } catch (error) {
+          console.error('Error marking message as read:', error);
+        }
+      };
+      
+      markMessageRead();
+    }
+  }, [isOwnMessage, message.id, message.is_read, APIInstance]);
   
   return (
     <Box
@@ -246,8 +301,16 @@ const Message = memo(({ message, highlightedId, onMenuOpen }) => {
           hour12: true
         })}
         {isOwnMessage && message.is_read !== undefined && (
-          <span style={{ marginLeft: '5px' }}>
-            {message.is_read ? <DoneAllIcon fontSize="inherit" /> : <CheckIcon fontSize="inherit" />}
+          <span className="message-status">
+            {message.is_read ? 
+              <span style={{ marginLeft: '5px', color: 'var(--color-primary)', display: 'inline-flex', alignItems: 'center' }}>
+                <DoneAllIcon fontSize="inherit" style={{ marginRight: '2px' }} /> Seen
+              </span> 
+              : 
+              <span style={{ marginLeft: '5px', color: 'var(--color-text-tertiary)', display: 'inline-flex', alignItems: 'center' }}>
+                <CheckIcon fontSize="inherit" style={{ marginRight: '2px' }} /> Sent
+              </span>
+            }
           </span>
         )}
       </Typography>
@@ -368,6 +431,7 @@ const Chat = () => {
   const [contextMenu, setContextMenu] = useState(null);
   const [selectedMessage, setSelectedMessage] = useState(null);
   const [unreadChats, setUnreadChats] = useState({});
+  const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
   
   // Add polling interval reference
   const pollingIntervalRef = useRef(null);
@@ -878,7 +942,7 @@ const Chat = () => {
     if (!selectedChat) return;
     
     try {
-      // Only get messages newer than our latest message
+      // First, check for new messages
       let url = `/chats/${selectedChat.id}/messages/?limit=30`;
       
       // If we have messages, only get newer ones based on the latest message timestamp
@@ -897,6 +961,29 @@ const Chat = () => {
       // Only add messages we don't already have (more efficient filtering)
       const uniqueNewMessages = newMessages.filter(newMsg => !existingMessageIds.has(newMsg.id));
       
+      // Also update read status of existing messages
+      const updatedMessages = [...messages];
+      let hasUpdates = false;
+      
+      for (const newMsg of newMessages) {
+        if (existingMessageIds.has(newMsg.id)) {
+          const index = updatedMessages.findIndex(msg => msg.id === newMsg.id);
+          if (index !== -1) {
+            // Check if read status changed
+            if (updatedMessages[index].is_read !== newMsg.is_read) {
+              updatedMessages[index] = { ...updatedMessages[index], is_read: newMsg.is_read };
+              hasUpdates = true;
+            }
+          }
+        }
+      }
+      
+      // Update existing messages if read status changed
+      if (hasUpdates) {
+        setMessages(updatedMessages);
+      }
+      
+      // Add new messages if any
       if (uniqueNewMessages.length > 0) {
         console.log(`Adding ${uniqueNewMessages.length} new messages`);
         
@@ -917,7 +1004,7 @@ const Chat = () => {
     } catch (error) {
       console.error('Error checking for new messages:', error);
     }
-  }, [selectedChat, messages]);  // Remove isUserAtBottom from dependencies to avoid circular reference
+  }, [selectedChat, messages]);
 
   // Function to check for new messages in all chats (for notification)
   const checkAllChatsForNewMessages = async () => {
@@ -1141,6 +1228,7 @@ const Chat = () => {
       sx={{ 
         flexGrow: 1,
         overflow: 'auto',
+        width: '350px', // Increase width from 300px to 350px
       }}
     >
         {searchQuery ? (
@@ -1178,62 +1266,93 @@ const Chat = () => {
       ) : (
         // Show chat list when not searching
         <List>
-          {chats.map((chat) => (
-            <ListItem
+          {chats.map((chat) => {
+            const otherUser = chat.participants.find(p => p.username !== username);
+            const lastMessage = chat.last_message;
+            const isOwnLastMessage = lastMessage && lastMessage.sender === username;
+            
+            // Prepare message preview with status
+            let messagePreview;
+            
+            if (lastMessage) {
+              if (lastMessage.has_image) {
+                messagePreview = 'Sent a photo';
+              } else if (lastMessage.has_file) {
+                messagePreview = 'Sent a file';
+              } else if (lastMessage.content) {
+                messagePreview = lastMessage.content;
+              } else {
+                messagePreview = 'New chat';
+              }
+            } else {
+              messagePreview = 'New chat';
+            }
+            
+            // Format last message time
+            const messageTime = lastMessage ? formatMessageTime(lastMessage.created_at) : '';
+            
+            return (
+              <ListItem
                 key={chat.id}
-              button
+                button
                 selected={selectedChat?.id === chat.id}
                 onClick={() => handleChatSelect(chat)}
-              sx={{ py: 1 }}
+                sx={{ 
+                  py: 1.5,
+                  borderLeft: unreadChats[chat.id] ? '3px solid var(--color-primary)' : 'none',
+                  backgroundColor: unreadChats[chat.id] ? 'rgba(0, 255, 170, 0.05)' : 'inherit',
+                }}
               >
                 <ListItemAvatar>
-                <Badge
-                  color="primary"
-                  variant="dot"
-                  invisible={!unreadChats[chat.id]}
-                  overlap="circular"
-                  anchorOrigin={{
-                    vertical: 'bottom',
-                    horizontal: 'right',
-                  }}
-                >
-                      <Avatar 
-                  src={formatImageUrl(chat.participants.find(p => p.username !== username)?.avatar_url)}
+                  <Badge color="primary" variant="dot" invisible={!unreadChats[chat.id]}>
+                    <Avatar 
+                      src={formatImageUrl(otherUser?.avatar_url)}
+                    >
+                      {otherUser?.username?.[0]?.toUpperCase()}
+                    </Avatar>
+                  </Badge>
+                </ListItemAvatar>
+                <ListItemText
+                  primary={
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography fontWeight={unreadChats[chat.id] ? 'bold' : 'normal'}>
+                        {otherUser?.display_name || otherUser?.username}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {messageTime}
+                      </Typography>
+                    </Box>
+                  }
+                  secondary={
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Typography 
+                        variant="body2" 
+                        noWrap 
+                        fontWeight={unreadChats[chat.id] ? 'medium' : 'normal'}
+                        sx={{ 
+                          maxWidth: '200px',
+                          color: unreadChats[chat.id] ? 'text.primary' : 'text.secondary',
+                          fontStyle: isOwnLastMessage ? 'italic' : 'normal'
+                        }}
                       >
-                  {chat.participants.find(p => p.username !== username)?.username?.[0]?.toUpperCase()}
-                      </Avatar>
-                </Badge>
-                  </ListItemAvatar>
-                  <ListItemText
-                primary={
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography>
-                      {chat.participants.find(p => p.username !== username)?.display_name || 
-                         chat.participants.find(p => p.username !== username)?.username}
-                    </Typography>
-                    {unreadChats[chat.id] && (
-                      <Chip 
-                        size="small" 
-                        color="primary" 
-                        label={unreadChats[chat.id]} 
-                        sx={{ height: 20, fontSize: '0.7rem' }}
-                      />
-                    )}
-                  </Box>
-                }
-                secondary={
-                  chat.last_message?.has_image 
-                    ? 'Sent a photo' 
-                    : chat.last_message?.content 
-                      ? chat.last_message?.content 
-                      : chat.last_message?.has_file 
-                        ? 'Sent a file' 
-                        : 'New chat'
-                }
-              />
-            </ListItem>
-          ))}
-      </List>
+                        {isOwnLastMessage ? `You: ${messagePreview}` : messagePreview}
+                      </Typography>
+                      
+                      {unreadChats[chat.id] && (
+                        <Chip 
+                          size="small" 
+                          color="primary" 
+                          label={unreadChats[chat.id]} 
+                          sx={{ ml: 1, height: 20, fontSize: '0.7rem' }}
+                        />
+                      )}
+                    </Box>
+                  }
+                />
+              </ListItem>
+            );
+          })}
+        </List>
       )}
     </Box>
   );
@@ -1744,8 +1863,8 @@ const Chat = () => {
   // Update the main content section to use the renderChatHeader function correctly
   return (
     <Box 
-        sx={{ 
-          display: 'flex', 
+      sx={{ 
+        display: 'flex', 
         flexDirection: 'row',
         height: '100vh',
         width: '100%',
@@ -1755,25 +1874,27 @@ const Chat = () => {
       {/* Left panel - Chat list */}
       <Box
         sx={{
-          width: isMobile ? '100%' : 300,
+          width: isMobile ? '100%' : 350, // Increased width to 350px
           height: '100%',
           borderRight: '1px solid',
           borderColor: 'divider',
           display: isMobile && selectedChat ? 'none' : 'flex',
-          flexDirection: 'column'
+          flexDirection: 'column',
+          overflow: 'hidden' // Prevent overflow
         }}
+        className="chat-sidebar"
       >
-          {renderChatListHeader()}
+        {renderChatListHeader()}
         {renderChatList()}
       </Box>
         
       {/* Middle panel - Chat messages */}
       <Box
         sx={{
-        flexGrow: 1,
+          flexGrow: 1,
           flexDirection: 'column',
           height: '100%',
-          width: isMobile ? '100%' : 'calc(100% - 300px)',
+          width: isMobile ? '100%' : `calc(100% - ${showUserInfo ? 650 : 350}px)`, // Adjust based on user info panel
           display: (!isMobile || selectedChat) ? 'flex' : 'none'
         }}
       >
@@ -1794,7 +1915,7 @@ const Chat = () => {
                 onCancel={() => setEditingMessage(null)} 
               />
             ) : (
-            <MessageInput />
+              <MessageInput />
             )}
           </>
         ) : (
@@ -1815,26 +1936,47 @@ const Chat = () => {
       </Box>
 
       {/* Right panel - User info */}
-      <Box
-        sx={{
-          width: 300,
-          height: '100%',
+      {showUserInfo && selectedChat && (
+        <Box 
+          sx={{
+            width: isMobile ? '100%' : 300,
+            height: '100%',
             borderLeft: '1px solid',
             borderColor: 'divider',
-          bgcolor: 'background.paper',
-          display: { xs: 'none', sm: 'none', md: selectedChat ? 'block' : 'none' }
-        }}
-      >
-        {selectedChat && selectedChat.participants && (
-        <UserInfoContent 
-            otherUser={selectedChat.participants.find(p => p.username !== username)}
-            onClose={() => {}} // Empty function as we no longer need the close functionality
-        />
-        )}
-      </Box>
+            display: (showUserInfo && !isMobile) ? 'block' : 'none'
+          }}
+        >
+          <UserInfoContent 
+            otherUser={selectedChat?.participants.find(p => p.username !== username)}
+            onClose={() => setShowUserInfo(false)}
+          />
+        </Box>
+      )}
 
-      {/* Include these components for proper functionality */}
-      <MessageMenu />
+      {/* Context Menu */}
+      <Menu
+        open={contextMenu !== null}
+        onClose={handleContextMenuClose}
+        anchorReference="anchorPosition"
+        anchorPosition={
+          contextMenu !== null
+            ? { top: contextMenu.mouseY, left: contextMenu.mouseX }
+            : undefined
+        }
+      >
+        <MenuItem onClick={() => {
+          if (selectedMessage) {
+            setReplyTo(selectedMessage);
+            messageInputRef.current?.focus();
+          }
+          handleContextMenuClose();
+        }}>
+          <ListItemIcon>
+            <ReplyIcon fontSize="small" />
+          </ListItemIcon>
+          Reply
+        </MenuItem>
+      </Menu>
     </Box>
   );
 };

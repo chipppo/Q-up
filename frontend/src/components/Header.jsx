@@ -58,12 +58,40 @@ const Header = () => {
   const navigate = useNavigate();
   const [anchorEl, setAnchorEl] = useState(null);
   const [userData, setUserData] = useState(null);
+  const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
   
   useEffect(() => {
     if (isLoggedIn && username) {
       fetchUserData();
     }
   }, [isLoggedIn, username]);
+
+  // Check for unread messages
+  useEffect(() => {
+    if (isLoggedIn) {
+      // Set up polling to check for unread messages
+      const interval = setInterval(checkUnreadMessages, 10000); // Check every 10 seconds
+      
+      // Run initial check
+      checkUnreadMessages();
+      
+      // Cleanup on unmount
+      return () => clearInterval(interval);
+    }
+  }, [isLoggedIn]);
+
+  const checkUnreadMessages = async () => {
+    try {
+      const response = await API.get('/chats/');
+      const chats = response.data;
+      
+      // Check if any chat has unread messages
+      const hasUnread = chats.some(chat => chat.unread_count > 0);
+      setHasUnreadMessages(hasUnread);
+    } catch (error) {
+      console.error('Error checking unread messages:', error);
+    }
+  };
 
   const fetchUserData = async () => {
     try {
@@ -197,7 +225,7 @@ const Header = () => {
                   }
                 }}
               >
-                <Badge color="error" variant="dot">
+                <Badge color="error" variant="dot" invisible={!hasUnreadMessages}>
                   <MessageIcon />
                 </Badge>
               </IconButton>
