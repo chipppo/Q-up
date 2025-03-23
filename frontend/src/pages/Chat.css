@@ -61,6 +61,21 @@
   text-align: right;
 }
 
+.message-status {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.7rem;
+  margin-left: 5px;
+}
+
+.message-status .seen {
+  color: var(--color-primary);
+}
+
+.message-status .sent {
+  color: var(--color-text-tertiary);
+}
+
 .reply-bubble {
   background-color: rgba(0, 255, 170, 0.1);
   padding: 5px 10px;
@@ -84,6 +99,29 @@
 .chat-list-item.selected {
   background-color: rgba(0, 255, 170, 0.1);
   border-left: 3px solid var(--color-primary);
+}
+
+.message-preview {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 220px;
+}
+
+.message-preview.own {
+  font-style: italic;
+}
+
+.message-preview.unread {
+  color: var(--color-text-primary);
+  font-weight: 500;
+}
+
+.message-time {
+  font-size: 0.7rem;
+  color: var(--color-text-tertiary);
 }
 
 .message-input-container {
@@ -258,8 +296,20 @@
 .chat-sidebar {
   overflow-x: hidden;
   word-wrap: break-word;
+  width: 350px;
 }
 
 .chat-list-container {
   overflow-x: hidden;
+  width: 100%;
+}
+
+/* Style for chat list items with unread messages */
+.unread-chat-item {
+  border-left: 3px solid var(--color-primary);
+  background-color: rgba(0, 255, 170, 0.05);
+}
+
+.unread-chat-item .MuiTypography-root {
+  font-weight: 500;
 } 
