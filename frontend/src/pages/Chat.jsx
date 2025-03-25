@@ -7,7 +7,6 @@ import {
   Typography,
   List,
   ListItem,
-  ListItemText,
   ListItemAvatar,
   Avatar,
   TextField,
@@ -146,7 +145,11 @@ const Message = memo(({ message, highlightedId, onMenuOpen }) => {
     : message.sender?.username === username;
   
   // Add React imports
-  const { useEffect } = React;
+  const { useEffect, useState } = React;
+  
+  // Local state for this message's menu
+  const [anchorEl, setAnchorEl] = useState(null);
+  const open = Boolean(anchorEl);
   
   // Get the API
   const APIInstance = API;
@@ -183,33 +186,27 @@ const Message = memo(({ message, highlightedId, onMenuOpen }) => {
   };
   
   const isHighlighted = highlightedId === message.id;
+
+  // Handle menu open/close locally
+  const handleMenuClick = (event) => {
+    event.stopPropagation();
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+  };
   
-  // Effect to mark messages as read when they're rendered and not from the current user
-  useEffect(() => {
-    if (!isOwnMessage && !message.is_read) {
-      // We don't need to mark our own messages as read
-      const markMessageRead = async () => {
-        try {
-          await APIInstance.post(`/messages/${message.id}/status/`);
-        } catch (error) {
-          console.error('Error marking message as read:', error);
-        }
-      };
-      
-      markMessageRead();
+  const handleMenuAction = (action) => {
+    if (onMenuOpen) {
+      onMenuOpen(anchorEl, message, action);
     }
-  }, [isOwnMessage, message.id, message.is_read, APIInstance]);
-  
+    handleMenuClose();
+  };
+
   return (
     <Box
-      sx={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: isOwnMessage ? 'flex-end' : 'flex-start',
-        mb: 2,
-        maxWidth: '80%',
-        alignSelf: isOwnMessage ? 'flex-end' : 'flex-start',
-      }}
+      className={`message-wrapper ${isOwnMessage ? 'sent' : 'received'}`}
     >
       {!isOwnMessage && (
         <Typography variant="caption" color="text.secondary" sx={{ ml: 1, mb: 0.5 }}>
@@ -217,15 +214,41 @@ const Message = memo(({ message, highlightedId, onMenuOpen }) => {
         </Typography>
       )}
       
-      <Box sx={{ position: 'relative', display: 'flex', alignItems: 'flex-start' }}>
+      <Box 
+        sx={{ 
+          display: 'flex', 
+          flexDirection: 'row', 
+          alignItems: 'flex-start', 
+          maxWidth: '100%',
+          justifyContent: isOwnMessage ? 'flex-end' : 'flex-start',
+          width: '100%'
+        }}
+      >
+        {!isOwnMessage && (
+          <IconButton 
+            size="small" 
+            onClick={handleMenuClick}
+            sx={{ 
+              opacity: 0.5, 
+              mr: 0.5, 
+              minWidth: '24px',
+              flexShrink: 0,
+              '&:hover': { opacity: 1 } 
+            }}
+          >
+            <MoreVertIcon fontSize="small" />
+          </IconButton>
+        )}
+        
         <div 
           className={`message-bubble ${isOwnMessage ? 'sent' : 'received'} ${isHighlighted ? 'highlighted-message' : ''}`}
           id={`message-${message.id}`}
           style={{ 
-            backgroundColor: isHighlighted ? 'rgba(255, 214, 0, 0.2)' : undefined 
+            backgroundColor: isHighlighted ? 'rgba(255, 214, 0, 0.2)' : undefined,
+            maxWidth: isOwnMessage ? 'calc(100% - 40px)' : 'calc(100% - 40px)'
           }}
         >
-        {message.reply_to && (
+        {message.parent && (
           <Box 
             className="reply-preview"
             sx={{
@@ -233,68 +256,110 @@ const Message = memo(({ message, highlightedId, onMenuOpen }) => {
               borderColor: 'primary.main',
               pl: 1,
               py: 0.5,
-              opacity: 0.7,
+              opacity: 0.8,
               mb: 1,
               fontSize: '0.85rem',
+              backgroundColor: 'rgba(0, 255, 170, 0.05)',
+              borderRadius: '4px',
+              width: '100%',
+              boxSizing: 'border-box'
             }}
           >
-            {typeof message.reply_to === 'string' ? message.reply_to : message.reply_to?.content || ''}
+            <Typography variant="caption" fontWeight="medium" sx={{ display: 'block', mb: 0.5 }}>
+              {message.parent_sender || (message.parent?.sender?.username ? message.parent.sender.username : 'User')}
+            </Typography>
+            <Typography variant="body2" sx={{ opacity: 0.9 }}>
+              {message.parent_message?.content || message.parent?.content || (message.parent?.has_image ? 'Image' : 'File')}
+            </Typography>
           </Box>
         )}
         
         {message.content && (
-          <Typography variant="body1">{message.content}</Typography>
+          <div className="message-content" style={{ overflowWrap: 'anywhere', wordBreak: 'break-all', maxWidth: '100%' }}>
+            {message.content}
+          </div>
         )}
         
         {(message.image || message.has_image) && (
-          <Box mt={message.content ? 1 : 0}>
-              {isImageAttachment(formatImageUrl(message.image)) ? (
-            <img 
-              src={formatImageUrl(message.image)}
-              alt="Message attachment" 
-              className="message-image"
-              style={{ maxWidth: '100%', borderRadius: '8px' }}
-            />
-              ) : (
-                <Box 
-                  className="file-attachment"
-                  onClick={() => handleFileDownload(formatImageUrl(message.image), getFileName(message.image))}
-                >
-                  <AttachFileIcon />
-                  <Box sx={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', ml: 1 }}>
-                    <Typography className="file-name" variant="body2" noWrap sx={{ fontWeight: 'medium' }}>
-                      {getFileName(message.image)}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      Click to download
-                    </Typography>
-                  </Box>
-                  <DownloadIcon sx={{ ml: 'auto' }} />
+          <Box mt={message.content ? 1 : 0} sx={{ width: '100%', boxSizing: 'border-box' }}>
+            {isImageAttachment(formatImageUrl(message.image)) ? (
+              <img 
+                src={formatImageUrl(message.image)}
+                alt="Message attachment" 
+                className="message-image"
+                style={{ maxWidth: '100%', borderRadius: '8px' }}
+              />
+            ) : (
+              <Box 
+                className="file-attachment"
+                onClick={() => handleFileDownload(formatImageUrl(message.image), getFileName(message.image))}
+              >
+                <AttachFileIcon />
+                <Box sx={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', ml: 1 }}>
+                  <Typography className="file-name" variant="body2" noWrap sx={{ fontWeight: 'medium' }}>
+                    {getFileName(message.image)}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Click to download
+                  </Typography>
                 </Box>
-              )}
+                <DownloadIcon sx={{ ml: 'auto' }} />
+              </Box>
+            )}
           </Box>
         )}
-      </div>
+        </div>
         
-        <IconButton 
-          size="small" 
-          onClick={(e) => onMenuOpen(e, message)}
-          sx={{ 
-            opacity: 0.5, 
-            ml: 0.5, 
-            visibility: 'visible',
-            '&:hover': { opacity: 1 } 
+        {isOwnMessage && (
+          <IconButton 
+            size="small" 
+            onClick={handleMenuClick}
+            sx={{ 
+              opacity: 0.5, 
+              ml: 0.5, 
+              minWidth: '24px',
+              flexShrink: 0,
+              '&:hover': { opacity: 1 } 
+            }}
+          >
+            <MoreVertIcon fontSize="small" />
+          </IconButton>
+        )}
+        
+        <Menu
+          anchorEl={anchorEl}
+          open={open}
+          onClose={handleMenuClose}
+          MenuListProps={{
+            'aria-labelledby': 'message-options',
           }}
         >
-          <MoreVertIcon fontSize="small" />
-        </IconButton>
+          <MenuItem onClick={() => handleMenuAction('reply')}>
+            <ListItemIcon>
+              <ReplyIcon fontSize="small" />
+            </ListItemIcon>
+            Reply
+          </MenuItem>
+          {isOwnMessage && (
+            <MenuItem onClick={() => handleMenuAction('edit')}>
+              <ListItemIcon>
+                <EditIcon fontSize="small" />
+              </ListItemIcon>
+              Edit
+            </MenuItem>
+          )}
+          {isOwnMessage && (
+            <MenuItem onClick={() => handleMenuAction('delete')}>
+              <ListItemIcon>
+                <DeleteIcon fontSize="small" color="error" />
+              </ListItemIcon>
+              <Typography color="error">Delete</Typography>
+            </MenuItem>
+          )}
+        </Menu>
       </Box>
-      
-      <Typography 
-        variant="caption" 
-        color="text.secondary"
-        sx={{ mt: 0.5, mr: isOwnMessage ? 1 : 0, ml: isOwnMessage ? 0 : 1 }}
-      >
+
+      <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, ml: isOwnMessage ? 'auto' : 1, mr: isOwnMessage ? 1 : 'auto' }} className="message-timestamp">
         {new Date(messageTime).toLocaleTimeString([], { 
           hour: '2-digit', 
           minute: '2-digit',
@@ -487,6 +552,21 @@ const Chat = () => {
     const [localImagePreview, setLocalImagePreview] = useState(null);
     const [localFilePreview, setLocalFilePreview] = useState(null);
     const [localSending, setLocalSending] = useState(false);
+    const typingTimeoutRef = useRef(null);
+    
+    // New function to handle typing with debounce
+    const handleMessageChange = (e) => {
+      const newValue = e.target.value;
+      setMessage(newValue);
+      
+      // Clear any existing timeout
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+      
+      // No need to send typing status if no chat is selected
+      if (!selectedChat) return;
+    };
     
     const handleSendMessage = async (e) => {
       if (e) e.preventDefault();
@@ -576,22 +656,31 @@ const Chat = () => {
       setLocalFilePreview(null);
     };
     
+    // Clear typing notification timeout when component unmounts
+    useEffect(() => {
+      return () => {
+        if (typingTimeoutRef.current) {
+          clearTimeout(typingTimeoutRef.current);
+        }
+      };
+    }, []);
+    
     return (
           <Box
             sx={{
               display: 'flex',
-          flexDirection: 'column',
-          p: 1,
-          borderTop: '1px solid',
-                borderColor: 'divider',
-          bgcolor: 'background.paper',
-        }}
-      >
+              flexDirection: 'column',
+              p: 1,
+              borderTop: '1px solid',
+              borderColor: 'divider',
+              bgcolor: 'background.paper',
+            }}
+          >
         {replyTo && (
           <Box 
             sx={{
               display: 'flex',
-              alignItems: 'center',
+              alignItems: 'flex-start',
               justifyContent: 'space-between',
               p: 1,
               bgcolor: 'action.selected',
@@ -599,10 +688,29 @@ const Chat = () => {
               mb: 1,
             }}
           >
-            <Typography variant="body2" color="text.secondary">
-              Replying to {replyTo.sender.username}
-            </Typography>
-            <IconButton size="small" onClick={() => setReplyTo(null)}>
+            <Box sx={{ flex: 1, overflow: 'hidden' }}>
+              <Typography variant="body2" color="text.secondary" fontWeight="medium">
+                Replying to {typeof replyTo.sender === 'string' ? replyTo.sender : replyTo.sender?.username}
+              </Typography>
+              <Typography 
+                variant="body2" 
+                color="text.secondary" 
+                sx={{ 
+                  opacity: 0.8, 
+                  textOverflow: 'ellipsis', 
+                  overflow: 'hidden', 
+                  whiteSpace: 'nowrap', 
+                  maxWidth: '100%',
+                  mt: 0.5,
+                  borderLeft: '2px solid',
+                  borderColor: 'primary.main',
+                  pl: 1
+                }}
+              >
+                {replyTo.content ? replyTo.content : replyTo.image ? 'Image' : 'File'}
+              </Typography>
+            </Box>
+            <IconButton size="small" onClick={() => setReplyTo(null)} sx={{ ml: 1 }}>
               <CloseIcon fontSize="small" />
             </IconButton>
           </Box>
@@ -618,15 +726,34 @@ const Chat = () => {
               />
             )}
             {(filePreview || localFilePreview) && (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 1, bgcolor: 'action.selected', borderRadius: 1 }}>
-                <AttachFileIcon />
-                <Typography variant="body2">{(filePreview || localFilePreview).name}</Typography>
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  p: 1,
+                  bgcolor: 'action.hover',
+                  borderRadius: 1,
+                }}
+              >
+                <AttachFileIcon sx={{ mr: 1 }} />
+                <Typography sx={{ fontSize: '0.875rem' }}>
+                  {(filePreview || localFilePreview)?.name || 'File attachment'}
+                </Typography>
               </Box>
             )}
-            <IconButton 
-              size="small" 
+            <IconButton
+              size="small"
               onClick={handleLocalRemoveFile}
-              sx={{ position: 'absolute', top: -8, right: -8, bgcolor: 'background.paper' }}
+              sx={{
+                position: 'absolute',
+                top: -8,
+                right: -8,
+                bgcolor: 'background.paper',
+                boxShadow: 1,
+                '&:hover': {
+                  bgcolor: 'background.paper',
+                },
+              }}
             >
               <CloseIcon fontSize="small" />
             </IconButton>
@@ -666,31 +793,32 @@ const Chat = () => {
           
           <TextField
             fullWidth
-          placeholder="Type a message..."
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          onKeyPress={(e) => {
+            placeholder="Type a message..."
+            value={message}
+            onChange={handleMessageChange}
+            onKeyPress={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
-              handleSendMessage();
+                handleSendMessage();
               }
             }}
             variant="outlined"
             size="small"
-          multiline
-          maxRows={4}
-          sx={{ mr: 1 }}
+            multiline
+            maxRows={4}
+            sx={{ mr: 1 }}
             InputProps={{
-              sx: { fontFamily: 'inherit' }
+              sx: { fontFamily: 'inherit' },
+              className: 'message-input'
             }}
             inputRef={messageInputRef}
-        />
+          />
           
           <IconButton
             color="primary"
-          onClick={handleSendMessage}
+            onClick={handleSendMessage}
             disabled={(!message.trim() && !selectedImage && !selectedFile) || !selectedChat || localSending}
-        >
+          >
             {localSending ? <CircularProgress size={24} /> : <SendIcon />}
           </IconButton>
         </Box>
@@ -699,9 +827,25 @@ const Chat = () => {
   };
 
   // Add the missing MessageMenu component and related functions
-  const handleMessageMenuOpen = (event, message) => {
+  const handleMessageMenuOpen = (event, message, action) => {
+    // If we received a specific action directly from the Message component's menu
+    if (action) {
+      if (action === 'reply') {
+        handleReplyMessage(message);
+      } else if (action === 'edit') {
+        setEditingMessage(message);
+        setEditContent(message.content || '');
+      } else if (action === 'delete') {
+        handleDeleteMessage(message.id);
+      }
+      return;
+    }
+    
+    // For backward compatibility or other use cases
     // Prevent event propagation to avoid conflicts
-    event.stopPropagation();
+    if (event) {
+      event.stopPropagation();
+    }
     
     // If we already have this message selected, close the menu
     if (selectedMessageForMenu && selectedMessageForMenu.id === message.id && messageMenuAnchorEl) {
@@ -711,72 +855,22 @@ const Chat = () => {
     }
     
     // Use the current target for menu positioning
-    const currentTarget = event.currentTarget;
-    
-    // Make sure the element is valid before setting it as anchorEl
-    if (currentTarget && document.body.contains(currentTarget)) {
-      setMessageMenuAnchorEl(currentTarget);
-      setSelectedMessageForMenu(message);
-    } else {
-      console.error('Invalid anchor element for message menu');
+    if (event && event.currentTarget) {
+      const currentTarget = event.currentTarget;
+      
+      // Make sure the element is valid before setting it as anchorEl
+      if (currentTarget && document.body.contains(currentTarget)) {
+        setMessageMenuAnchorEl(currentTarget);
+        setSelectedMessageForMenu(message);
+      } else {
+        console.error('Invalid anchor element for message menu');
+      }
     }
   };
 
   const handleMessageMenuClose = () => {
     setMessageMenuAnchorEl(null);
     setSelectedMessageForMenu(null);
-  };
-
-  const MessageMenu = () => {
-    if (!messageMenuAnchorEl || !selectedMessageForMenu) return null;
-    
-    return (
-      <Menu
-        id="message-menu"
-        anchorEl={messageMenuAnchorEl}
-        open={Boolean(messageMenuAnchorEl)}
-        onClose={handleMessageMenuClose}
-        anchorOrigin={{
-          vertical: 'bottom',
-          horizontal: 'left',
-        }}
-        transformOrigin={{
-          vertical: 'top',
-          horizontal: 'left',
-        }}
-        MenuListProps={{
-          dense: true,
-        }}
-      >
-        <MenuItem onClick={() => {
-          handleReplyMessage(selectedMessageForMenu);
-          handleMessageMenuClose();
-        }}>
-          <ReplyIcon sx={{ mr: 1 }} /> Reply
-        </MenuItem>
-        {selectedMessageForMenu?.sender?.username === username && [
-          <MenuItem 
-            key="edit" 
-            onClick={() => {
-              setEditingMessage(selectedMessageForMenu);
-              setEditContent(selectedMessageForMenu.content || '');
-              handleMessageMenuClose();
-            }}
-          >
-            <EditIcon sx={{ mr: 1 }} /> Edit
-          </MenuItem>,
-          <MenuItem 
-            key="delete" 
-            onClick={() => {
-              handleDeleteMessage(selectedMessageForMenu.id);
-              handleMessageMenuClose();
-            }}
-          >
-            <DeleteIcon sx={{ mr: 1 }} /> Delete
-          </MenuItem>
-        ]}
-      </Menu>
-    );
   };
 
   // Add missing handleReplyMessage function
@@ -942,6 +1036,16 @@ const Chat = () => {
     if (!selectedChat) return;
     
     try {
+      // Improved check for user typing - don't run the check if user is typing
+      const activeElement = document.activeElement;
+      const isTypingMessage = activeElement && 
+        (activeElement.classList.contains('message-input') || 
+         activeElement.tagName === 'TEXTAREA');
+        
+      if (isTypingMessage) {
+        return;
+      }
+      
       // First, check for new messages
       let url = `/chats/${selectedChat.id}/messages/?limit=30`;
       
@@ -954,6 +1058,11 @@ const Chat = () => {
       
       const response = await API.get(url);
       const newMessages = response.data;
+      
+      // Skip state updates if no messages
+      if (newMessages.length === 0) {
+        return;
+      }
       
       // Create a map of existing message IDs for faster lookup
       const existingMessageIds = new Set(messages.map(msg => msg.id));
@@ -1004,7 +1113,7 @@ const Chat = () => {
     } catch (error) {
       console.error('Error checking for new messages:', error);
     }
-  }, [selectedChat, messages]);
+  }, [selectedChat, messages, scrollToBottom]);
 
   // Function to check for new messages in all chats (for notification)
   const checkAllChatsForNewMessages = async () => {
@@ -1083,10 +1192,18 @@ const Chat = () => {
       // Check for new messages immediately when chat is selected
       checkForNewMessages();
       
-      // Set up polling for new messages every 3 seconds
+      // Set up polling for new messages every 5 seconds
       pollingIntervalRef.current = setInterval(() => {
-        checkForNewMessages();
-      }, 3000); // Poll more frequently for better real-time experience
+        // Skip polling if user is actively typing in the message input
+        const activeElement = document.activeElement;
+        const isTypingMessage = activeElement && 
+          (activeElement.classList.contains('message-input') || 
+           activeElement.tagName === 'TEXTAREA');
+        
+        if (!isTypingMessage) {
+          checkForNewMessages();
+        }
+      }, 5000); // Less frequent polling to reduce input interference
     }
     
     // Clean up when chat changes or component unmounts
@@ -1103,7 +1220,15 @@ const Chat = () => {
     // Initial polling setup when component mounts
     const allChatsPollingInterval = setInterval(() => {
       if (isLoggedIn) {
-        checkAllChatsForNewMessages();
+        // Skip polling if user is actively typing in the message input
+        const activeElement = document.activeElement;
+        const isTypingMessage = activeElement && 
+          (activeElement.classList.contains('message-input') || 
+           activeElement.tagName === 'TEXTAREA');
+        
+        if (!isTypingMessage) {
+          checkAllChatsForNewMessages();
+        }
       }
     }, 10000); // Check all chats every 10 seconds
     
@@ -1139,7 +1264,9 @@ const Chat = () => {
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
       if (searchQuery) {
-        searchMutualFollowers(searchQuery);
+        searchUsers(searchQuery);
+      } else {
+        setSearchResults([]);
       }
     }, 300);
 
@@ -1247,10 +1374,14 @@ const Chat = () => {
                   {user.username[0].toUpperCase()}
                 </Avatar>
               </ListItemAvatar>
-              <ListItemText
-                primary={user.display_name || user.username}
-                secondary="Start new chat"
-              />
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Typography variant="body1">
+                  {user.display_name || user.username}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Start new chat
+                </Typography>
+              </Box>
             </ListItem>
             ))}
           </List>
@@ -1312,43 +1443,39 @@ const Chat = () => {
                     </Avatar>
                   </Badge>
                 </ListItemAvatar>
-                <ListItemText
-                  primary={
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Typography fontWeight={unreadChats[chat.id] ? 'bold' : 'normal'}>
-                        {otherUser?.display_name || otherUser?.username}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {messageTime}
-                      </Typography>
-                    </Box>
-                  }
-                  secondary={
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <Typography 
-                        variant="body2" 
-                        noWrap 
-                        fontWeight={unreadChats[chat.id] ? 'medium' : 'normal'}
-                        sx={{ 
-                          maxWidth: '200px',
-                          color: unreadChats[chat.id] ? 'text.primary' : 'text.secondary',
-                          fontStyle: isOwnLastMessage ? 'italic' : 'normal'
-                        }}
-                      >
-                        {isOwnLastMessage ? `You: ${messagePreview}` : messagePreview}
-                      </Typography>
-                      
-                      {unreadChats[chat.id] && (
-                        <Chip 
-                          size="small" 
-                          color="primary" 
-                          label={unreadChats[chat.id]} 
-                          sx={{ ml: 1, height: 20, fontSize: '0.7rem' }}
-                        />
-                      )}
-                    </Box>
-                  }
-                />
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography fontWeight={unreadChats[chat.id] ? 'bold' : 'normal'}>
+                      {otherUser?.display_name || otherUser?.username}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {messageTime}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Typography 
+                      variant="body2" 
+                      noWrap 
+                      fontWeight={unreadChats[chat.id] ? 'medium' : 'normal'}
+                      sx={{ 
+                        maxWidth: '200px',
+                        color: unreadChats[chat.id] ? 'text.primary' : 'text.secondary',
+                        fontStyle: isOwnLastMessage ? 'italic' : 'normal'
+                      }}
+                    >
+                      {isOwnLastMessage ? `You: ${messagePreview}` : messagePreview}
+                    </Typography>
+                    
+                    {unreadChats[chat.id] && (
+                      <Chip 
+                        size="small" 
+                        color="primary" 
+                        label={unreadChats[chat.id]} 
+                        sx={{ ml: 1, height: 20, fontSize: '0.7rem' }}
+                      />
+                    )}
+                  </Box>
+                </Box>
               </ListItem>
             );
           })}
@@ -1364,8 +1491,8 @@ const Chat = () => {
         overflow: 'auto',
         display: 'flex',
         flexDirection: 'column',
-        padding: 2,
-        gap: 2
+        width: '100%',
+        boxSizing: 'border-box'
       }}
       className="messages-container"
       ref={messagesContainerRef}
@@ -1612,6 +1739,23 @@ const Chat = () => {
     }
   };
 
+  // First add a searchUsers function
+  const searchUsers = async (query) => {
+    try {
+      setSearching(true);
+      setSearchResults([]);
+      
+      // Search all users
+      const response = await API.get(`/search/?q=${encodeURIComponent(query)}&type=user`);
+      
+      setSearchResults(response.data);
+    } catch (error) {
+      console.error('Error searching users:', error);
+    } finally {
+      setSearching(false);
+    }
+  };
+
   // Add this component to handle the user info panel content
   const UserInfoContent = ({ otherUser, onClose }) => {
     const navigate = useNavigate();
@@ -1842,7 +1986,7 @@ const Chat = () => {
             <Typography variant="caption" color="text.secondary">
               {otherUser?.status || 'Online'}
             </Typography>
-        </Box>
+          </Box>
         </Box>
         
         <Box>
