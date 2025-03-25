@@ -7,7 +7,7 @@ from django.db.models import Q
 from django.core.exceptions import ValidationError
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.http import JsonResponse
-from .models import Game, MyUser, GameStats, RankSystem, RankTier, PlayerGoal, GameRanking, Post, Like, Comment, Chat, Message, MessageReaction
+from .models import Game, MyUser, GameStats, RankSystem, RankTier, PlayerGoal, GameRanking, Post, Like, Comment, Chat, Message
 from .serializers import (
     UserSerializer,
     RegisterUserSerializer,
@@ -27,8 +27,7 @@ from .serializers import (
     ReplySerializer,
     LikeSerializer,
     ChatSerializer,
-    MessageSerializer,
-    MessageReactionSerializer
+    MessageSerializer
 )
 import json
 from django.core.validators import validate_email
@@ -1314,59 +1313,6 @@ class MessageReplyView(APIView):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-class MessageReactionView(APIView):
-    """
-    Add, update or remove a reaction to a message.
-    """
-    permission_classes = [permissions.IsAuthenticated]
-    
-    def post(self, request, message_id):
-        try:
-            message = Message.objects.get(id=message_id)
-        except Message.DoesNotExist:
-            raise Http404
-            
-        # Check if user is a participant in the chat
-        if request.user not in message.chat.participants.all():
-            return Response({"detail": "You do not have permission to react to this message."}, 
-                           status=status.HTTP_403_FORBIDDEN)
-        
-        emoji = request.data.get('emoji')
-        if not emoji:
-            return Response({"detail": "Emoji is required."}, status=status.HTTP_400_BAD_REQUEST)
-            
-        # Check if user already reacted to this message
-        try:
-            reaction = MessageReaction.objects.get(message=message, user=request.user)
-            # Update the existing reaction
-            reaction.emoji = emoji
-            reaction.save()
-        except MessageReaction.DoesNotExist:
-            # Create a new reaction
-            reaction = MessageReaction.objects.create(
-                message=message,
-                user=request.user,
-                emoji=emoji
-            )
-            
-        serializer = MessageReactionSerializer(reaction, context={'request': request})
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
-        
-    def delete(self, request, message_id):
-        try:
-            message = Message.objects.get(id=message_id)
-        except Message.DoesNotExist:
-            raise Http404
-            
-        # Delete the reaction
-        try:
-            reaction = MessageReaction.objects.get(message=message, user=request.user)
-            reaction.delete()
-            return Response(status=status.HTTP_204_NO_CONTENT)
-        except MessageReaction.DoesNotExist:
-            return Response({"detail": "You have not reacted to this message."}, 
-                           status=status.HTTP_404_NOT_FOUND)
-
 class MessageStatusView(APIView):
     """
     Update the read status of a message.
@@ -1429,28 +1375,6 @@ class ChatReadView(APIView):
                 {'detail': f'Failed to mark messages as read: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-
-class TypingStatusView(APIView):
-    """
-    Notify when a user is typing in a chat.
-    This could be implemented with WebSockets for real-time updates.
-    """
-    permission_classes = [permissions.IsAuthenticated]
-    
-    def post(self, request, chat_id):
-        try:
-            chat = Chat.objects.get(id=chat_id)
-        except Chat.DoesNotExist:
-            raise Http404
-            
-        # Check if user is a participant
-        if request.user not in chat.participants.all():
-            return Response({"detail": "You are not a participant in this chat."}, 
-                           status=status.HTTP_403_FORBIDDEN)
-                           
-        # In a real implementation, we would broadcast this via WebSocket
-        # For now, we'll just return a success response
-        return Response({"detail": "Typing status updated."}, status=status.HTTP_200_OK)
 
 class MutualFollowersView(APIView):
     """
