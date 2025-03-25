@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from .models import MyUser, Game, GameStats, RankSystem, RankTier, PlayerGoal, GameRanking, Post, Like, Comment, Message, Chat, MessageReaction
+from .models import MyUser, Game, GameStats, RankSystem, RankTier, PlayerGoal, GameRanking, Post, Like, Comment, Message, Chat
 import json
 
 class UserSerializer(serializers.ModelSerializer):
@@ -322,7 +322,6 @@ class MessageSerializer(serializers.ModelSerializer):
     replies_count = serializers.SerializerMethodField()
     parent_sender = serializers.SerializerMethodField()
     image = serializers.SerializerMethodField()
-    reactions = serializers.SerializerMethodField()
     parent_message = serializers.SerializerMethodField()
 
     class Meta:
@@ -331,12 +330,12 @@ class MessageSerializer(serializers.ModelSerializer):
             'id', 'chat', 'sender', 'content', 'image',
             'parent', 'is_edited', 'is_read', 'is_delivered',
             'created_at', 'updated_at', 'replies_count', 
-            'parent_sender', 'reactions', 'parent_message'
+            'parent_sender', 'parent_message'
         ]
         read_only_fields = [
             'id', 'sender', 'is_edited', 'is_read', 'is_delivered',
             'created_at', 'updated_at', 'replies_count', 
-            'parent_sender', 'reactions', 'parent_message'
+            'parent_sender', 'parent_message'
         ]
 
     def get_replies_count(self, obj):
@@ -354,23 +353,6 @@ class MessageSerializer(serializers.ModelSerializer):
                 return request.build_absolute_uri(obj.image.url)
             return obj.image.url
         return None
-        
-    def get_reactions(self, obj):
-        reactions = obj.reactions.all()
-        reaction_data = {}
-        
-        for reaction in reactions:
-            emoji = reaction.emoji
-            if emoji in reaction_data:
-                reaction_data[emoji]["count"] += 1
-                reaction_data[emoji]["users"].append(reaction.user.username)
-            else:
-                reaction_data[emoji] = {
-                    "count": 1,
-                    "users": [reaction.user.username]
-                }
-        
-        return reaction_data
         
     def get_parent_message(self, obj):
         if obj.parent:
@@ -393,31 +375,6 @@ class MessageSerializer(serializers.ModelSerializer):
                 # Image is being uploaded but not in data yet
                 return data
             raise serializers.ValidationError("Either content or image must be provided")
-        return data
-
-class MessageReactionSerializer(serializers.ModelSerializer):
-    user = UserSerializer(read_only=True)
-    
-    class Meta:
-        model = MessageReaction
-        fields = ['id', 'message', 'user', 'emoji', 'created_at']
-        read_only_fields = ['id', 'user', 'created_at']
-        
-    def validate(self, data):
-        # Check if the user already has a reaction for this message
-        request = self.context.get('request')
-        if request:
-            user = request.user
-            message = data.get('message')
-            
-            # If updating an existing reaction, this is fine
-            if self.instance and self.instance.user == user and self.instance.message == message:
-                return data
-                
-            # Otherwise, check if a reaction already exists
-            if MessageReaction.objects.filter(user=user, message=message).exists():
-                raise serializers.ValidationError("You have already reacted to this message.")
-                
         return data
 
 class ChatSerializer(serializers.ModelSerializer):

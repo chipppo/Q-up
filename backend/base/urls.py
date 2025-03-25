@@ -37,9 +37,7 @@ from .views import (
     MutualFollowersView,
     PasswordResetRequestView,
     PasswordResetConfirmView,
-    MessageReactionView,
     MessageStatusView,
-    TypingStatusView,
 )
 
 urlpatterns = [
@@ -75,11 +73,9 @@ urlpatterns = [
     path('chats/', ChatListView.as_view(), name='chat-list'),
     path('chats/<int:chat_id>/', ChatDetailView.as_view(), name='chat-detail'),
     path('chats/<int:chat_id>/messages/', MessageListView.as_view(), name='message-list'),
-    path('chats/<int:chat_id>/typing/', TypingStatusView.as_view(), name='typing-status'),
     path('chats/<int:chat_id>/read/', ChatReadView.as_view(), name='chat-read'),
     path('messages/<int:message_id>/', MessageDetailView.as_view(), name='message-detail'),
     path('messages/<int:message_id>/replies/', MessageReplyView.as_view(), name='message-replies'),
-    path('messages/<int:message_id>/reactions/', MessageReactionView.as_view(), name='message-reactions'),
     path('messages/<int:message_id>/status/', MessageStatusView.as_view(), name='message-status'),
     path('users/<str:username>/mutual-followers/', MutualFollowersView.as_view(), name='mutual-followers'),
 ]
