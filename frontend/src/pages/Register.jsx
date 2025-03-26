@@ -3,7 +3,9 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import API from "../api/axios";
 import { useAuth } from "../context/AuthContext.jsx";
 import { toast } from "react-toastify";
+import { Box } from "@mui/material";
 import "./Login.css";
+import logo from "../assets/qup-logo.svg";
 
 function Register() {
   const [username, setUsername] = useState("");
@@ -71,47 +73,71 @@ function Register() {
 
   return (
     <div className="login-container">
-      <h2>Register</h2>
-      {location.state?.from && (
-        <div className="redirect-message">
-          <p>Please register to access the requested page.</p>
+      <div className="login-form-wrapper">
+        <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
+          <img src={logo} alt="Q-up Logo" height="48" />
+        </Box>
+        <div className="login-header">
+          <h2>Create Account</h2>
+          <p>Join Q-up and find your gaming partner</p>
         </div>
-      )}
-      <form onSubmit={handleSubmit} className="login-form">
-        <input
-          type="text"
-          placeholder="Username"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          required
-        />
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
-        <input
-          type="password"
-          placeholder="Confirm Password"
-          value={confirmPassword}
-          onChange={(e) => setConfirmPassword(e.target.value)}
-          required
-        />
-        <button type="submit">Register</button>
-      </form>
-      {error && <p className="error-message">{error}</p>}
-      <p>
-        Already have an account? <Link to="/login" state={location.state}>Login here</Link>
-      </p>
+        
+        {location.state?.from && (
+          <div className="redirect-message">
+            <p>Please register to access the requested page.</p>
+          </div>
+        )}
+        
+        <form onSubmit={handleSubmit} className="login-form">
+          <div className="form-group">
+            <input
+              type="text"
+              placeholder="Username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
+            />
+          </div>
+          
+          <div className="form-group">
+            <input
+              type="email"
+              placeholder="Email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </div>
+          
+          <div className="form-group">
+            <input
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </div>
+          
+          <div className="form-group">
+            <input
+              type="password"
+              placeholder="Confirm Password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+            />
+          </div>
+          
+          {error && <div className="error-message"><span>{error}</span></div>}
+          
+          <button type="submit" className="login-button">Register</button>
+        </form>
+        
+        <div className="register-link">
+          Already have an account? <Link to="/login" state={location.state}>Login here</Link>
+        </div>
+      </div>
     </div>
   );
 }

@@ -30,6 +30,7 @@ import {
 } from '@mui/icons-material';
 import API from "../api/axios";
 import "./Header.css";
+import logo from "../assets/qup-logo.svg";
 
 // Function to generate a color from a string
 const stringToColor = (string) => {
@@ -131,19 +132,17 @@ const Header = () => {
   return (
     <AppBar position="sticky">
       <Toolbar sx={{ justifyContent: 'space-between' }}>
-        <Typography
-          variant="h6"
-          component={Link}
-          to="/"
-          sx={{
-            textDecoration: 'none',
-            color: 'inherit',
-            flexGrow: 0,
-            fontWeight: 'bold'
-          }}
-        >
-          Q-up
-        </Typography>
+        <Box component={Link} to="/" sx={{ display: 'flex', alignItems: 'center', textDecoration: 'none', color: 'inherit' }}>
+          <img src={logo} alt="Q-up Logo" height="32" style={{ marginRight: '8px' }} />
+          <Typography
+            variant="h6"
+            sx={{
+              fontWeight: 'bold'
+            }}
+          >
+            Q-up
+          </Typography>
+        </Box>
 
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <IconButton

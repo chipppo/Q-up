@@ -4,8 +4,9 @@ import { useNavigate, Link, useLocation } from "react-router-dom";
 import API from "../api/axios";
 import { useAuth } from "../context/AuthContext.jsx";
 import { toast } from "react-toastify";
-import { Button } from "@mui/material";
+import { Button, Box } from "@mui/material";
 import "./Login.css";
+import logo from "../assets/qup-logo.svg";
 
 function Login() {
   const [username, setUsername] = useState("");
@@ -72,6 +73,9 @@ function Login() {
     return (
       <div className="login-container">
         <div className="login-form-wrapper">
+          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
+            <img src={logo} alt="Q-up Logo" height="48" />
+          </Box>
           <div className="login-header">
             <h2>Reset Password</h2>
             <p>Enter your email to receive reset instructions</p>
@@ -132,6 +136,9 @@ function Login() {
   return (
     <div className="login-container">
       <div className="login-form-wrapper">
+        <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
+          <img src={logo} alt="Q-up Logo" height="48" />
+        </Box>
         <div className="login-header">
           <h2>Welcome Back</h2>
           <p>Sign in to continue to Q-up</p>

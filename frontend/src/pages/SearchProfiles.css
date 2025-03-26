@@ -116,14 +116,128 @@
   transition: color var(--transition-fast);
 }
 
-.game-hours-slider-container {
-  margin-left: 24px;
-  margin-top: 8px;
-  margin-bottom: 10px;
-  padding: 8px;
+/* Add better visual cues for game-specific filters */
+.game-filter-container {
+  position: relative;
+  margin-bottom: 15px;
+  padding: 15px;
   background-color: var(--color-bg-tertiary);
   border-radius: var(--border-radius);
-  border-left: 2px solid var(--color-primary);
+  border: 1px solid #444;
+}
+
+.game-hours-slider-container {
+  margin-top: 10px;
+  padding: 10px;
+  background-color: var(--color-bg-secondary);
+  border-radius: var(--border-radius);
+  border: 1px solid #444;
+}
+
+.game-goals-container {
+  margin-top: 10px;
+  padding: 10px;
+  background-color: var(--color-bg-secondary);
+  border-radius: var(--border-radius);
+  border: 1px solid #444;
+}
+
+.game-filter-container .filter-description {
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+}
+
+.game-goals-options .filter-option {
+  padding: 8px;
+  border-radius: var(--border-radius);
+  transition: background-color var(--transition-fast);
+}
+
+.game-goals-options .filter-option:hover {
+  background-color: var(--color-bg-tertiary);
+}
+
+/* Improve styling for goals items */
+.game-goals-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 150px;
+  overflow-y: auto;
+  padding-right: 5px;
+  margin-top: 8px;
+}
+
+/* Add pulse animation for the goal indicator dot */
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Style checked game goals differently to make selection clearer */
+.game-goals-container .filter-option-header input[type="checkbox"]:checked + label {
+  color: var(--color-secondary);
+  font-weight: 500;
+}
+
+.game-goals-container .filter-option-header input[type="checkbox"]:checked + label::after {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--color-secondary);
+  margin-left: 8px;
+  animation: pulse 1.5s infinite ease-in-out;
+}
+
+/* Style all checked options for better visibility */
+.filter-option-header input[type="checkbox"]:checked + label {
+  color: var(--color-primary);
+  font-weight: 500;
+}
+
+/* Scroll indicator for overflowing containers */
+.filter-options::after,
+.game-goals-options::after {
+  content: "";
+  position: sticky;
+  bottom: 0;
+  display: block;
+  height: 20px;
+  margin-top: -20px;
+  background: linear-gradient(0deg, var(--color-bg-tertiary) 0%, transparent 100%);
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+/* Hover effects for goals options */
+.game-goals-container .filter-option:hover {
+  background-color: rgba(255, 0, 170, 0.05);
+  border-radius: var(--border-radius);
+  padding-left: 5px;
+}
+
+/* Better styling for sliders and inputs */
+.hours-slider-container {
+  margin-top: 10px;
+  padding: 0 5px;
+}
+
+.hours-input-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .hours-input {
@@ -133,6 +247,20 @@
   border-radius: var(--border-radius);
   background-color: var(--color-bg-tertiary);
   color: var(--color-text-primary);
+  text-align: center;
+}
+
+.hours-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(0, 255, 170, 0.2);
+}
+
+.hours-value {
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  width: 60px;
+  text-align: right;
 }
 
 /* Main search area styles */
@@ -495,14 +623,25 @@
   -moz-appearance: textfield;
 }
 
-.filter-description {
-  font-size: 0.9rem;
-  color: var(--color-text-tertiary);
-  margin-bottom: 10px;
-}
-
 .hours-label {
   font-size: 0.85rem;
   color: var(--color-text-tertiary);
   white-space: nowrap;
+}
+
+/* Indicator for combined filters (AND logic) */
+.filter-combination-indicator {
+  margin: 8px 0;
+  padding: 8px 12px;
+  background-color: rgba(0, 255, 170, 0.1);
+  border-left: 3px solid var(--color-primary);
+  border-radius: var(--border-radius);
+}
+
+.filter-combination-indicator p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--color-primary);
+  font-weight: 500;
+  text-align: center;
 } 

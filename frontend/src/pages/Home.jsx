@@ -20,6 +20,7 @@ import {
   Schedule as ScheduleIcon
 } from '@mui/icons-material';
 import "./Home.css";
+import logo from "../assets/qup-logo.svg";
 
 function Home() {
   const theme = useTheme();
@@ -109,16 +110,32 @@ function Home() {
                 </Button>
               </Stack>
             </Grid>
-            <Grid item xs={12} md={6}>
-              <Box className="hero-image-container">
+            <Grid item xs={12} md={6} sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+              <Box className="logo-container">
                 <img 
-                  src="/hero-image.png" 
-                  alt="Gaming Together" 
-                  className="hero-image"
-                  onError={(e) => {
-                    e.target.style.display = 'none';
+                  src={logo} 
+                  alt="Q-up Logo" 
+                  className="hero-logo"
+                  style={{
+                    filter: 'drop-shadow(0 0 10px rgba(0, 255, 170, 0.7))',
+                    maxWidth: '80%',
+                    height: 'auto',
+                    animation: 'pulse 3s infinite ease-in-out'
                   }}
                 />
+                <Typography 
+                  variant="h2" 
+                  align="center"
+                  sx={{ 
+                    mt: 2,
+                    fontWeight: 'bold',
+                    background: 'linear-gradient(45deg, #00FFAA, #33FFBB)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent'
+                  }}
+                >
+                  Q-up
+                </Typography>
               </Box>
             </Grid>
           </Grid>

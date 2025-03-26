@@ -258,7 +258,20 @@ class ReplySerializer(serializers.ModelSerializer):
     class Meta:
         model = Comment
         fields = ['id', 'user', 'post', 'text', 'parent', 'created_at', 'updated_at']
-        read_only_fields = ['id', 'user', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'user', 'created_at', 'updated_at', 'post', 'parent']
+
+    def create(self, validated_data):
+        # Get the parent comment from the context
+        parent = self.context.get('parent')
+        if not parent:
+            raise serializers.ValidationError({'parent': 'Parent comment is required'})
+        
+        # Set the post from the parent comment
+        validated_data['post'] = parent.post
+        validated_data['parent'] = parent
+        
+        # Create the reply
+        return super().create(validated_data)
 
     def to_representation(self, instance):
         representation = super().to_representation(instance)
