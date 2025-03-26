@@ -12,6 +12,7 @@ import {
   Alert,
 } from '@mui/material';
 import './Login.css';
+import logo from '../assets/qup-logo.svg';
 
 function ResetPassword() {
   const [newPassword, setNewPassword] = useState('');
@@ -63,6 +64,9 @@ function ResetPassword() {
     return (
       <Container maxWidth="sm" sx={{ mt: 8 }}>
         <Paper className="login-form-wrapper">
+          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
+            <img src={logo} alt="Q-up Logo" height="48" />
+          </Box>
           <Box sx={{ textAlign: 'center' }}>
             <Typography variant="h5" gutterBottom color="primary">
               Password Reset Successful!
@@ -85,6 +89,9 @@ function ResetPassword() {
   return (
     <Container maxWidth="sm" sx={{ mt: 8 }}>
       <Paper className="login-form-wrapper">
+        <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
+          <img src={logo} alt="Q-up Logo" height="48" />
+        </Box>
         <Typography variant="h5" gutterBottom align="center">
           Reset Your Password
         </Typography>

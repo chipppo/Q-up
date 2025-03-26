@@ -458,12 +458,37 @@ class SearchView(APIView):
                     game_id = param.replace('min_hours_game_', '')
                     min_hours = int(float(value))
                     # Find users who have played at least this many hours in this specific game
+                    print(f"Filtering by game {game_id} with min hours {min_hours}")
                     users = users.filter(
                         game_stats__game__id=game_id,
                         game_stats__hours_played__gte=min_hours
                     ).distinct()
+                    print(f"Users count after hours filter: {users.count()}")
                 except (ValueError, TypeError):
                     # If conversion fails, ignore this filter
+                    pass
+        
+        # Filter by game-specific goals
+        for param, value in request.query_params.items():
+            if param.startswith('goals_game_'):
+                try:
+                    game_id = param.replace('goals_game_', '')
+                    goal_ids = value.split(',')
+                    print(f"Filtering by game {game_id} with goals {goal_ids}")
+                    
+                    # Use OR between different goals for the same game
+                    # A user matches if they have ANY of the selected goals for this game
+                    game_goals_filter = Q()
+                    for goal_id in goal_ids:
+                        game_goals_filter |= Q(game_stats__game__id=game_id, game_stats__player_goal__id=goal_id)
+                    
+                    # This creates an AND between previously filtered users (which may include hours filter)
+                    # and the goals filter
+                    users = users.filter(game_goals_filter).distinct()
+                    print(f"Users count after goals filter: {users.count()}")
+                except Exception as e:
+                    print(f"Error processing game goals filter: {e}")
+                    # If any error occurs, ignore this filter
                     pass
         
         # Serialize and return the filtered users
@@ -948,20 +973,31 @@ class CommentView(APIView):
 
 class CommentRepliesView(APIView):
     """
-    List all replies to a comment.
+    View for listing replies to a comment and creating new replies.
     """
     permission_classes = [permissions.IsAuthenticated]
-    
+
     def get(self, request, comment_id):
         try:
             comment = Comment.objects.get(id=comment_id)
-            replies = comment.replies.all().order_by('created_at')
+            replies = Comment.objects.filter(parent=comment).order_by('-created_at')
             serializer = ReplySerializer(replies, many=True, context={'request': request})
             return Response(serializer.data)
         except Comment.DoesNotExist:
-            return Response({'detail': 'Comment not found'}, status=404)
+            return Response({'error': 'Comment not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    def post(self, request, comment_id):
+        try:
+            comment = Comment.objects.get(id=comment_id)
+            serializer = ReplySerializer(data=request.data, context={'request': request, 'parent': comment})
+            if serializer.is_valid():
+                serializer.save(user=request.user)
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Comment.DoesNotExist:
+            return Response({'error': 'Comment not found'}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
-            return Response({'detail': str(e)}, status=500)
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 class ChatListView(APIView):
     """

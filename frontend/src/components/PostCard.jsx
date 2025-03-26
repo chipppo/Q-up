@@ -271,57 +271,51 @@ const PostCard = ({ post, onPostUpdate, onPostDelete }) => {
   const handleAddReply = async (commentId) => {
     if (!replyText.trim() || !isLoggedIn) return;
     
-    // Convert commentId to a number to ensure proper comparison
-    const parentId = parseInt(commentId, 10);
-    
     try {
-      const response = await API.post(`/posts/${post.id}/comments/`, { 
-      text: replyText,
-        parent: parentId
+      const response = await API.post(`/comments/${commentId}/replies/`, {
+        text: replyText.trim()
       });
       
-      console.log('Reply added successfully:', response.data);
-        setReplyText('');
-        setReplyingTo(null);
-      
-      // Update the UI to show the new reply
-      // If the replies for this comment are already shown, add the new reply
-      if (showReplies[commentId]) {
-        setShowReplies(prev => ({
+      // Update the UI to show the new reply immediately
+      setShowReplies(prev => {
+        // Get current replies or initialize empty array if none exist
+        const currentReplies = prev[commentId] || [];
+        // Ensure currentReplies is an array before spreading
+        const repliesArray = Array.isArray(currentReplies) ? currentReplies : [];
+        return {
           ...prev,
-          [commentId]: [...(prev[commentId] || []), response.data]
-        }));
-      }
+          [commentId]: [...repliesArray, response.data]
+        };
+      });
       
       // Update the comment's reply count
       setComments(prev => 
         prev.map(comment => 
-          comment.id === parentId 
+          comment.id === commentId 
             ? { ...comment, reply_count: (comment.reply_count || 0) + 1 } 
             : comment
         )
       );
       
+      // Clear the reply input and close the reply form
+      setReplyText('');
+      setReplyingTo(null);
+      
       toast.success('Reply added successfully');
     } catch (error) {
-        console.error('Error adding reply:', error);
+      console.error('Error adding reply:', error);
       
-      // Handle different error scenarios
       if (error.response) {
-        // The request was made and the server responded with a status code
-        // that falls out of the range of 2xx
         if (error.response.status === 401) {
           toast.error('You must be logged in to reply to comments');
         } else if (error.response.status === 404) {
-          toast.error('The post or comment could not be found');
+          toast.error('The comment could not be found');
         } else {
-          toast.error(error.response.data?.detail || 'Failed to add reply. Please try again.');
+          toast.error(error.response.data?.error || error.response.data?.detail || 'Failed to add reply. Please try again.');
         }
       } else if (error.request) {
-        // The request was made but no response was received
         toast.error('No response from server. Please check your connection and try again.');
       } else {
-        // Something happened in setting up the request that triggered an Error
         toast.error('Failed to add reply. Please try again.');
       }
     }
@@ -606,7 +600,7 @@ const PostCard = ({ post, onPostUpdate, onPostDelete }) => {
                         </Typography>
                       }
                       secondary={
-                        <>
+                        <Box component="span">
                           <Typography
                             component="span"
                             variant="body2"
@@ -640,7 +634,7 @@ const PostCard = ({ post, onPostUpdate, onPostDelete }) => {
                               Reply
                             </Button>
                           </Box>
-                        </>
+                        </Box>
                       }
                     />
                   </ListItem>
@@ -722,7 +716,7 @@ const PostCard = ({ post, onPostUpdate, onPostDelete }) => {
                                     {reply.text}
                                   </Typography>
                                   <Typography
-                                    component="div"
+                                    component="span"
                                     variant="caption"
                                     color="text.secondary"
                                   >

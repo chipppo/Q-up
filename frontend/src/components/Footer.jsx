@@ -2,6 +2,7 @@
 
 import React from "react";
 import { Box, Typography, Container, Link } from "@mui/material";
+import logo from "../assets/qup-logo.svg";
 
 const Footer = () => {
   return (
@@ -16,6 +17,9 @@ const Footer = () => {
       }}
     >
       <Container maxWidth="lg">
+        <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+          <img src={logo} alt="Q-up Logo" height="24" />
+        </Box>
         <Typography 
           variant="body2" 
           color="text.secondary" 

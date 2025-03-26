@@ -23,6 +23,101 @@ const formatImageUrl = (url) => {
   return `${API.defaults.baseURL}${url}`;
 };
 
+// Component for game-specific filters (hours and goals)
+const GameSpecificFilters = ({ gameId, gameName, filters, handleFilterChange, availableGoals }) => {
+  // Count the number of selected goals for this game
+  const selectedGoalsCount = (filters.gameGoals[gameId] || []).length;
+  
+  // Update the data attribute when the component renders
+  useEffect(() => {
+    const goalsContainer = document.getElementById(`goals-container-${gameId}`);
+    if (goalsContainer) {
+      if (selectedGoalsCount > 0) {
+        goalsContainer.classList.add('has-selections');
+        goalsContainer.setAttribute('data-selection-count', selectedGoalsCount);
+      } else {
+        goalsContainer.classList.remove('has-selections');
+        goalsContainer.removeAttribute('data-selection-count');
+      }
+    }
+  }, [gameId, selectedGoalsCount]);
+
+  return (
+    <div className="game-filter-container">
+      {/* Hours played filter */}
+      <div className="game-hours-slider-container">
+        <p className="filter-description">Minimum hours played in <strong>{gameName}</strong>:</p>
+        <div className="hours-slider-container">
+          <div className="hours-input-container">
+            <input
+              type="number"
+              min="0"
+              max="10000"
+              value={filters.gameHoursPlayed[gameId] || ""}
+              onChange={(e) => {
+                const inputValue = e.target.value === "" ? "" : Math.max(0, Math.min(10000, Number(e.target.value)));
+                handleFilterChange("gameHoursPlayed", [gameId, inputValue.toString()]);
+              }}
+              className="hours-input"
+              placeholder="Any"
+            />
+            <span className="hours-label">min hours</span>
+          </div>
+          <input
+            type="range"
+            min="0"
+            max="10000"
+            step="100"
+            value={filters.gameHoursPlayed[gameId] || 0}
+            onChange={(e) => {
+              const inputValue = e.target.value;
+              const percentage = (Number(inputValue) / 10000) * 100;
+              e.target.style.setProperty('--slider-percentage', `${percentage}%`);
+              handleFilterChange("gameHoursPlayed", [gameId, inputValue]);
+            }}
+            className="hours-slider"
+            style={{ '--slider-percentage': `${((Number(filters.gameHoursPlayed[gameId]) || 0) / 10000) * 100}%` }}
+          />
+          <div className="hours-value">
+            {filters.gameHoursPlayed[gameId] ? 
+              `${Number(filters.gameHoursPlayed[gameId]).toLocaleString()} hrs` : 
+              'Any'}
+            {Number(filters.gameHoursPlayed[gameId]) >= 10000 ? '+' : ''}
+          </div>
+        </div>
+      </div>
+      
+      {/* Indicator for combined filters */}
+      {(filters.gameHoursPlayed[gameId] && Number(filters.gameHoursPlayed[gameId]) > 0) && 
+       (filters.gameGoals[gameId] && filters.gameGoals[gameId].length > 0) && (
+        <div className="filter-combination-indicator">
+          <p>Both hours and goals filters will be applied together (AND logic)</p>
+        </div>
+      )}
+      
+      {/* Game goals filter */}
+      <div id={`goals-container-${gameId}`} className="game-goals-container">
+        <p className="filter-description">Gaming goals for <strong>{gameName}</strong>:</p>
+        <div className="game-goals-options">
+          {availableGoals.map((goal) => (
+            <div key={`${gameId}-goal-${goal.id}`} className="filter-option">
+              <div className="filter-option-header">
+                <input
+                  type="checkbox"
+                  id={`game-${gameId}-goal-${goal.id}`}
+                  checked={(filters.gameGoals[gameId] || []).includes(goal.id)}
+                  onChange={() => handleFilterChange("gameGoals", [gameId, goal.id])}
+                />
+                <label htmlFor={`game-${gameId}-goal-${goal.id}`}>{goal.name}</label>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 function SearchProfiles() {
   // State for search and filters
   const [query, setQuery] = useState("");
@@ -37,9 +132,9 @@ function SearchProfiles() {
     languages: [],
     activeHours: [],
     games: [],
-    playerGoals: [],
     hasMic: null,
     gameHoursPlayed: {}, // Object with game ids as keys and min hours as values
+    gameGoals: {}, // Object with game ids as keys and arrays of selected goals as values
   });
   
   // Available filter options
@@ -57,16 +152,33 @@ function SearchProfiles() {
       try {
         // Fetch games
         const gamesResponse = await API.get("/games/");
-        setAvailableFilters(prev => ({
-          ...prev,
-          games: gamesResponse.data
-        }));
         
         // Fetch player goals
         const goalsResponse = await API.get("/player-goals/");
+        console.log("Raw player goals data:", goalsResponse.data);
+        
+        // Make sure we remove any duplicates from the goals by ID
+        const uniqueGoals = [];
+        const goalIds = new Set();
+        
+        if (goalsResponse.data && Array.isArray(goalsResponse.data)) {
+          goalsResponse.data.forEach(goal => {
+            if (!goalIds.has(goal.id)) {
+              goalIds.add(goal.id);
+              uniqueGoals.push(goal);
+            } else {
+              console.log(`Detected duplicate goal with ID: ${goal.id}, name: ${goal.name}`);
+            }
+          });
+        }
+        
+        console.log("Unique goals count:", uniqueGoals.length);
+        console.log("Original goals count:", goalsResponse.data?.length || 0);
+        
         setAvailableFilters(prev => ({
           ...prev,
-          playerGoals: goalsResponse.data
+          games: gamesResponse.data || [],
+          playerGoals: uniqueGoals
         }));
         
         // For platforms and languages, we could either hardcode common options
@@ -175,20 +287,33 @@ function SearchProfiles() {
         queryParams.append("games", filters.games.join(","));
       }
       
-      if (filters.playerGoals.length > 0) {
-        queryParams.append("player_goals", filters.playerGoals.join(","));
-      }
-      
       if (filters.hasMic !== null) {
         queryParams.append("mic_available", filters.hasMic);
       }
       
-      // Add game-specific minimum hours played filters
+      // Log current game goals state for debugging
+      console.log("Current gameGoals state:", filters.gameGoals);
+      
+      // Add minimum hours played filters
       Object.entries(filters.gameHoursPlayed).forEach(([gameId, hours]) => {
         if (hours && !isNaN(Number(hours)) && Number(hours) > 0) {
-          queryParams.append(`min_hours_game_${gameId}`, hours);
+          const paramName = `min_hours_game_${gameId}`;
+          queryParams.append(paramName, hours);
+          console.log(`Added hour parameter: ${paramName}=${hours}`);
         }
       });
+      
+      // Add game-specific goal filters
+      Object.entries(filters.gameGoals).forEach(([gameId, goals]) => {
+        if (goals && goals.length > 0) {
+          const paramName = `goals_game_${gameId}`;
+          queryParams.append(paramName, goals.join(","));
+          console.log(`Added goals parameter: ${paramName}=${goals.join(",")}`);
+        }
+      });
+      
+      // Log the final query parameters
+      console.log("Final search query params:", queryParams.toString());
       
       // Make the API call
       const response = await API.get(`/search/?${queryParams.toString()}`);
@@ -216,6 +341,30 @@ function SearchProfiles() {
         };
       }
       
+      // Special handling for gameGoals
+      if (filterType === "gameGoals") {
+        const [gameId, goalId] = value;
+        
+        // Initialize the array if it doesn't exist
+        const currentGoals = prevFilters.gameGoals[gameId] || [];
+        
+        // Toggle the goal
+        let updatedGoals;
+        if (currentGoals.includes(goalId)) {
+          updatedGoals = currentGoals.filter(g => g !== goalId);
+        } else {
+          updatedGoals = [...currentGoals, goalId];
+        }
+        
+        return {
+          ...prevFilters,
+          gameGoals: {
+            ...prevFilters.gameGoals,
+            [gameId]: updatedGoals
+          }
+        };
+      }
+      
       // Ensure the filter array exists
       if (!prevFilters[filterType]) {
         prevFilters[filterType] = [];
@@ -230,10 +379,13 @@ function SearchProfiles() {
             [filterType]: prevFilters[filterType].filter(item => item !== value)
           };
           
-          // If it's a game being removed, also clean up the hours filter for that game
+          // If it's a game being removed, also clean up the hours filter and goals for that game
           if (filterType === "games") {
             const { [value]: _, ...restGameHours } = updatedFilters.gameHoursPlayed;
             updatedFilters.gameHoursPlayed = restGameHours;
+            
+            const { [value]: __, ...restGameGoals } = updatedFilters.gameGoals;
+            updatedFilters.gameGoals = restGameGoals;
           }
           
           return updatedFilters;
@@ -262,9 +414,9 @@ function SearchProfiles() {
       languages: [],
       activeHours: [],
       games: [],
-      playerGoals: [],
       hasMic: null,
       gameHoursPlayed: {},
+      gameGoals: {},
     });
     
     // Reset all slider appearances
@@ -290,7 +442,7 @@ function SearchProfiles() {
             const label = typeof option === 'object' ? option.name : option;
             
             return (
-              <div key={index} className="filter-option">
+              <div key={`${filterType}-${value}-${index}`} className="filter-option">
                 <div className="filter-option-header">
                   <input
                     type="checkbox"
@@ -301,48 +453,15 @@ function SearchProfiles() {
                   <label htmlFor={`${filterType}-${value}`}>{label}</label>
                 </div>
                 
-                {/* Render hours slider for each selected game */}
+                {/* Render game-specific filters for each selected game */}
                 {filterType === "games" && filters.games.includes(value) && (
-                  <div className="game-hours-slider-container">
-                    <div className="hours-slider-container">
-                      <div className="hours-input-container">
-                        <input
-                          type="number"
-                          min="0"
-                          max="10000"
-                          value={filters.gameHoursPlayed[value] || ""}
-                          onChange={(e) => {
-                            const inputValue = e.target.value === "" ? "" : Math.max(0, Math.min(10000, Number(e.target.value)));
-                            handleFilterChange("gameHoursPlayed", [value, inputValue.toString()]);
-                          }}
-                          className="hours-input"
-                          placeholder="Any"
-                        />
-                        <span className="hours-label">min hours</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="0"
-                        max="10000"
-                        step="100"
-                        value={filters.gameHoursPlayed[value] || 0}
-                        onChange={(e) => {
-                          const inputValue = e.target.value;
-                          const percentage = (Number(inputValue) / 10000) * 100;
-                          e.target.style.setProperty('--slider-percentage', `${percentage}%`);
-                          handleFilterChange("gameHoursPlayed", [value, inputValue]);
-                        }}
-                        className="hours-slider"
-                        style={{ '--slider-percentage': `${((Number(filters.gameHoursPlayed[value]) || 0) / 10000) * 100}%` }}
-                      />
-                      <div className="hours-value">
-                        {filters.gameHoursPlayed[value] ? 
-                          `${Number(filters.gameHoursPlayed[value]).toLocaleString()} hrs` : 
-                          'Any'}
-                        {Number(filters.gameHoursPlayed[value]) >= 10000 ? '+' : ''}
-                      </div>
-                    </div>
-                  </div>
+                  <GameSpecificFilters 
+                    gameId={value}
+                    gameName={label}
+                    filters={filters}
+                    handleFilterChange={handleFilterChange}
+                    availableGoals={availableFilters.playerGoals}
+                  />
                 )}
               </div>
             );
@@ -359,9 +478,9 @@ function SearchProfiles() {
            filters.languages.length > 0 || 
            filters.activeHours.length > 0 || 
            filters.games.length > 0 || 
-           filters.playerGoals.length > 0 || 
            filters.hasMic !== null || 
-           Object.values(filters.gameHoursPlayed).some(hours => hours && Number(hours) > 0);
+           Object.values(filters.gameHoursPlayed).some(hours => hours && Number(hours) > 0) ||
+           Object.values(filters.gameGoals).some(goals => goals && goals.length > 0);
   };
 
   // Search results or recommended users
@@ -471,11 +590,8 @@ function SearchProfiles() {
             </div>
           </div>
           
-          {/* Games filters with per-game hour sliders */}
+          {/* Games filters with per-game hour sliders and goals */}
           {renderFilterSection("Games", "games", availableFilters.games)}
-          
-          {/* Player goals filters */}
-          {renderFilterSection("Player Goals", "playerGoals", availableFilters.playerGoals)}
           
           {/* Mic availability filter */}
           <div className="filter-section">

@@ -30,6 +30,9 @@ import GameStatsForm from '../components/GameStatsForm';
 import CreatePostForm from '../components/CreatePostForm';
 import PostCard from '../components/PostCard';
 import MessageIcon from '@mui/icons-material/Message';
+import FollowersModal from '../components/FollowersModal';
+import MutualFollowers from '../components/MutualFollowers';
+import FollowSuggestions from '../components/FollowSuggestions';
 
 // Define time periods with their corresponding hours
 const TIME_PERIODS = [
@@ -47,6 +50,7 @@ const TIME_PERIODS = [
 function ViewProfile({ user, gameStats, isFollowing, onFollowToggle, isLoggedIn, loggedInUsername, followersCount, posts }) {
   const navigate = useNavigate();
   const isOwnProfile = loggedInUsername === user?.username;
+  const [followModal, setFollowModal] = useState({ open: false, tab: "followers" });
   
   const handleSendMessage = async () => {
     if (!isLoggedIn) {
@@ -108,6 +112,18 @@ function ViewProfile({ user, gameStats, isFollowing, onFollowToggle, isLoggedIn,
     return activePeriods.length > 0 ? activePeriods.join(", ") : "Not specified";
   };
 
+  const openFollowersModal = () => {
+    setFollowModal({ open: true, tab: "followers" });
+  };
+
+  const openFollowingModal = () => {
+    setFollowModal({ open: true, tab: "following" });
+  };
+
+  const closeFollowModal = () => {
+    setFollowModal({ ...followModal, open: false });
+  };
+
   return (
     <Paper elevation={3} sx={{ p: 4, maxWidth: 800, mx: 'auto', my: 4 }}>
       <Grid container spacing={3}>
@@ -124,10 +140,24 @@ function ViewProfile({ user, gameStats, isFollowing, onFollowToggle, isLoggedIn,
               <Typography variant="h4">{user?.display_name || user?.username}</Typography>
               <Typography variant="subtitle1">@{user?.username}</Typography>
               <Box sx={{ display: 'flex', gap: 2, mt: 1 }}>
-                <Typography>
+                <Typography 
+                  onClick={openFollowersModal}
+                  sx={{ 
+                    cursor: 'pointer',
+                    '&:hover': { color: 'primary.main' },
+                    transition: 'color 0.2s'
+                  }}
+                >
                   <strong>{followersCount || 0}</strong> followers
                 </Typography>
-                <Typography>
+                <Typography 
+                  onClick={openFollowingModal}
+                  sx={{ 
+                    cursor: 'pointer',
+                    '&:hover': { color: 'primary.main' },
+                    transition: 'color 0.2s'
+                  }}
+                >
                   <strong>{user?.following_count || 0}</strong> following
                 </Typography>
               </Box>
@@ -178,6 +208,20 @@ function ViewProfile({ user, gameStats, isFollowing, onFollowToggle, isLoggedIn,
             )}
           </Box>
         </Grid>
+
+        {/* Mutual Followers - Add this section */}
+        {!isOwnProfile && isLoggedIn && (
+          <Grid item xs={12}>
+            <MutualFollowers username={user?.username} />
+          </Grid>
+        )}
+
+        {/* Follow Suggestions - for own profile */}
+        {isOwnProfile && isLoggedIn && (
+          <Grid item xs={12}>
+            <FollowSuggestions username={user?.username} />
+          </Grid>
+        )}
 
         {/* User Info */}
         <Grid item xs={12}>
@@ -371,6 +415,16 @@ function ViewProfile({ user, gameStats, isFollowing, onFollowToggle, isLoggedIn,
             </Typography>
           )}
         </Grid>
+
+        {/* Followers/Following Modal */}
+        {user && (
+          <FollowersModal
+            open={followModal.open}
+            onClose={closeFollowModal}
+            username={user.username}
+            initialTab={followModal.tab}
+          />
+        )}
       </Grid>
     </Paper>
   );
@@ -400,6 +454,7 @@ function Profile() {
   const [isFollowing, setIsFollowing] = useState(false);
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
+  const [followModal, setFollowModal] = useState({ open: false, tab: "followers" });
   
   // Define isOwnProfile - moved to after all hooks are initialized
   const isOwnProfile = loggedInUsername === profileUsername;
@@ -519,6 +574,18 @@ function Profile() {
 
   const handlePostDelete = (postId) => {
     setPosts(prevPosts => prevPosts.filter(post => post.id !== postId));
+  };
+
+  const openFollowersModal = () => {
+    setFollowModal({ open: true, tab: "followers" });
+  };
+
+  const openFollowingModal = () => {
+    setFollowModal({ open: true, tab: "following" });
+  };
+
+  const closeFollowModal = () => {
+    setFollowModal({ ...followModal, open: false });
   };
 
   if (loading) {
@@ -667,6 +734,16 @@ function Profile() {
           loggedInUsername={loggedInUsername}
           followersCount={followersCount}
           posts={posts}
+        />
+      )}
+      
+      {/* Followers/Following Modal for own profile tabs */}
+      {userData && tabValue !== 0 && (
+        <FollowersModal
+          open={followModal.open}
+          onClose={closeFollowModal}
+          username={userData.username}
+          initialTab={followModal.tab}
         />
       )}
     </Container>
