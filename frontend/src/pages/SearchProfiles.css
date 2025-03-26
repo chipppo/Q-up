@@ -93,6 +93,13 @@
 
 .filter-option {
   display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.filter-option-header {
+  display: flex;
   align-items: center;
   gap: 10px;
 }
@@ -100,12 +107,23 @@
 .filter-option input[type="checkbox"],
 .filter-option input[type="radio"] {
   accent-color: var(--color-primary);
+  margin: 0;
 }
 
 .filter-option label {
   color: var(--color-text-secondary);
   cursor: pointer;
   transition: color var(--transition-fast);
+}
+
+.game-hours-slider-container {
+  margin-left: 24px;
+  margin-top: 8px;
+  margin-bottom: 10px;
+  padding: 8px;
+  background-color: var(--color-bg-tertiary);
+  border-radius: var(--border-radius);
+  border-left: 2px solid var(--color-primary);
 }
 
 .hours-input {
@@ -289,12 +307,45 @@
   color: var(--color-error);
 }
 
+.no-results {
+  text-align: center;
+  padding: 30px 0;
+  margin-bottom: 20px;
+  background-color: var(--color-bg-secondary);
+  border-radius: var(--border-radius);
+  border: 1px solid #444;
+}
+
 .no-results h2 {
   color: var(--color-text-primary);
+  margin-bottom: 10px;
 }
 
 .no-results p {
   color: var(--color-text-secondary);
+}
+
+.suggested-profiles {
+  margin-top: 40px;
+}
+
+.suggested-profiles h2 {
+  font-size: 1.5rem;
+  margin-bottom: 20px;
+  color: var(--color-text-primary);
+  text-align: center;
+  position: relative;
+}
+
+.suggested-profiles h2:before {
+  content: "";
+  position: absolute;
+  width: 50px;
+  height: 3px;
+  background-color: var(--color-primary);
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
 }
 
 /* Responsive styles */
@@ -448,4 +499,10 @@
   font-size: 0.9rem;
   color: var(--color-text-tertiary);
   margin-bottom: 10px;
+}
+
+.hours-label {
+  font-size: 0.85rem;
+  color: var(--color-text-tertiary);
+  white-space: nowrap;
 } 
