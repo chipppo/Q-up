@@ -39,7 +39,7 @@ function SearchProfiles() {
     games: [],
     playerGoals: [],
     hasMic: null,
-    minHoursPlayed: "",
+    gameHoursPlayed: {}, // Object with game ids as keys and min hours as values
   });
   
   // Available filter options
@@ -183,13 +183,12 @@ function SearchProfiles() {
         queryParams.append("mic_available", filters.hasMic);
       }
       
-      if (filters.minHoursPlayed) {
-        // Ensure minHoursPlayed is a valid number
-        const minHours = Number(filters.minHoursPlayed);
-        if (!isNaN(minHours) && minHours > 0) {
-          queryParams.append("min_hours_played", minHours.toString());
+      // Add game-specific minimum hours played filters
+      Object.entries(filters.gameHoursPlayed).forEach(([gameId, hours]) => {
+        if (hours && !isNaN(Number(hours)) && Number(hours) > 0) {
+          queryParams.append(`min_hours_game_${gameId}`, hours);
         }
-      }
+      });
       
       // Make the API call
       const response = await API.get(`/search/?${queryParams.toString()}`);
@@ -205,11 +204,15 @@ function SearchProfiles() {
   // Handle filter changes
   const handleFilterChange = (filterType, value) => {
     setFilters(prevFilters => {
-      // Special handling for minHoursPlayed
-      if (filterType === "minHoursPlayed") {
+      // Special handling for gameHoursPlayed
+      if (filterType === "gameHoursPlayed") {
+        const [gameId, hours] = value;
         return {
           ...prevFilters,
-          [filterType]: value
+          gameHoursPlayed: {
+            ...prevFilters.gameHoursPlayed,
+            [gameId]: hours
+          }
         };
       }
       
@@ -222,10 +225,18 @@ function SearchProfiles() {
       if (Array.isArray(prevFilters[filterType])) {
         if (prevFilters[filterType].includes(value)) {
           // Remove if already selected
-          return {
+          const updatedFilters = {
             ...prevFilters,
             [filterType]: prevFilters[filterType].filter(item => item !== value)
           };
+          
+          // If it's a game being removed, also clean up the hours filter for that game
+          if (filterType === "games") {
+            const { [value]: _, ...restGameHours } = updatedFilters.gameHoursPlayed;
+            updatedFilters.gameHoursPlayed = restGameHours;
+          }
+          
+          return updatedFilters;
         } else {
           // Add if not selected
           return {
@@ -253,14 +264,14 @@ function SearchProfiles() {
       games: [],
       playerGoals: [],
       hasMic: null,
-      minHoursPlayed: "",
+      gameHoursPlayed: {},
     });
     
-    // Reset the slider appearance
-    const slider = document.querySelector('.hours-slider');
-    if (slider) {
+    // Reset all slider appearances
+    const sliders = document.querySelectorAll('.hours-slider');
+    sliders.forEach(slider => {
       slider.style.setProperty('--slider-percentage', '0%');
-    }
+    });
   };
   
   // Render filter section
@@ -280,18 +291,136 @@ function SearchProfiles() {
             
             return (
               <div key={index} className="filter-option">
-                <input
-                  type="checkbox"
-                  id={`${filterType}-${value}`}
-                  checked={filters[filterType].includes(value)}
-                  onChange={() => handleFilterChange(filterType, value)}
-                />
-                <label htmlFor={`${filterType}-${value}`}>{label}</label>
+                <div className="filter-option-header">
+                  <input
+                    type="checkbox"
+                    id={`${filterType}-${value}`}
+                    checked={filters[filterType].includes(value)}
+                    onChange={() => handleFilterChange(filterType, value)}
+                  />
+                  <label htmlFor={`${filterType}-${value}`}>{label}</label>
+                </div>
+                
+                {/* Render hours slider for each selected game */}
+                {filterType === "games" && filters.games.includes(value) && (
+                  <div className="game-hours-slider-container">
+                    <div className="hours-slider-container">
+                      <div className="hours-input-container">
+                        <input
+                          type="number"
+                          min="0"
+                          max="10000"
+                          value={filters.gameHoursPlayed[value] || ""}
+                          onChange={(e) => {
+                            const inputValue = e.target.value === "" ? "" : Math.max(0, Math.min(10000, Number(e.target.value)));
+                            handleFilterChange("gameHoursPlayed", [value, inputValue.toString()]);
+                          }}
+                          className="hours-input"
+                          placeholder="Any"
+                        />
+                        <span className="hours-label">min hours</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="10000"
+                        step="100"
+                        value={filters.gameHoursPlayed[value] || 0}
+                        onChange={(e) => {
+                          const inputValue = e.target.value;
+                          const percentage = (Number(inputValue) / 10000) * 100;
+                          e.target.style.setProperty('--slider-percentage', `${percentage}%`);
+                          handleFilterChange("gameHoursPlayed", [value, inputValue]);
+                        }}
+                        className="hours-slider"
+                        style={{ '--slider-percentage': `${((Number(filters.gameHoursPlayed[value]) || 0) / 10000) * 100}%` }}
+                      />
+                      <div className="hours-value">
+                        {filters.gameHoursPlayed[value] ? 
+                          `${Number(filters.gameHoursPlayed[value]).toLocaleString()} hrs` : 
+                          'Any'}
+                        {Number(filters.gameHoursPlayed[value]) >= 10000 ? '+' : ''}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}
         </div>
       </div>
+    );
+  };
+  
+  // Check if a search has been performed
+  const hasSearchFilters = () => {
+    return query.trim() !== '' || 
+           filters.platforms.length > 0 || 
+           filters.languages.length > 0 || 
+           filters.activeHours.length > 0 || 
+           filters.games.length > 0 || 
+           filters.playerGoals.length > 0 || 
+           filters.hasMic !== null || 
+           Object.values(filters.gameHoursPlayed).some(hours => hours && Number(hours) > 0);
+  };
+
+  // Search results or recommended users
+  const renderResults = () => {
+    if (loading) {
+      return <div className="loading-indicator">Loading...</div>;
+    }
+
+    if (error) {
+      return <div className="error-message">{error}</div>;
+    }
+
+    // If search was performed but no results found
+    if (hasSearchFilters() && results.length === 0) {
+      return (
+        <div>
+          <div className="no-results">
+            <h2>No results found</h2>
+            <p>No profiles match your search criteria</p>
+          </div>
+          
+          {recommendedUsers.length > 0 && (
+            <div className="suggested-profiles">
+              <h2>Suggested Profiles</h2>
+              <div className="user-cards">
+                {recommendedUsers.map((user) => (
+                  <UserCard key={user.id} user={user} />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // If search was performed and results found
+    if (hasSearchFilters() && results.length > 0) {
+      return (
+        <>
+          <h2>Search Results</h2>
+          <div className="user-cards">
+            {results.map((user) => (
+              <UserCard key={user.id} user={user} />
+            ))}
+          </div>
+        </>
+      );
+    }
+
+    // Default view - show recommended users
+    return (
+      <>
+        <h2>Recommended Players</h2>
+        <div className="user-cards">
+          {recommendedUsers.map((user) => (
+            <UserCard key={user.id} user={user} />
+          ))}
+        </div>
+      </>
     );
   };
   
@@ -327,20 +456,22 @@ function SearchProfiles() {
                 
                 return (
                   <div key={index} className="filter-option">
-                    <input
-                      type="checkbox"
-                      id={`activeHours-${value}`}
-                      checked={filters.activeHours.includes(value)}
-                      onChange={() => handleFilterChange("activeHours", value)}
-                    />
-                    <label htmlFor={`activeHours-${value}`}>{label}</label>
+                    <div className="filter-option-header">
+                      <input
+                        type="checkbox"
+                        id={`activeHours-${value}`}
+                        checked={filters.activeHours.includes(value)}
+                        onChange={() => handleFilterChange("activeHours", value)}
+                      />
+                      <label htmlFor={`activeHours-${value}`}>{label}</label>
+                    </div>
                   </div>
                 );
               })}
             </div>
           </div>
           
-          {/* Games filters */}
+          {/* Games filters with per-game hour sliders */}
           {renderFilterSection("Games", "games", availableFilters.games)}
           
           {/* Player goals filters */}
@@ -351,75 +482,40 @@ function SearchProfiles() {
             <h3>Mic Availability</h3>
             <div className="filter-options">
               <div className="filter-option">
-                <input
-                  type="radio"
-                  id="mic-yes"
-                  name="mic-availability"
-                  checked={filters.hasMic === true}
-                  onChange={() => handleFilterChange("hasMic", true)}
-                />
-                <label htmlFor="mic-yes">Has Mic</label>
+                <div className="filter-option-header">
+                  <input
+                    type="radio"
+                    id="mic-yes"
+                    name="mic-availability"
+                    checked={filters.hasMic === true}
+                    onChange={() => handleFilterChange("hasMic", true)}
+                  />
+                  <label htmlFor="mic-yes">Has Mic</label>
+                </div>
               </div>
               <div className="filter-option">
-                <input
-                  type="radio"
-                  id="mic-no"
-                  name="mic-availability"
-                  checked={filters.hasMic === false}
-                  onChange={() => handleFilterChange("hasMic", false)}
-                />
-                <label htmlFor="mic-no">No Mic</label>
+                <div className="filter-option-header">
+                  <input
+                    type="radio"
+                    id="mic-no"
+                    name="mic-availability"
+                    checked={filters.hasMic === false}
+                    onChange={() => handleFilterChange("hasMic", false)}
+                  />
+                  <label htmlFor="mic-no">No Mic</label>
+                </div>
               </div>
               <div className="filter-option">
-                <input
-                  type="radio"
-                  id="mic-any"
-                  name="mic-availability"
-                  checked={filters.hasMic === null}
-                  onChange={() => handleFilterChange("hasMic", null)}
-                />
-                <label htmlFor="mic-any">Any</label>
-              </div>
-            </div>
-          </div>
-          
-          {/* Hours played filter */}
-          <div className="filter-section">
-            <h3>Minimum Hours Played</h3>
-            <div className="hours-slider-container">
-              <div className="hours-input-container">
-                <input
-                  type="number"
-                  min="0"
-                  max="10000"
-                  value={filters.minHoursPlayed || ""}
-                  onChange={(e) => {
-                    const value = e.target.value === "" ? "" : Math.max(0, Math.min(10000, Number(e.target.value)));
-                    handleFilterChange("minHoursPlayed", value.toString());
-                  }}
-                  className="hours-input"
-                  placeholder="Any"
-                />
-                <span>hours</span>
-              </div>
-              <input
-                type="range"
-                min="0"
-                max="10000"
-                step="100"
-                value={filters.minHoursPlayed || 0}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  const percentage = (Number(value) / 10000) * 100;
-                  e.target.style.setProperty('--slider-percentage', `${percentage}%`);
-                  handleFilterChange("minHoursPlayed", value);
-                }}
-                className="hours-slider"
-                style={{ '--slider-percentage': `${((Number(filters.minHoursPlayed) || 0) / 10000) * 100}%` }}
-              />
-              <div className="hours-value">
-                {filters.minHoursPlayed ? `${Number(filters.minHoursPlayed).toLocaleString()} hours` : 'Any'}
-                {Number(filters.minHoursPlayed) >= 10000 ? '+' : ''}
+                <div className="filter-option-header">
+                  <input
+                    type="radio"
+                    id="mic-any"
+                    name="mic-availability"
+                    checked={filters.hasMic === null}
+                    onChange={() => handleFilterChange("hasMic", null)}
+                  />
+                  <label htmlFor="mic-any">Any</label>
+                </div>
               </div>
             </div>
           </div>
@@ -445,34 +541,7 @@ function SearchProfiles() {
           
           {/* Search results or recommended users */}
           <div className="search-results-container">
-            {loading ? (
-              <div className="loading-indicator">Loading...</div>
-            ) : error ? (
-              <div className="error-message">{error}</div>
-            ) : results.length > 0 ? (
-              <>
-                <h2>Search Results</h2>
-                <div className="user-cards">
-                  {results.map((user) => (
-                    <UserCard key={user.id} user={user} />
-                  ))}
-                </div>
-              </>
-            ) : query ? (
-              <div className="no-results">
-                <h2>No results found</h2>
-                <p>Try adjusting your search or filters</p>
-              </div>
-            ) : (
-              <>
-                <h2>Recommended Players</h2>
-                <div className="user-cards">
-                  {recommendedUsers.map((user) => (
-                    <UserCard key={user.id} user={user} />
-                  ))}
-                </div>
-              </>
-            )}
+            {renderResults()}
           </div>
         </div>
       </div>

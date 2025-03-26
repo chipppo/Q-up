@@ -451,6 +451,21 @@ class SearchView(APIView):
                 # If conversion fails, ignore this filter
                 pass
         
+        # Filter by game-specific minimum hours played
+        for param, value in request.query_params.items():
+            if param.startswith('min_hours_game_'):
+                try:
+                    game_id = param.replace('min_hours_game_', '')
+                    min_hours = int(float(value))
+                    # Find users who have played at least this many hours in this specific game
+                    users = users.filter(
+                        game_stats__game__id=game_id,
+                        game_stats__hours_played__gte=min_hours
+                    ).distinct()
+                except (ValueError, TypeError):
+                    # If conversion fails, ignore this filter
+                    pass
+        
         # Serialize and return the filtered users
         serializer = UserSerializer(users, many=True)
         return Response(serializer.data)
