@@ -74,7 +74,6 @@ const Contacts = () => {
           </Box>
         </Paper>
       </Container>
-      <Footer />
     </Box>
   );
 };
