@@ -19,11 +19,13 @@ import {
   IconButton,
   Divider,
   useTheme,
+  useMediaQuery,
   List,
   ListItem,
   ListItemText,
   ListItemAvatar,
-  Chip
+  Chip,
+  Tooltip
 } from "@mui/material";
 import { 
   Person as PersonIcon, 
@@ -37,7 +39,8 @@ import {
   PersonAdd as PersonAddIcon,
   PostAdd as PostAddIcon,
   Chat as ChatIcon,
-  Add as AddIcon
+  Add as AddIcon,
+  AccessTime as TimeIcon
 } from "@mui/icons-material";
 import { toast } from "react-toastify";
 import "./Dashboard.css";
@@ -357,42 +360,52 @@ function Dashboard() {
                       
                       {/* Rankings */}
                       {stat.rankings && stat.rankings.length > 0 && (
-                        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                           {stat.rankings.map((ranking, index) => (
                             <Box 
                               key={index}
                               sx={{ 
                                 display: 'flex', 
                                 alignItems: 'center',
-                                gap: 1,
+                                gap: 0.5,
                                 bgcolor: 'rgba(25, 118, 210, 0.1)',
                                 borderRadius: '20px',
                                 px: 1.5,
                                 py: 0.5
                               }}
                             >
-                              {ranking.rank?.icon ? (
-                                <Avatar 
-                                  src={formatImageUrl(ranking.rank.icon)}
-                                  alt={ranking.rank.name}
-                                  sx={{ width: 24, height: 24 }}
-                                  imgProps={{
-                                    onError: (e) => {
-                                      e.target.src = null;
-                                      e.target.alt = ranking.rank.name.charAt(0);
-                                    }
-                                  }}
-                                >
-                                  {ranking.rank.name.charAt(0)}
-                                </Avatar>
-                              ) : (
-                                <Avatar sx={{ width: 24, height: 24, bgcolor: 'primary.main', fontSize: '0.75rem' }}>
-                                  {ranking.numeric_rank || 'N/A'}
-                                </Avatar>
-                              )}
-                              <Typography variant="caption" sx={{ fontWeight: 'bold' }}>
-                                {ranking.rank?.name || `${ranking.numeric_rank || 'Unranked'}`}
+                              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
+                                {ranking.rank_system.name}:
                               </Typography>
+                              
+                              {ranking.rank_system.is_numeric ? (
+                                <Typography variant="caption" sx={{ fontWeight: 'bold' }}>
+                                  {ranking.numeric_rank !== null ? `${ranking.numeric_rank}` : 'Unranked'}
+                                </Typography>
+                              ) : ranking.rank?.icon ? (
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                  <Avatar 
+                                    src={formatImageUrl(ranking.rank.icon)}
+                                    alt={ranking.rank.name}
+                                    sx={{ width: 20, height: 20 }}
+                                    imgProps={{
+                                      onError: (e) => {
+                                        e.target.src = null;
+                                        e.target.alt = ranking.rank.name.charAt(0);
+                                      }
+                                    }}
+                                  >
+                                    {ranking.rank.name.charAt(0)}
+                                  </Avatar>
+                                  <Typography variant="caption" sx={{ fontWeight: 'bold' }}>
+                                    {ranking.rank.name}
+                                  </Typography>
+                                </Box>
+                              ) : (
+                                <Typography variant="caption" sx={{ fontWeight: 'bold' }}>
+                                  {ranking.rank?.name || 'Unranked'}
+                                </Typography>
+                              )}
                             </Box>
                           ))}
                         </Box>
