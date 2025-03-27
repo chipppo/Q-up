@@ -1,6 +1,5 @@
 import React from "react";
 import { Container, Typography, Box, Paper, Divider } from "@mui/material";
-import Header from "../components/Header";
 import Footer from "../components/Footer";
 
 const TermsOfService = () => {
@@ -78,7 +77,6 @@ const TermsOfService = () => {
           </Box>
         </Paper>
       </Container>
-      <Footer />
     </Box>
   );
 };

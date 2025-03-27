@@ -163,8 +163,27 @@ const Message = memo(({ message, highlightedId, onMenuOpen }) => {
   // Function to determine if the attachment is an image or a file
   const isImageAttachment = (url) => {
     if (!url) return false;
-    const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg'];
-    return imageExtensions.some(ext => url.toLowerCase().endsWith(ext));
+    
+    // Check for common image extensions in the URL
+    const imageExtensions = [
+      '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg',
+      '.tiff', '.tif', '.avif', '.heic', '.heif', '.jfif', '.pjpeg', '.pjp'
+    ];
+    const hasImageExtension = imageExtensions.some(ext => {
+      const urlLower = url.toLowerCase();
+      return urlLower.endsWith(ext) || urlLower.includes(`${ext}?`);
+    });
+    
+    if (hasImageExtension) return true;
+    
+    // Also check for image content types in the URL (from backend API responses)
+    const imageContentTypes = [
+      'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp', 'image/svg+xml',
+      'image/tiff', 'image/avif', 'image/heic', 'image/heif'
+    ];
+    const containsImageContentType = imageContentTypes.some(type => url.toLowerCase().includes(type));
+    
+    return containsImageContentType;
   };
   
   // Function to extract file name from URL
@@ -514,30 +533,131 @@ const Chat = () => {
   const handleImageSelect = (e) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
+      
+      // Validate file size
       if (file.size > 5 * 1024 * 1024) {
-        toast.error('Image size should be less than 5MB');
+        toast.error("Image size should be less than 5MB");
+        if (fileInputRef.current) fileInputRef.current.value = "";
         return;
       }
+      
+      // Set the selected image and create preview - do this before validation
+      // so we can show something to the user even if the file type is not ideal
       setSelectedImage(file);
+      
+      // Check if the file has correct extension but wrong content type
+      const fileName = file.name.toLowerCase();
+      const imageExtensions = [
+        ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg", 
+        ".tiff", ".tif", ".avif", ".heic", ".heif", ".jfif", ".pjpeg", ".pjp"
+      ];
+      const hasImageExtension = imageExtensions.some(ext => fileName.endsWith(ext));
+      
+      // Validate file type with appropriate notifications
+      const validImageTypes = [
+        "image/jpeg", "image/png", "image/gif", "image/webp", "image/bmp", "image/svg+xml",
+        "image/tiff", "image/avif", "image/heic", "image/heif"
+      ];
+      
+      // Just warn about suboptimal file types but don't prevent upload
+      if (!validImageTypes.includes(file.type)) {
+        if (hasImageExtension) {
+          toast.warning("This file has an image extension but its format may not be fully supported. The upload will be attempted but might not display correctly.");
+        } else {
+          toast.warning("This file type is not recognized as an image. The upload will be attempted but might not display correctly.");
+        }
+      } else {
+        // For valid file types, show a success toast
+        toast.success("Image selected successfully");
+      }
+      
+      // Create a preview regardless of validation warnings
       const reader = new FileReader();
-      reader.onload = (e) => setImagePreview(e.target.result);
+      reader.onload = (e) => {
+        try {
+          // Additional validation to verify image can be loaded
+          const img = new Image();
+          img.onload = () => {
+            // Image loaded successfully, set the preview
+            setImagePreview(reader.result);
+            toast.info(`Image "${file.name}" ready to upload`);
+          };
+          img.onerror = () => {
+            // Image couldn't be loaded despite correct MIME type
+            toast.error("The file appears to be corrupted or is not a valid image. Please try another image.");
+            setSelectedImage(null);
+            setImagePreview(null);
+            if (fileInputRef.current) fileInputRef.current.value = "";
+          };
+          img.src = reader.result;
+        } catch (error) {
+          console.error("Error processing image:", error);
+          toast.error("Error processing image. Please try another one.");
+          setSelectedImage(null);
+          setImagePreview(null);
+          if (fileInputRef.current) fileInputRef.current.value = "";
+        }
+      };
+      
+      reader.onerror = () => {
+        toast.error("Error reading file. Please try another image.");
+        setSelectedImage(null);
+        setImagePreview(null);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+      };
+      
       reader.readAsDataURL(file);
+      
+      // Clear any previously selected file
       setSelectedFile(null);
       setFilePreview(null);
+      if (documentInputRef.current) documentInputRef.current.value = "";
     }
   };
 
   const handleFileSelect = (e) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
+      
+      // Validate file size
       if (file.size > 10 * 1024 * 1024) {
-        toast.error('File size should be less than 10MB');
+        toast.error("File size should be less than 10MB");
+        if (documentInputRef.current) documentInputRef.current.value = "";
         return;
       }
-      setSelectedFile(file);
-      setFilePreview(file);
-      setSelectedImage(null);
-      setImagePreview(null);
+      
+      // Block potentially dangerous file types
+      const dangerousExtensions = [".exe", ".bat", ".cmd", ".msi", ".sh", ".vbs", ".ps1", ".js", ".php", ".dll"];
+      const fileName = file.name.toLowerCase();
+      const hasDangerousExtension = dangerousExtensions.some(ext => fileName.endsWith(ext));
+      
+      if (hasDangerousExtension) {
+        toast.error("This file type is not allowed for security reasons");
+        if (documentInputRef.current) documentInputRef.current.value = "";
+        return;
+      }
+      
+      try {
+        // Set the file for upload
+        setSelectedFile(file);
+        setFilePreview(file);
+        
+        // Clear any previously selected image
+        setSelectedImage(null);
+        setImagePreview(null);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        
+        toast.success(`File "${file.name}" ready to upload`);
+        
+        // Additional validation for file size warning
+        if (file.size > 5 * 1024 * 1024) {
+          toast.warning("Large files may take longer to upload");
+        }
+      } catch (error) {
+        console.error("Error handling file:", error);
+        toast.error("Error processing file. Please try another one.");
+        if (documentInputRef.current) documentInputRef.current.value = "";
+      }
     }
   };
 
@@ -572,6 +692,7 @@ const Chat = () => {
       if (e) e.preventDefault();
       
       if ((!message.trim() && !selectedImage && !selectedFile) || !selectedChat) {
+        toast.error("Cannot send empty message. Please add text, image, or file.");
         return;
       }
       
@@ -583,35 +704,46 @@ const Chat = () => {
         
         // Add message content if present
         if (message.trim()) {
-          formData.append('content', message.trim());
+          formData.append("content", message.trim());
         }
         
         // Add image if present
         if (selectedImage) {
-          formData.append('image', selectedImage);
+          formData.append("image", selectedImage);
         }
         
         // Add file if present
         if (selectedFile) {
-          formData.append('file', selectedFile);
+          formData.append("file", selectedFile);
         }
         
         // Add reply_to if replying to a message
         if (replyTo) {
-          formData.append('parent', replyTo.id);
+          formData.append("parent", replyTo.id);
         }
+        
+        toast.info("Sending message...");
         
         const response = await API.post(`/chats/${selectedChat.id}/messages/`, formData, {
           headers: {
-            'Content-Type': 'multipart/form-data',
+            "Content-Type": "multipart/form-data",
           },
         });
         
         // Add the new message to the messages array
         setMessages(prevMessages => [...prevMessages, response.data]);
         
+        // Show success message
+        if (selectedImage) {
+          toast.success("Image sent successfully");
+        } else if (selectedFile) {
+          toast.success("File sent successfully");
+        } else {
+          toast.success("Message sent");
+        }
+        
         // Reset form state
-        setMessage('');
+        setMessage("");
         setSelectedImage(null);
         setImagePreview(null);
         setLocalImagePreview(null);
@@ -623,8 +755,23 @@ const Chat = () => {
         // Always scroll to bottom when sending a new message
         setTimeout(() => scrollToBottom(), 100);
       } catch (error) {
-        console.error('Error sending message:', error);
-        toast.error('Failed to send message');
+        console.error("Error sending message:", error);
+        // More detailed error messages
+        if (error.response) {
+          if (error.response.status === 413) {
+            toast.error("File too large. Please select a smaller file.");
+          } else if (error.response.status === 415) {
+            toast.error("Unsupported file type. Please select another file format.");
+          } else if (error.response.status === 401) {
+            toast.error("Session expired. Please log in again.");
+          } else {
+            toast.error(`Failed to send message: ${error.response.data?.detail || error.response.statusText}`);
+          }
+        } else if (error.request) {
+          toast.error("Network error. Please check your connection and try again.");
+        } else {
+          toast.error("Failed to send message. Please try again.");
+        }
       } finally {
         setLocalSending(false);
       }
@@ -632,11 +779,36 @@ const Chat = () => {
 
     const handleLocalImageSelect = (e) => {
       handleImageSelect(e);
-      // Also set local preview
+      // Additional local preview - this runs separately from handleImageSelect 
+      // to ensure we have a preview even if there are validation warnings
       if (e.target.files && e.target.files[0]) {
         const file = e.target.files[0];
+        
         const reader = new FileReader();
-        reader.onload = (e) => setLocalImagePreview(e.target.result);
+        reader.onload = (e) => {
+          try {
+            // Create image object to validate the image can be loaded
+            const img = new Image();
+            img.onload = () => {
+              // Image loaded successfully
+              setLocalImagePreview(reader.result);
+            };
+            img.onerror = () => {
+              // Image couldn't be loaded
+              setLocalImagePreview(null);
+              toast.error("Failed to preview image. It may be corrupted.");
+            };
+            img.src = reader.result;
+          } catch (error) {
+            console.error("Error in image preview:", error);
+            setLocalImagePreview(null);
+            toast.error("Error generating preview");
+          }
+        };
+        reader.onerror = () => {
+          setLocalImagePreview(null);
+          toast.error("Error generating preview");
+        };
         reader.readAsDataURL(file);
       }
     };
@@ -646,7 +818,12 @@ const Chat = () => {
       // Set local file preview
       if (e.target.files && e.target.files[0]) {
         const file = e.target.files[0];
-        setLocalFilePreview(file);
+        try {
+          setLocalFilePreview(file);
+        } catch (error) {
+          console.error('Error handling local file:', error);
+          setLocalFilePreview(null);
+        }
       }
     };
 
@@ -763,7 +940,7 @@ const Chat = () => {
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <input
             type="file"
-            accept="image/*"
+            accept="image/jpeg, image/png, image/gif, image/webp, image/bmp, image/svg+xml, image/tiff, image/avif, image/heic, image/heif"
             style={{ display: 'none' }}
             ref={fileInputRef}
             onChange={handleLocalImageSelect}
@@ -779,6 +956,7 @@ const Chat = () => {
             size="small" 
             onClick={() => fileInputRef.current?.click()}
             color="primary"
+            title="Upload image"
           >
             <ImageIcon />
           </IconButton>
@@ -787,6 +965,7 @@ const Chat = () => {
             size="small" 
             onClick={() => documentInputRef.current?.click()}
             color="primary"
+            title="Upload file"
           >
             <AttachFileIcon />
           </IconButton>
