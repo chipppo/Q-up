@@ -2,6 +2,7 @@
 
 import React from "react";
 import { Box, Typography, Container, Link } from "@mui/material";
+import { Link as RouterLink } from "react-router-dom";
 import logo from "../assets/qup-logo.svg";
 
 const Footer = () => {
@@ -34,8 +35,9 @@ const Footer = () => {
           sx={{ mt: 1 }}
         >
           <Link 
+            component={RouterLink}
+            to="/terms-of-service" 
             color="primary" 
-            href="#" 
             sx={{ mx: 1 }}
           >
             Terms
@@ -48,8 +50,9 @@ const Footer = () => {
             Privacy
           </Link>
           <Link 
+            component={RouterLink}
+            to="/contacts" 
             color="primary" 
-            href="#" 
             sx={{ mx: 1 }}
           >
             Contact

@@ -28,6 +28,16 @@ import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import dayjs from 'dayjs';
+import TwitterIcon from '@mui/icons-material/Twitter';
+import FacebookIcon from '@mui/icons-material/Facebook';
+import InstagramIcon from '@mui/icons-material/Instagram';
+import LinkedInIcon from '@mui/icons-material/LinkedIn';
+import GitHubIcon from '@mui/icons-material/GitHub';
+import YouTubeIcon from '@mui/icons-material/YouTube';
+import SportsEsportsIcon from '@mui/icons-material/SportsEsports';
+import HeadsetIcon from '@mui/icons-material/Headset';
+import VideogameAssetIcon from '@mui/icons-material/VideogameAsset';
+import LinkIcon from '@mui/icons-material/Link';
 
 const DAYS_OF_WEEK = [
   'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
@@ -640,34 +650,34 @@ const EditProfileForm = () => {
                       {formData.social_links.map((link, index) => {
                         try {
                           const url = new URL(link);
-                          let icon = null;
+                          let icon = <LinkIcon />;
                           const hostname = url.hostname;
                           
                           // Determine icon based on hostname
                           if (hostname.includes('twitter.com') || hostname.includes('x.com')) {
-                            icon = '𝕏'; // X (Twitter)
+                            icon = <TwitterIcon />;
                           } else if (hostname.includes('facebook.com')) {
-                            icon = 'f';
+                            icon = <FacebookIcon />;
                           } else if (hostname.includes('instagram.com')) {
-                            icon = '📷';
+                            icon = <InstagramIcon />;
                           } else if (hostname.includes('linkedin.com')) {
-                            icon = 'in';
+                            icon = <LinkedInIcon />;
                           } else if (hostname.includes('github.com')) {
-                            icon = '🐙';
+                            icon = <GitHubIcon />;
                           } else if (hostname.includes('youtube.com')) {
-                            icon = '▶️';
+                            icon = <YouTubeIcon />;
                           } else if (hostname.includes('twitch.tv')) {
-                            icon = '🎮';
+                            icon = <SportsEsportsIcon />;
                           } else if (hostname.includes('discord.com') || hostname.includes('discord.gg')) {
-                            icon = '🎧';
+                            icon = <HeadsetIcon />;
                           } else if (hostname.includes('steam')) {
-                            icon = '🎲';
+                            icon = <VideogameAssetIcon />;
                           }
                           
                           return (
                             <Chip
                               key={index}
-                              icon={icon ? <span style={{ fontSize: '1.2rem', marginLeft: '8px' }}>{icon}</span> : undefined}
+                              icon={icon}
                               label={hostname.replace('www.', '')}
                               onDelete={() => handleArrayRemove('social_links', index)}
                               sx={{ m: 0.5 }}

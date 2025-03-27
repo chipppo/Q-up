@@ -16,6 +16,8 @@ import { ThemeProvider, createTheme } from '@mui/material';
 import EditProfileForm from "./components/EditProfileForm";
 import Chat from "./pages/Chat";
 import ResetPassword from "./pages/ResetPassword";
+import TermsOfService from "./pages/TermsOfService";
+import Contacts from "./pages/Contacts";
 import { CssBaseline } from '@mui/material';
 import { Box, CircularProgress } from '@mui/material';
 import { Suspense } from 'react';
@@ -243,6 +245,8 @@ const AppContent = () => {
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/terms-of-service" element={<TermsOfService />} />
+            <Route path="/contacts" element={<Contacts />} />
             <Route path="/reset-password/:uidb64/:token" element={<ResetPassword />} />
             <Route
               path="/dashboard"
