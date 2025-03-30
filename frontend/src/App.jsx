@@ -223,13 +223,16 @@ const theme = createTheme({
 const AppContent = () => {
   const location = useLocation();
   const showFooter = location.pathname !== '/chat';
+  const isChatPage = location.pathname === '/chat';
 
   return (
     <Box 
       sx={{ 
         display: 'flex',
         flexDirection: 'column',
-        minHeight: '100vh'
+        minHeight: '100vh',
+        maxHeight: isChatPage ? '100vh' : 'auto',
+        overflow: isChatPage ? 'hidden' : 'visible'
       }}
     >
       <Header />
@@ -237,7 +240,10 @@ const AppContent = () => {
         component="main" 
         sx={{ 
           flexGrow: 1,
-          pb: showFooter ? 8 : 0 // Only add padding if footer is shown
+          pb: showFooter ? 8 : 0, // Only add padding if footer is shown
+          overflow: isChatPage ? 'hidden' : 'visible',
+          display: 'flex',
+          flexDirection: 'column'
         }}
       >
         <Suspense fallback={<CircularProgress sx={{ position: 'absolute', top: '50%', left: '50%' }} />}>

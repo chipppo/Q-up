@@ -63,6 +63,7 @@ import {
   Report as ReportIcon,
   Mic as MicIcon,
   MicOff as MicOffIcon,
+  InsertDriveFile as InsertDriveFileIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 import API from '../api/axios';
@@ -116,25 +117,19 @@ const formatMessageTime = (timestamp) => {
   const diffHour = Math.floor(diffMin / 60);
   const diffDay = Math.floor(diffHour / 24);
   
-  // Just now: less than 1 minute ago
-  if (diffMin < 1) return 'just now';
+  // Format date as YYYY-MM-DD
+  const dateOptions = { year: 'numeric', month: '2-digit', day: '2-digit' };
+  const formattedDate = messageDate.toLocaleDateString('en-GB', dateOptions).replace(/\//g, '-');
   
-  // X minutes ago: less than 60 minutes ago
-  if (diffHour < 1) return `${diffMin}m ago`;
+  // Format time in 24h mode (HH:MM)
+  const timeOptions = { hour: '2-digit', minute: '2-digit', hour12: false };
+  const formattedTime = messageDate.toLocaleTimeString('en-GB', timeOptions);
   
-  // Today: format as hour:minute
-  if (diffDay < 1) return messageDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  // Today: just show time
+  if (diffDay < 1) return formattedTime;
   
-  // Yesterday
-  if (diffDay === 1) return 'Yesterday';
-  
-  // This week: show day name
-  if (diffDay < 7) {
-    return messageDate.toLocaleDateString([], { weekday: 'short' });
-  }
-  
-  // Older: show date
-  return messageDate.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  // Older: show date and time
+  return `${formattedDate} ${formattedTime}`;
 };
 
 // Define the Message component for rendering individual messages
@@ -379,11 +374,7 @@ const Message = memo(({ message, highlightedId, onMenuOpen }) => {
       </Box>
 
       <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, ml: isOwnMessage ? 'auto' : 1, mr: isOwnMessage ? 1 : 'auto' }} className="message-timestamp">
-        {new Date(messageTime).toLocaleTimeString([], { 
-          hour: '2-digit', 
-          minute: '2-digit',
-          hour12: true
-        })}
+        {formatMessageTime(messageTime)}
         {isOwnMessage && message.is_read !== undefined && (
           <span className="message-status">
             {message.is_read ? 
@@ -506,10 +497,6 @@ const Chat = () => {
   const messageRefs = useRef({});
   const messagesStartRef = useRef(null);
   const [sending, setSending] = useState(false);
-  const [showMessageSearch, setShowMessageSearch] = useState(false);
-  const [messageSearchQuery, setMessageSearchQuery] = useState('');
-  const [searchedMessages, setSearchedMessages] = useState([]);
-  const [currentSearchIndex, setCurrentSearchIndex] = useState(-1);
   const [selectedFile, setSelectedFile] = useState(null);
   const [filePreview, setFilePreview] = useState(null);
   const [contextMenu, setContextMenu] = useState(null);
@@ -691,14 +678,13 @@ const Chat = () => {
     const handleSendMessage = async (e) => {
       if (e) e.preventDefault();
       
-      if ((!message.trim() && !selectedImage && !selectedFile) || !selectedChat) {
-        toast.error("Cannot send empty message. Please add text, image, or file.");
+      if ((!message.trim() && !selectedImage && !selectedFile) || sending || !selectedChat) {
         return;
       }
       
-      setLocalSending(true);
-      
       try {
+        setSending(true);
+        
         // Create form data for file upload
         const formData = new FormData();
         
@@ -753,30 +739,16 @@ const Chat = () => {
         setReplyTo(null);
         
         // Always scroll to bottom when sending a new message
-        setTimeout(() => scrollToBottom(), 100);
+        setTimeout(() => scrollToBottom({ smooth: true }), 100);
+        
       } catch (error) {
         console.error("Error sending message:", error);
-        // More detailed error messages
-        if (error.response) {
-          if (error.response.status === 413) {
-            toast.error("File too large. Please select a smaller file.");
-          } else if (error.response.status === 415) {
-            toast.error("Unsupported file type. Please select another file format.");
-          } else if (error.response.status === 401) {
-            toast.error("Session expired. Please log in again.");
-          } else {
-            toast.error(`Failed to send message: ${error.response.data?.detail || error.response.statusText}`);
-          }
-        } else if (error.request) {
-          toast.error("Network error. Please check your connection and try again.");
-        } else {
-          toast.error("Failed to send message. Please try again.");
-        }
+        toast.error("Failed to send message");
       } finally {
-        setLocalSending(false);
+        setSending(false);
       }
     };
-
+    
     const handleLocalImageSelect = (e) => {
       handleImageSelect(e);
       // Additional local preview - this runs separately from handleImageSelect 
@@ -819,7 +791,7 @@ const Chat = () => {
       if (e.target.files && e.target.files[0]) {
         const file = e.target.files[0];
         try {
-          setLocalFilePreview(file);
+          setLocalFilePreview(file.name);
         } catch (error) {
           console.error('Error handling local file:', error);
           setLocalFilePreview(null);
@@ -843,101 +815,83 @@ const Chat = () => {
     }, []);
     
     return (
+      <Box
+        sx={{
+          p: 1,
+          borderTop: '1px solid',
+          borderColor: 'divider',
+          bgcolor: 'background.paper',
+          display: 'flex',
+          flexDirection: 'column',
+          width: '100%',
+          flexShrink: 0 // Prevent the input from shrinking
+        }}
+        className="message-input-container"
+      >
+        {replyTo && (
           <Box
             sx={{
               display: 'flex',
-              flexDirection: 'column',
-              p: 1,
-              borderTop: '1px solid',
-              borderColor: 'divider',
-              bgcolor: 'background.paper',
-            }}
-          >
-        {replyTo && (
-          <Box 
-            sx={{
-              display: 'flex',
-              alignItems: 'flex-start',
-              justifyContent: 'space-between',
-              p: 1,
-              bgcolor: 'action.selected',
+              alignItems: 'center',
+              backgroundColor: 'action.hover',
               borderRadius: 1,
+              p: 1,
               mb: 1,
+              gap: 1
             }}
           >
-            <Box sx={{ flex: 1, overflow: 'hidden' }}>
-              <Typography variant="body2" color="text.secondary" fontWeight="medium">
-                Replying to {typeof replyTo.sender === 'string' ? replyTo.sender : replyTo.sender?.username}
+            <ReplyIcon fontSize="small" color="primary" />
+            <Box sx={{ flexGrow: 1 }}>
+              <Typography variant="body2" color="primary" fontWeight="medium">
+                {typeof replyTo.sender === 'string' ? replyTo.sender : replyTo.sender?.username}
               </Typography>
-              <Typography 
-                variant="body2" 
-                color="text.secondary" 
-                sx={{ 
-                  opacity: 0.8, 
-                  textOverflow: 'ellipsis', 
-                  overflow: 'hidden', 
-                  whiteSpace: 'nowrap', 
-                  maxWidth: '100%',
-                  mt: 0.5,
-                  borderLeft: '2px solid',
-                  borderColor: 'primary.main',
-                  pl: 1
-                }}
-              >
-                {replyTo.content ? replyTo.content : replyTo.image ? 'Image' : 'File'}
+              <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
+                {replyTo.content || (replyTo.image_url ? 'Image' : 'File')}
               </Typography>
             </Box>
-            <IconButton size="small" onClick={() => setReplyTo(null)} sx={{ ml: 1 }}>
+            <IconButton size="small" onClick={() => setReplyTo(null)}>
               <CloseIcon fontSize="small" />
             </IconButton>
           </Box>
         )}
         
-        {(imagePreview || localImagePreview || filePreview || localFilePreview) && (
-          <Box sx={{ position: 'relative', mb: 1 }}>
-            {(imagePreview || localImagePreview) && (
+        {(localImagePreview || localFilePreview) && (
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              backgroundColor: 'action.hover',
+              borderRadius: 1,
+              p: 1,
+              mb: 1,
+              gap: 1
+            }}
+          >
+            {localImagePreview ? (
               <img 
-                src={imagePreview || localImagePreview} 
-                alt="Preview" 
-                style={{ maxWidth: '200px', maxHeight: '200px', borderRadius: '8px' }} 
+                src={localImagePreview} 
+                alt="Selected" 
+                style={{ 
+                  height: 40, 
+                  borderRadius: 4,
+                  objectFit: 'cover'
+                }} 
               />
+            ) : (
+              <InsertDriveFileIcon fontSize="small" color="primary" />
             )}
-            {(filePreview || localFilePreview) && (
-              <Box
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  p: 1,
-                  bgcolor: 'action.hover',
-                  borderRadius: 1,
-                }}
-              >
-                <AttachFileIcon sx={{ mr: 1 }} />
-                <Typography sx={{ fontSize: '0.875rem' }}>
-                  {(filePreview || localFilePreview)?.name || 'File attachment'}
-                </Typography>
-              </Box>
-            )}
-            <IconButton
-              size="small"
-              onClick={handleLocalRemoveFile}
-              sx={{
-                position: 'absolute',
-                top: -8,
-                right: -8,
-                bgcolor: 'background.paper',
-                boxShadow: 1,
-                '&:hover': {
-                  bgcolor: 'background.paper',
-                },
-              }}
-            >
+            
+            <Typography variant="body2" color="text.primary" sx={{ flexGrow: 1 }}>
+              {localImagePreview ? 'Image selected' : localFilePreview}
+            </Typography>
+            
+            <IconButton size="small" onClick={handleLocalRemoveFile}>
               <CloseIcon fontSize="small" />
             </IconButton>
           </Box>
         )}
         
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
           <input
             type="file"
             accept="image/jpeg, image/png, image/gif, image/webp, image/bmp, image/svg+xml, image/tiff, image/avif, image/heic, image/heif"
@@ -957,6 +911,7 @@ const Chat = () => {
             onClick={() => fileInputRef.current?.click()}
             color="primary"
             title="Upload image"
+            sx={{ mx: 0.5 }}
           >
             <ImageIcon />
           </IconButton>
@@ -966,6 +921,7 @@ const Chat = () => {
             onClick={() => documentInputRef.current?.click()}
             color="primary"
             title="Upload file"
+            sx={{ mr: 1 }}
           >
             <AttachFileIcon />
           </IconButton>
@@ -985,7 +941,7 @@ const Chat = () => {
             size="small"
             multiline
             maxRows={4}
-            sx={{ mr: 1 }}
+            sx={{ flexGrow: 1 }}
             InputProps={{
               sx: { fontFamily: 'inherit' },
               className: 'message-input'
@@ -996,9 +952,10 @@ const Chat = () => {
           <IconButton
             color="primary"
             onClick={handleSendMessage}
-            disabled={(!message.trim() && !selectedImage && !selectedFile) || !selectedChat || localSending}
+            disabled={(!message.trim() && !selectedImage && !selectedFile) || sending}
+            sx={{ ml: 1 }}
           >
-            {localSending ? <CircularProgress size={24} /> : <SendIcon />}
+            {sending ? <CircularProgress size={24} /> : <SendIcon />}
           </IconButton>
         </Box>
       </Box>
@@ -1110,15 +1067,26 @@ const Chat = () => {
     }
   }, [location.state, chats]);
 
-  // Scroll to bottom when messages change
+  // Scroll to bottom only on initial load of messages
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    if (messages.length > 0 && !olderMessagesLoading) {
+      // Only auto-scroll to bottom on initial load
+      const shouldScrollToBottom = !messagesContainerRef.current || 
+        messagesContainerRef.current.scrollTop === 0;
+        
+      if (shouldScrollToBottom) {
+        scrollToBottom();
+      }
+    }
+  }, [selectedChat]); // Only trigger on chat change, not on every message update
 
   // Function to scroll to the bottom of chat (defined as useCallback)
-  const scrollToBottom = useCallback(() => {
+  const scrollToBottom = useCallback((options = { smooth: true }) => {
     if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+      messagesEndRef.current.scrollIntoView({ 
+        behavior: options.smooth ? 'smooth' : 'auto',
+        block: 'end'
+      });
     }
   }, []); // Empty dependency array since messagesEndRef is a ref object
 
@@ -1140,7 +1108,7 @@ const Chat = () => {
   const fetchMessages = async (chatId, options = {}) => {
     const { reset = true, before_id = null } = options;
     
-    if (!chatId) return;
+    if (!chatId) return Promise.resolve();
     
     try {
       setMessagesLoading(true);
@@ -1159,21 +1127,61 @@ const Chat = () => {
       const response = await API.get(url);
       const newMessages = response.data;
       
+      // Sort messages by created_at timestamp (oldest first)
+      const sortedMessages = [...newMessages].sort((a, b) => {
+        return new Date(a.created_at) - new Date(b.created_at);
+      });
+      
       if (reset) {
-        setMessages(newMessages);
+        // Set messages first
+        setMessages(sortedMessages);
         setHasMoreMessages(newMessages.length === 20); // If we got fewer than requested, there are no more
         
-        // Only scroll to bottom on initial load
-        setTimeout(() => scrollToBottom(), 100);
+        // Use a longer timeout to ensure DOM has updated before scrolling
+        // This is critical for proper positioning
+        setTimeout(() => {
+          // First try using scrollToBottom
+          scrollToBottom({ smooth: false });
+          
+          // As a backup, also directly set the scroll position
+          if (messagesContainerRef.current) {
+            messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+          }
+        }, 50);
         
         // Mark messages as read when loading a chat
         if (selectedChat) {
           markChatAsRead(selectedChat.id);
         }
       } else {
-        // Prepend older messages to the existing messages
-        setMessages(prevMessages => [...newMessages, ...prevMessages]);
+        // Save current scroll position and height before adding new messages
+        const container = messagesContainerRef.current;
+        const scrollHeight = container ? container.scrollHeight : 0;
+        const scrollPosition = container ? container.scrollTop : 0;
+        
+        // Sort all messages to ensure correct chronological order
+        setMessages(prevMessages => {
+          // Combine old and new messages
+          const combinedMessages = [...sortedMessages, ...prevMessages];
+          
+          // Sort all messages by timestamp
+          return combinedMessages.sort((a, b) => {
+            return new Date(a.created_at) - new Date(b.created_at);
+          });
+        });
+        
         setHasMoreMessages(newMessages.length === 20);
+        
+        setTimeout(() => {
+          if (container) {
+            // Calculate how much new content was added
+            const newScrollHeight = container.scrollHeight;
+            const heightDifference = newScrollHeight - scrollHeight;
+            
+            // Adjust scroll position to keep the same messages in view
+            container.scrollTop = scrollPosition + heightDifference;
+          }
+        }, 50);
       }
     } catch (err) {
       console.error('Error fetching messages:', err);
@@ -1182,6 +1190,9 @@ const Chat = () => {
       setMessagesLoading(false);
       setOlderMessagesLoading(false);
     }
+    
+    // Return a resolved promise to allow chaining in loadMoreMessages
+    return Promise.resolve();
   };
   
   // Function to load more (older) messages
@@ -1195,6 +1206,7 @@ const Chat = () => {
     const before_id = oldestMessage ? oldestMessage.id : null;
     
     if (before_id) {
+      // Fetch older messages
       fetchMessages(selectedChat.id, { reset: false, before_id });
     } else {
       setOlderMessagesLoading(false);
@@ -1224,6 +1236,9 @@ const Chat = () => {
       if (isTypingMessage) {
         return;
       }
+      
+      // Check if user is at the bottom before we fetch new messages
+      const wasAtBottom = isUserAtBottom();
       
       // First, check for new messages
       let url = `/chats/${selectedChat.id}/messages/?limit=30`;
@@ -1279,20 +1294,22 @@ const Chat = () => {
         setMessages(prevMessages => {
           // Do one more duplicate check before updating state
           const currentIds = new Set(prevMessages.map(msg => msg.id));
-          const finalUniqueMessages = uniqueNewMessages.filter(msg => !currentIds.has(msg.id));
+          const filteredNewMessages = uniqueNewMessages.filter(msg => !currentIds.has(msg.id));
           
-          return [...prevMessages, ...finalUniqueMessages];
+          // Sort by creation time to ensure chronological order
+          const combinedMessages = [...prevMessages, ...filteredNewMessages];
+          return combinedMessages.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
         });
         
         // Only scroll to bottom for new messages if user was already at bottom
-        if (isUserAtBottom()) {
-          setTimeout(() => scrollToBottom(), 100);
+        if (wasAtBottom) {
+          setTimeout(() => scrollToBottom({ smooth: true }), 100);
         }
       }
     } catch (error) {
       console.error('Error checking for new messages:', error);
     }
-  }, [selectedChat, messages, scrollToBottom]);
+  }, [selectedChat, messages, scrollToBottom, isUserAtBottom]);
 
   // Function to check for new messages in all chats (for notification)
   const checkAllChatsForNewMessages = async () => {
@@ -1342,12 +1359,17 @@ const Chat = () => {
   };
 
   const handleChatSelect = (chat) => {
-    // Clear messages when changing chats
+    // Reset state for the new chat
     setMessages([]);
     setHasMoreMessages(true);
     setSelectedChat(chat);
+    setOlderMessagesLoading(false);
     
     if (chat) {
+      // Set loading state while fetching messages
+      setMessagesLoading(true);
+      
+      // Fetch messages for the selected chat
       fetchMessages(chat.id);
       
       // Mark chat as read
@@ -1475,11 +1497,23 @@ const Chat = () => {
 
   // Custom hook for message scroll behavior
   useEffect(() => {
-    if (messages.length && messagesEndRef.current) {
-      // Scroll to bottom when new messages arrive
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    // Only scroll to bottom when messages change if we're not loading older messages
+    if (messages.length > 0 && !olderMessagesLoading) {
+      // If this is triggered by loading older messages, don't scroll
+      if (olderMessagesLoading) return;
+      
+      // Only auto-scroll if it was a user sent message or we're at the bottom already
+      const isUserSentMessage = messages.length > 0 && 
+                               messages[messages.length - 1].sender === username;
+      
+      // Only scroll automatically if user sent a message or is already at the bottom
+      if (isUserSentMessage || isUserAtBottom()) {
+        setTimeout(() => {
+          scrollToBottom({ smooth: isUserSentMessage });
+        }, 50);
+      }
     }
-  }, [messages]);
+  }, [messages, scrollToBottom, username, olderMessagesLoading, isUserAtBottom]);
 
   // Improved message input focus
   useEffect(() => {
@@ -1663,22 +1697,30 @@ const Chat = () => {
     </Box>
   );
 
+  // Add this CSS class to ensure the messages container is properly positioned
+  const messagesContainerStyle = {
+    flexGrow: 1,
+    overflow: 'auto',
+    display: 'flex',
+    flexDirection: 'column',
+    width: '100%',
+    boxSizing: 'border-box',
+    height: '0', // Use auto-sizing based on parent container
+    minHeight: '0', // Allow container to shrink when needed
+    position: 'relative', // Add position relative
+    padding: '8px 16px',
+  };
+
+  // Update renderChatMessages to use these styles
   const renderChatMessages = () => (
     <Box
-      sx={{
-        flexGrow: 1,
-        overflow: 'auto',
-        display: 'flex',
-        flexDirection: 'column',
-        width: '100%',
-        boxSizing: 'border-box'
-      }}
+      sx={messagesContainerStyle}
       className="messages-container"
       ref={messagesContainerRef}
     >
       {/* Load More Messages Button */}
       {hasMoreMessages && (
-        <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1, mb: 2, flexShrink: 0 }}>
           <Button 
             variant="outlined" 
             size="small"
@@ -1688,166 +1730,31 @@ const Chat = () => {
           >
             {olderMessagesLoading ? 'Loading...' : 'Load Older Messages'}
           </Button>
-          </Box>
-      )}
-      
-      <div ref={messagesStartRef} />
-      
-      {messages.map((message, index) => (
-        <Message 
-          key={`${message.id}-${index}`} 
-          message={message} 
-          highlightedId={highlightedMessageId} 
-          onMenuOpen={handleMessageMenuOpen} 
-        />
-      ))}
-      <div ref={messagesEndRef} />
-    </Box>
-  );
-
-  const MessageSearchComponent = () => (
-    <Box
-      sx={{
-        p: 2,
-        borderBottom: 1,
-        borderColor: 'divider',
-        backgroundColor: 'background.paper',
-        display: showMessageSearch ? 'flex' : 'none',
-        gap: 1,
-        flexWrap: { xs: 'wrap', sm: 'nowrap' },
-        alignItems: 'center',
-      }}
-    >
-      <TextField
-        fullWidth
-        size="small"
-        value={messageSearchQuery}
-        onChange={(e) => setMessageSearchQuery(e.target.value)}
-        onKeyPress={(e) => {
-          if (e.key === 'Enter') {
-            handleMessageSearch();
-          }
-        }}
-        placeholder="Search in messages..."
-        InputProps={{
-          startAdornment: (
-            <InputAdornment position="start">
-              <SearchIcon />
-            </InputAdornment>
-          ),
-          endAdornment: (
-            <InputAdornment position="end">
-              <IconButton 
-                size="small" 
-                onClick={handleMessageSearch}
-                disabled={!messageSearchQuery.trim()}
-              >
-                <ArrowForwardIcon fontSize="small" />
-              </IconButton>
-            </InputAdornment>
-          ),
-        }}
-      />
-
-      {searchedMessages.length > 0 && (
-        <Box sx={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: 1,
-          bgcolor: 'action.selected',
-          borderRadius: 1,
-          px: 1,
-          py: 0.5,
-          minWidth: { xs: '100%', sm: 'auto' },
-          justifyContent: { xs: 'space-between', sm: 'flex-start' },
-          mt: { xs: 1, sm: 0 }
-        }}>
-          <Typography variant="body2" color="textSecondary">
-            {currentSearchIndex + 1} of {searchedMessages.length}
-          </Typography>
-          <Box sx={{ display: 'flex', gap: 0.5 }}>
-            <IconButton 
-              size="small" 
-              onClick={handlePreviousSearchResult}
-              color="primary"
-            >
-              <KeyboardArrowUpIcon fontSize="small" />
-            </IconButton>
-            <IconButton 
-              size="small" 
-              onClick={handleNextSearchResult}
-              color="primary"
-            >
-              <KeyboardArrowDownIcon fontSize="small" />
-            </IconButton>
-          </Box>
         </Box>
       )}
-
-      <IconButton 
-        size="small" 
-        onClick={() => {
-          setShowMessageSearch(false);
-          setMessageSearchQuery('');
-          setSearchedMessages([]);
-          setCurrentSearchIndex(-1);
-          setHighlightedMessageId(null);
-        }}
-        sx={{ ml: { xs: 'auto', sm: 0 } }}
-      >
-        <CloseIcon />
-      </IconButton>
+      
+      {/* Messages container */}
+      <Box sx={{ 
+        display: 'flex', 
+        flexDirection: 'column',
+        flexGrow: 1,
+        justifyContent: messages.length < 10 ? 'flex-end' : 'flex-start'
+      }}>
+        <div ref={messagesStartRef} />
+        
+        {messages.map((message, index) => (
+          <Message 
+            key={`${message.id}-${index}`} 
+            message={message} 
+            highlightedId={highlightedMessageId} 
+            onMenuOpen={handleMessageMenuOpen} 
+          />
+        ))}
+        
+        <div ref={messagesEndRef} />
+      </Box>
     </Box>
   );
-
-  const handleMessageSearch = () => {
-    if (!messageSearchQuery.trim()) {
-      return;
-    }
-    
-    const query = messageSearchQuery.toLowerCase();
-    const matched = messages.filter(msg => 
-      msg.content && msg.content.toLowerCase().includes(query)
-    );
-    
-    setSearchedMessages(matched);
-    setCurrentSearchIndex(matched.length > 0 ? 0 : -1);
-    
-    if (matched.length > 0) {
-      scrollToMessage(matched[0].id);
-    } else {
-      toast.info("No messages found matching your search.");
-    }
-  };
-
-  const scrollToMessage = (messageId) => {
-    setHighlightedMessageId(messageId);
-    const element = document.getElementById(`message-${messageId}`);
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      
-      // Clear the highlight after a short time
-      setTimeout(() => {
-        setHighlightedMessageId(null);
-      }, 2000);
-    }
-  };
-
-  const handleNextSearchResult = () => {
-    if (searchedMessages.length === 0) return;
-    
-    const nextIndex = (currentSearchIndex + 1) % searchedMessages.length;
-    setCurrentSearchIndex(nextIndex);
-    scrollToMessage(searchedMessages[nextIndex].id);
-  };
-
-  const handlePreviousSearchResult = () => {
-    if (searchedMessages.length === 0) return;
-    
-    const prevIndex = (currentSearchIndex - 1 + searchedMessages.length) % searchedMessages.length;
-    setCurrentSearchIndex(prevIndex);
-    scrollToMessage(searchedMessages[prevIndex].id);
-  };
 
   const handleMessageContextMenu = (event, message) => {
     event.preventDefault();
@@ -2168,17 +2075,7 @@ const Chat = () => {
           </Box>
         </Box>
         
-        <Box>
-          <IconButton 
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowMessageSearch(!showMessageSearch);
-            }}
-            color={showMessageSearch ? "primary" : "default"}
-          >
-            <SearchIcon />
-          </IconButton>
-        </Box>
+        {/* Remove the search button */}
       </Box>
     );
   };
@@ -2189,16 +2086,23 @@ const Chat = () => {
       sx={{ 
         display: 'flex', 
         flexDirection: 'row',
-        height: '100vh',
+        height: { 
+          xs: 'calc(100vh - 56px)', // Account for smaller header on mobile (56px)
+          sm: 'calc(100vh - 64px)'  // Standard header height (64px) 
+        },
         width: '100%',
-        bgcolor: 'background.paper'
+        bgcolor: 'background.paper',
+        overflow: 'hidden', // Prevent outer scrollbar
+        position: 'relative', // Ensure proper positioning
+        mt: '0px' // No top margin
       }}
+      className="chat-page-container"
     >
       {/* Left panel - Chat list */}
       <Box
         sx={{
           width: isMobile ? '100%' : 350, // Increased width to 350px
-          height: '100%',
+          height: '100%', // Full height
           borderRight: '1px solid',
           borderColor: 'divider',
           display: isMobile && selectedChat ? 'none' : 'flex',
@@ -2215,19 +2119,17 @@ const Chat = () => {
       <Box
         sx={{
           flexGrow: 1,
+          display: 'flex', // Added explicit display flex
           flexDirection: 'column',
-          height: '100%',
+          height: '100%', // Full height
           width: isMobile ? '100%' : `calc(100% - ${showUserInfo ? 650 : 350}px)`, // Adjust based on user info panel
-          display: (!isMobile || selectedChat) ? 'flex' : 'none'
+          display: (!isMobile || selectedChat) ? 'flex' : 'none',
+          overflow: 'hidden' // Prevent container overflow
         }}
       >
         {selectedChat ? (
           <>
             {renderChatHeader()}
-
-            {showMessageSearch && (
-              <MessageSearchComponent />
-            )}
 
             {renderChatMessages()}
             
