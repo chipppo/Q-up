@@ -14,7 +14,6 @@ from .serializers import (
     MyTokenObtainPairSerializer,
     GameStatsSerializer,
     FollowSerializer,
-    PasswordChangeSerializer,
     AvatarUploadSerializer,
     GameSerializer,
     RankSystemSerializer,
@@ -583,33 +582,6 @@ class FollowingListView(APIView):
                 {"detail": "User not found."},
                 status=status.HTTP_404_NOT_FOUND
             )
-
-class ChangePasswordView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
-
-    def post(self, request, username):
-        if request.user.username != username:
-            return Response(
-                {"detail": "You can only change your own password."},
-                status=status.HTTP_403_FORBIDDEN
-            )
-
-        serializer = PasswordChangeSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-        # Verify old password
-        if not request.user.check_password(serializer.validated_data['old_password']):
-            return Response(
-                {"detail": "Current password is incorrect."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        # Set new password
-        request.user.set_password(serializer.validated_data['new_password'])
-        request.user.save()
-
-        return Response({"detail": "Password successfully updated."})
 
 class RankingSystemListView(APIView):
     permission_classes = [permissions.AllowAny]
