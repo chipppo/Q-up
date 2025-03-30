@@ -2,6 +2,7 @@
 .messages-container {
   flex-grow: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 8px 16px;
   background-color: var(--color-bg-primary);
   display: flex;
@@ -149,6 +150,10 @@
   .message-bubble {
     max-width: calc(80% - 36px); /* Adjust for the menu button */
   }
+  
+  .chat-page-container {
+    height: calc(100vh - 56px); /* Account for smaller header on mobile */
+  }
 }
 
 @media (max-width: 480px) {
@@ -160,6 +165,10 @@
     max-width: calc(80% - 36px); /* Adjust for the menu button */
     padding: 8px 12px;
   }
+  
+  .message-input-container {
+    padding: 8px;
+  }
 }
 
 /* -------- Other Chat Elements -------- */
@@ -168,6 +177,7 @@
   overflow-x: hidden;
   word-wrap: break-word;
   width: 350px;
+  overflow-y: auto;
 }
 
 .chat-list-container {
@@ -222,17 +232,21 @@
   padding: 10px;
   background-color: var(--color-bg-secondary);
   border-top: 1px solid #444;
+  flex-shrink: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .message-input {
   flex-grow: 1;
-  margin: 0 10px;
+  margin: 0;
   padding: 10px;
   border: none;
   border-radius: 20px;
   background-color: var(--color-bg-tertiary);
   color: var(--color-text-primary);
   resize: none;
+  width: 100%;
 }
 
 .message-input:focus {
@@ -317,11 +331,11 @@
 
 /* Replace the global styles with scoped styles for the chat page only */
 .chat-page-container {
-  height: 100vh;
+  height: calc(100vh - 64px); /* Account for header height */
   width: 100%;
   margin: 0;
   padding: 0;
-  overflow: hidden;
+  overflow: hidden; /* Prevent scrollbars on the chat page container */
 }
 
 /* Add styles to prevent horizontal scrolling in the chat sidebar */
@@ -329,6 +343,7 @@
   overflow-x: hidden;
   word-wrap: break-word;
   width: 350px;
+  overflow-y: auto; /* Allow vertical scrolling in sidebar */
 }
 
 .chat-list-container {
