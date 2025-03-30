@@ -35,7 +35,6 @@ import HeadsetIcon from '@mui/icons-material/Headset';
 import VideogameAssetIcon from '@mui/icons-material/VideogameAsset';
 import LinkIcon from '@mui/icons-material/Link';
 import EditProfileForm from '../components/EditProfileForm';
-import ChangePasswordForm from '../components/ChangePasswordForm';
 import GameStatsForm from '../components/GameStatsForm';
 import CreatePostForm from '../components/CreatePostForm';
 import PostCard from '../components/PostCard';
@@ -622,7 +621,6 @@ function Profile() {
             <Tabs value={tabValue} onChange={(e, newValue) => setTabValue(newValue)}>
               <Tab label="Profile" />
               <Tab label="Edit Profile" />
-              <Tab label="Change Password" />
               <Tab label="Game Statistics" />
               <Tab label="Posts" />
             </Tabs>
@@ -647,11 +645,6 @@ function Profile() {
             />
           )}
           {tabValue === 2 && (
-            <ChangePasswordForm 
-              username={profileUsername} 
-            />
-          )}
-          {tabValue === 3 && (
             <Box>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
                 <Typography variant="h5">Manage Game Statistics</Typography>
@@ -709,7 +702,7 @@ function Profile() {
               )}
             </Box>
           )}
-          {tabValue === 4 && (
+          {tabValue === 3 && (
             <Box>
               <CreatePostForm onPostCreated={handlePostCreated} />
               

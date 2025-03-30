@@ -259,8 +259,8 @@
 .hours-value {
   font-size: 0.9rem;
   color: var(--color-text-secondary);
-  width: 60px;
-  text-align: right;
+  width: 40px;
+  text-align: center;
 }
 
 /* Main search area styles */
@@ -373,9 +373,9 @@
   font-size: 0.9rem;
   color: var(--color-text-secondary);
   display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
   overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
 }
 
 .user-stats {
@@ -537,40 +537,6 @@
   font-style: italic;
 }
 
-.hours-slider-container {
-  margin-top: 10px;
-  padding: 0 5px;
-}
-
-.hours-input-container {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.hours-input {
-  width: 60px;
-  padding: 5px;
-  border: 1px solid #444;
-  border-radius: var(--border-radius);
-  background-color: var(--color-bg-tertiary);
-  color: var(--color-text-primary);
-  text-align: center;
-}
-
-.hours-input:focus {
-  outline: none;
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px rgba(0, 255, 170, 0.2);
-}
-
-.hours-value {
-  font-size: 0.9rem;
-  color: var(--color-text-secondary);
-  width: 40px;
-  text-align: center;
-}
-
 .hours-slider {
   width: 100%;
   height: 5px;
@@ -619,7 +585,7 @@
   margin: 0;
 }
 
-.hours-input[type=number] {
+.hours-input[type="number"] {
   -moz-appearance: textfield;
 }
 
