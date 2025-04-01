@@ -27,22 +27,22 @@ const Feed = () => {
   const [hasMore, setHasMore] = useState(true);
   const postsPerPage = 20;
 
-  // Redirect to login if not authenticated
+  // Пренасочване към входа, ако потребителят не е удостоверен
   useEffect(() => {
     if (!isLoggedIn) {
-      toast.info('Please log in to view your feed');
+      toast.info('Моля, влезте в профила си, за да видите вашия фийд');
       navigate('/login', { state: { from: '/feed' } });
     }
   }, [isLoggedIn, navigate]);
 
-  // Fetch posts when component mounts
+  // Зареждане на публикации при монтиране на компонента
   useEffect(() => {
     if (isLoggedIn) {
       fetchPosts();
     }
   }, [isLoggedIn]);
 
-  // Function to fetch posts with pagination
+  // Функция за извличане на публикации с пагинация
   const fetchPosts = async (loadMore = false) => {
     try {
       if (loadMore) {
@@ -51,10 +51,10 @@ const Feed = () => {
         setLoading(true);
       }
 
-      // Add pagination parameters to the request
+      // Добавяне на параметри за пагинация към заявката
       const response = await API.get(`/posts/?page=${page}&limit=${postsPerPage}`);
       
-      // Check if we have more posts to load
+      // Проверка дали има още публикации за зареждане
       const fetchedPosts = response.data;
       
       if (fetchedPosts.length < postsPerPage) {
@@ -62,24 +62,24 @@ const Feed = () => {
       }
 
       if (loadMore) {
-        // Append new posts to existing ones
+        // Добавяне на нови публикации към съществуващите
         setPosts(prevPosts => [...prevPosts, ...fetchedPosts]);
         setPage(prevPage => prevPage + 1);
       } else {
-        // Replace existing posts
+        // Замяна на съществуващите публикации
         setPosts(fetchedPosts);
-        setPage(2); // Next page will be 2
+        setPage(2); // Следващата страница ще бъде 2
       }
     } catch (error) {
-      console.error('Error fetching posts:', error);
+      console.error('Грешка при зареждане на публикации:', error);
       
-      // Handle authentication errors
+      // Обработка на грешки при удостоверяване
       if (error.response && error.response.status === 401) {
-        toast.error('Your session has expired. Please log in again.');
+        toast.error('Вашата сесия е изтекла. Моля, влезте отново.');
         navigate('/login', { state: { from: '/feed' } });
       } else {
-        setError('Failed to load posts. Please try again later.');
-        toast.error('Failed to load posts');
+        setError('Неуспешно зареждане на публикации. Моля, опитайте отново по-късно.');
+        toast.error('Неуспешно зареждане на публикации');
       }
     } finally {
       setLoading(false);
@@ -87,7 +87,7 @@ const Feed = () => {
     }
   };
 
-  // Handle post updates (likes, comments)
+  // Обработка на актуализации на публикации (харесвания, коментари)
   const handlePostUpdate = (updatedPost) => {
     setPosts(prevPosts => 
       prevPosts.map(post => 
@@ -96,13 +96,13 @@ const Feed = () => {
     );
   };
 
-  // Handle post deletion
+  // Обработка на изтриване на публикация
   const handlePostDelete = (postId) => {
     setPosts(prevPosts => prevPosts.filter(post => post.id !== postId));
-    toast.success('Post deleted successfully');
+    toast.success('Публикацията е изтрита успешно');
   };
 
-  // Load more posts
+  // Зареждане на още публикации
   const handleLoadMore = () => {
     fetchPosts(true);
   };
@@ -121,7 +121,7 @@ const Feed = () => {
         <Alert severity="error">{error}</Alert>
         <Box sx={{ mt: 2, textAlign: 'center' }}>
           <Button variant="contained" onClick={() => fetchPosts()}>
-            Try Again
+            Опитайте отново
           </Button>
         </Box>
       </Container>
@@ -132,20 +132,20 @@ const Feed = () => {
     <Container className="feed-container">
       <Paper elevation={0} sx={{ p: 3, mb: 4, borderRadius: 2 }} className="feed-header">
         <Typography variant="h4" component="h1" gutterBottom>
-          Your Feed
+          Вашият фийд
         </Typography>
         <Typography variant="body1" color="text.secondary" paragraph>
-          See the latest posts from people you follow
+          Вижте последните публикации от хората, които следвате
         </Typography>
       </Paper>
 
       {posts.length === 0 ? (
         <Box className="empty-feed">
           <Typography variant="h6" color="text.secondary" gutterBottom>
-            No posts to show
+            Няма публикации за показване
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            Follow more users to see their posts in your feed
+            Следвайте повече потребители, за да видите техните публикации във вашия фийд
           </Typography>
         </Box>
       ) : (
@@ -169,11 +169,11 @@ const Feed = () => {
                 size="large"
                 className="load-more-button"
               >
-                Load More
+                Зареди още
               </Button>
             ) : (
               <Typography variant="body2" color="text.secondary" className="end-message">
-                You've reached the end of your feed
+                Достигнахте края на вашия фийд
               </Typography>
             )}
           </Box>

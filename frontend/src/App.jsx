@@ -1,4 +1,4 @@
-// src/App.jsx
+// src/App.jsx - Главен компонент на приложението
 import { BrowserRouter as Router, Routes, Route, useLocation, createBrowserRouter, RouterProvider } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext.jsx";
 import Home from "./pages/Home";
@@ -22,7 +22,7 @@ import { CssBaseline } from '@mui/material';
 import { Box, CircularProgress } from '@mui/material';
 import { Suspense } from 'react';
 
-// Gaming Neon Theme
+// Гейминг Неонова Тема
 const theme = createTheme({
   palette: {
     mode: 'dark',
@@ -219,7 +219,7 @@ const theme = createTheme({
   },
 });
 
-// Create a wrapper component to conditionally render the footer
+// Създаване на обвиващ компонент за условно рендериране на футъра
 const AppContent = () => {
   const location = useLocation();
   const showFooter = location.pathname !== '/chat';
@@ -240,7 +240,7 @@ const AppContent = () => {
         component="main" 
         sx={{ 
           flexGrow: 1,
-          pb: showFooter ? 8 : 0, // Only add padding if footer is shown
+          pb: showFooter ? 8 : 0, // Добавяне на padding само ако футърът е показан
           overflow: isChatPage ? 'hidden' : 'visible',
           display: 'flex',
           flexDirection: 'column'

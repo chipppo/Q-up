@@ -1,4 +1,4 @@
-/* src/App.css */
+/* src/App.css - Основни стилове за приложението */
 .App {
   font-family: 'Poppins', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
   text-align: center;
@@ -7,7 +7,7 @@
   min-height: 100vh;
 }
 
-/* Styles for Buttons */
+/* Стилове за бутони */
 .btn {
   padding: 10px 20px;
   font-size: 16px;
@@ -24,14 +24,14 @@
   box-shadow: var(--glow-primary);
 }
 
-/* Content container */
+/* Контейнер за съдържание */
 .content-container {
   padding: 20px;
   max-width: 1200px;
   margin: 0 auto;
 }
 
-/* Section styling */
+/* Стилизиране на секции */
 .section {
   margin-bottom: 40px;
   padding: 20px;
@@ -40,7 +40,7 @@
   box-shadow: var(--box-shadow-md);
 }
 
-/* Utility classes */
+/* Помощни класове */
 .text-primary {
   color: var(--color-primary);
 }
@@ -59,7 +59,7 @@
   color: var(--color-text-primary);
 }
 
-/* Glow effects */
+/* Ефекти на светене */
 .glow-primary {
   box-shadow: var(--glow-primary);
 }

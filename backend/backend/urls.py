@@ -19,7 +19,10 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 
+# Основни маршрути
 urlpatterns = [
+    # Админ панел
     path('admin/', admin.site.urls),
+    # API маршрути
     path('api/', include('base.urls')),
-] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)  # Only for development
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)  # Медийни файлове

@@ -1,7 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
-import "./index.css";  // Global styles (optional)
+import "./index.css";  // Глобални стилове (опционално)
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>

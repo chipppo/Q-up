@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import API from "../api/axios";
 // import "./Search.css";
 
-// Utility function to safely format image URLs
+// Помощна функция за безопасно форматиране на URL адреси на изображения
 const formatImageUrl = (url) => {
   if (!url) return null;
   if (url.startsWith('http')) return url;
@@ -20,7 +20,7 @@ function Search() {
       const response = await API.get(`/search/?q=${query}`);
       setResults(response.data);
     } catch (err) {
-      console.error("Failed to fetch search results.");
+      console.error("Неуспешно извличане на резултати от търсенето.");
     }
   };
 

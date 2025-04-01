@@ -28,7 +28,7 @@ const CreatePostForm = ({ onPostCreated }) => {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // Fetch games for the dropdown
+  // Извличане на игри за падащото меню
   useEffect(() => {
     const fetchGames = async () => {
       try {
@@ -46,7 +46,7 @@ const CreatePostForm = ({ onPostCreated }) => {
     fetchGames();
   }, []);
 
-  // Handle image selection
+  // Обработка на избирането на изображение
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -59,13 +59,13 @@ const CreatePostForm = ({ onPostCreated }) => {
     }
   };
 
-  // Remove selected image
+  // Премахване на избрано изображение
   const handleRemoveImage = () => {
     setImage(null);
     setImagePreview(null);
   };
 
-  // Handle form submission
+  // Обработка на изпращането на формуляра
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -92,13 +92,13 @@ const CreatePostForm = ({ onPostCreated }) => {
         },
       });
       
-      // Reset form
+      // Нулиране на формуляра
       setCaption('');
       setImage(null);
       setImagePreview(null);
       setGame('');
       
-      // Notify parent component
+      // Известяване на родителския компонент
       if (onPostCreated) {
         onPostCreated(response.data);
       }

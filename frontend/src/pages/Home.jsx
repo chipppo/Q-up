@@ -28,39 +28,39 @@ function Home() {
   const features = [
     {
       icon: <GameIcon sx={{ fontSize: 40, color: theme.palette.primary.main }} />,
-      title: "Game Together",
-      description: "Find players who share your gaming schedule and preferences."
+      title: "Играйте заедно",
+      description: "Намерете играчи, които споделят вашия график и предпочитания за игри."
     },
     {
       icon: <TeamIcon sx={{ fontSize: 40, color: theme.palette.primary.main }} />,
-      title: "Build Your Team",
-      description: "Connect with players who match your skill level and goals."
+      title: "Изградете своя отбор",
+      description: "Свържете се с играчи, които отговарят на вашето ниво на умения и цели."
     },
     {
       icon: <TrophyIcon sx={{ fontSize: 40, color: theme.palette.primary.main }} />,
-      title: "Track Progress",
-      description: "Monitor your gaming achievements and rank improvements."
+      title: "Проследявайте напредъка",
+      description: "Наблюдавайте вашите постижения в игрите и подобрения в класирането."
     },
     {
       icon: <ChatIcon sx={{ fontSize: 40, color: theme.palette.primary.main }} />,
-      title: "Instant Chat",
-      description: "Communicate easily with your gaming partners."
+      title: "Незабавен чат",
+      description: "Комуникирайте лесно с вашите партньори за игра."
     },
     {
       icon: <SearchIcon sx={{ fontSize: 40, color: theme.palette.primary.main }} />,
-      title: "Smart Matching",
-      description: "Find players based on game, rank, and play style."
+      title: "Умно съвпадение",
+      description: "Намерете играчи въз основа на игра, ранг и стил на игра."
     },
     {
       icon: <ScheduleIcon sx={{ fontSize: 40, color: theme.palette.primary.main }} />,
-      title: "Flexible Scheduling",
-      description: "Coordinate gaming sessions across time zones."
+      title: "Гъвкаво планиране",
+      description: "Координирайте игрови сесии в различни часови зони."
     }
   ];
 
   return (
     <div className="home-page">
-      {/* Hero Section */}
+      {/* Секция Герой */}
       <Box className="hero-section">
         <Container maxWidth="lg">
           <Grid container spacing={4} alignItems="center">
@@ -75,11 +75,11 @@ function Home() {
                   WebkitTextFillColor: 'transparent'
                 }}
               >
-                Find Your Perfect Gaming Partner
+                Намерете своя перфектен партньор за игра
               </Typography>
               <Typography variant="h5" color="text.secondary" paragraph>
-                Connect with players who match your skill level, schedule, and gaming goals.
-                Build your team and improve together.
+                Свържете се с играчи, които отговарят на вашето ниво на умения, график и цели в игрите.
+                Изградете своя отбор и се подобрявайте заедно.
               </Typography>
               <Stack direction="row" spacing={2} sx={{ mt: 4 }}>
                 <Button
@@ -97,7 +97,7 @@ function Home() {
                     }
                   }}
                 >
-                  Get Started
+                  Започнете
                 </Button>
                 <Button
                   component={Link}
@@ -106,7 +106,7 @@ function Home() {
                   size="large"
                   sx={{ py: 1.5, px: 4, fontSize: '1.1rem' }}
                 >
-                  Browse Players
+                  Разгледайте играчи
                 </Button>
               </Stack>
             </Grid>
@@ -114,7 +114,7 @@ function Home() {
               <Box className="logo-container">
                 <img 
                   src={logo} 
-                  alt="Q-up Logo" 
+                  alt="Q-up Лого" 
                   className="hero-logo"
                   style={{
                     filter: 'drop-shadow(0 0 10px rgba(0, 255, 170, 0.7))',
@@ -142,7 +142,7 @@ function Home() {
         </Container>
       </Box>
 
-      {/* Features Section */}
+      {/* Секция с функции */}
       <Box className="features-section">
         <Container maxWidth="lg">
           <Typography
@@ -151,7 +151,7 @@ function Home() {
             sx={{ mb: 6 }}
             className="section-title"
           >
-            Why Choose Q-up?
+            Защо да изберете Q-up?
           </Typography>
           <Grid container spacing={4}>
             {features.map((feature, index) => (
@@ -196,16 +196,16 @@ function Home() {
         </Container>
       </Box>
 
-      {/* Call to Action Section */}
+      {/* Секция за призив към действие */}
       <Box className="cta-section">
         <Container maxWidth="md">
           <Card className="cta-card">
             <CardContent sx={{ textAlign: 'center', py: 6 }}>
               <Typography variant="h3" gutterBottom>
-                Ready to Level Up Your Gaming Experience?
+                Готови ли сте да повишите нивото на вашето геймърско изживяване?
               </Typography>
               <Typography variant="h6" color="text.secondary" paragraph>
-                Join thousands of gamers finding their perfect teammates every day.
+                Присъединете се към хиляди геймъри, които намират своите перфектни съотборници всеки ден.
               </Typography>
               <CardActions sx={{ justifyContent: 'center', mt: 3 }}>
                 <Button
@@ -223,7 +223,7 @@ function Home() {
                     }
                   }}
                 >
-                  Join Now
+                  Присъединете се сега
                 </Button>
               </CardActions>
             </CardContent>

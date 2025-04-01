@@ -42,10 +42,11 @@ from django.utils import timezone
 from django.http import Http404
 from django.utils.dateparse import parse_datetime
 
+# Публичен достъп до профили
 class UserDetailView(APIView):
     """
-    Retrieve user profile information by username.
-    This endpoint is public.
+    Извличане на профилна информация по потребителско име.
+    Тази крайна точка е публична.
     """
     permission_classes = [permissions.AllowAny]
     
@@ -55,12 +56,13 @@ class UserDetailView(APIView):
             serializer = UserSerializer(user)
             return Response(serializer.data)
         except MyUser.DoesNotExist:
-            return Response({"detail": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"detail": "Потребителят не е намерен."}, status=status.HTTP_404_NOT_FOUND)
 
 
+# Създаване на нов акаунт
 class RegisterUserView(APIView):
     """
-    Register a new user and provide JWT tokens.
+    Регистриране на нов потребител и предоставяне на JWT токени.
     """
     permission_classes = [permissions.AllowAny]
     
@@ -77,16 +79,17 @@ class RegisterUserView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+# Влизане в системата
 class LoginUserView(TokenObtainPairView):
     """
-    Login and obtain JWT tokens.
+    Вход и получаване на JWT токени.
     """
     serializer_class = MyTokenObtainPairSerializer  # Use the custom serializer
 
 
 class RefreshTokenView(TokenRefreshView):
     """
-    Refresh JWT access token using the provided refresh token.
+    Обновяване на JWT токен за достъп чрез предоставения опресняващ токен.
     """
     pass  # Using the default TokenRefreshView from rest_framework_simplejwt
 
@@ -100,7 +103,7 @@ class UpdateProfileView(APIView):
             user = MyUser.objects.get(username=username)
             if user != request.user:
                 return Response(
-                    {"detail": "You can only edit your own profile."},
+                    {"detail": "Можете да редактирате само собствения си профил."},
                     status=status.HTTP_403_FORBIDDEN
                 )
 
@@ -115,7 +118,7 @@ class UpdateProfileView(APIView):
                             setattr(user, field, request.data[field])
                     except json.JSONDecodeError:
                         return Response(
-                            {field: "Invalid JSON format"},
+                            {field: "Невалиден JSON формат"},
                             status=status.HTTP_400_BAD_REQUEST
                         )
 
@@ -135,7 +138,7 @@ class UpdateProfileView(APIView):
                                 setattr(user, field, date_obj)
                         except ValueError:
                             return Response(
-                                {"date_of_birth": "Invalid date format. Use DD/MM/YYYY"},
+                                {"date_of_birth": "Невалиден формат на дата. Използвайте ДД/ММ/ГГГГ"},
                                 status=status.HTTP_400_BAD_REQUEST
                             )
                     elif field == 'mic_available':
@@ -147,12 +150,12 @@ class UpdateProfileView(APIView):
                                 setattr(user, field, offset)
                             else:
                                 return Response(
-                                    {"timezone_offset": "Must be between -12 and +14"},
+                                    {"timezone_offset": "Трябва да бъде между -12 и +14"},
                                     status=status.HTTP_400_BAD_REQUEST
                                 )
                         except ValueError:
                             return Response(
-                                {"timezone_offset": "Must be a number"},
+                                {"timezone_offset": "Трябва да бъде число"},
                                 status=status.HTTP_400_BAD_REQUEST
                             )
                     else:
@@ -174,7 +177,7 @@ class UpdateProfileView(APIView):
 
         except MyUser.DoesNotExist:
             return Response(
-                {"detail": "User not found."},
+                {"detail": "Потребителят не е намерен."},
                 status=status.HTTP_404_NOT_FOUND
             )
         except Exception as e:
@@ -184,6 +187,7 @@ class UpdateProfileView(APIView):
             )
 
 
+# Списък игри
 class GameListView(APIView):
     permission_classes = [permissions.AllowAny]
 
@@ -193,6 +197,7 @@ class GameListView(APIView):
         return Response(serializer.data)
 
 
+# Игрови статистики на потребител
 class GameStatsListView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -203,7 +208,7 @@ class GameStatsListView(APIView):
             serializer = GameStatsSerializer(game_stats, many=True)
             return Response(serializer.data)
         except MyUser.DoesNotExist:
-            return Response({'detail': 'User not found'}, status=404)
+            return Response({'detail': 'Потребителят не е намерен'}, status=404)
 
     def post(self, request, username):
         try:
@@ -211,18 +216,18 @@ class GameStatsListView(APIView):
             
             # Check if the user is trying to add stats for their own profile
             if request.user != user:
-                return Response({'detail': 'You can only add game stats to your own profile'}, status=403)
+                return Response({'detail': 'Можете да добавяте статистики само към собствения си профил'}, status=403)
             
             # Get the game instance
             game_id = request.data.get('game_id')
             try:
                 game = Game.objects.get(id=game_id)
             except Game.DoesNotExist:
-                return Response({'detail': 'Game not found'}, status=404)
+                return Response({'detail': 'Играта не е намерена'}, status=404)
             
             # Check if stats already exist for this game
             if GameStats.objects.filter(user=user, game=game).exists():
-                return Response({'detail': 'Stats for this game already exist'}, status=400)
+                return Response({'detail': 'Статистиките за тази игра вече съществуват'}, status=400)
 
             # Get player goal if provided
             player_goal_id = request.data.get('player_goal')
@@ -231,7 +236,7 @@ class GameStatsListView(APIView):
                 try:
                     player_goal = PlayerGoal.objects.get(id=player_goal_id)
                 except PlayerGoal.DoesNotExist:
-                    return Response({'detail': 'Player goal not found'}, status=404)
+                    return Response({'detail': 'Целта на играча не е намерена'}, status=404)
             
             # Create the game stats
             game_stats = GameStats.objects.create(
@@ -259,9 +264,10 @@ class GameStatsListView(APIView):
             return Response(serializer.data, status=201)
             
         except MyUser.DoesNotExist:
-            return Response({'detail': 'User not found'}, status=404)
+            return Response({'detail': 'Потребителят не е намерен'}, status=404)
 
 
+# Статистика за конкретна игра
 class GameStatsUpdateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -272,7 +278,7 @@ class GameStatsUpdateView(APIView):
             serializer = GameStatsSerializer(game_stats)
             return Response(serializer.data)
         except (MyUser.DoesNotExist, GameStats.DoesNotExist):
-            return Response({'detail': 'Stats not found'}, status=404)
+            return Response({'detail': 'Статистиките не са намерени'}, status=404)
 
     def patch(self, request, username, game_id):
         try:
@@ -280,7 +286,7 @@ class GameStatsUpdateView(APIView):
             
             # Check if the user is trying to update their own stats
             if request.user != user:
-                return Response({'detail': 'You can only update your own game stats'}, status=403)
+                return Response({'detail': 'Можете да актуализирате само собствените си статистики'}, status=403)
             
             game_stats = GameStats.objects.get(user=user, game_id=game_id)
             
@@ -298,7 +304,7 @@ class GameStatsUpdateView(APIView):
                         player_goal = PlayerGoal.objects.get(id=player_goal_id)
                         game_stats.player_goal = player_goal
                     except PlayerGoal.DoesNotExist:
-                        return Response({'detail': 'Player goal not found'}, status=404)
+                        return Response({'detail': 'Целта на играча не е намерена'}, status=404)
 
             # Save the changes
             game_stats.save()
@@ -327,9 +333,9 @@ class GameStatsUpdateView(APIView):
             return Response(serializer.data)
             
         except MyUser.DoesNotExist:
-            return Response({'detail': 'User not found'}, status=404)
+            return Response({'detail': 'Потребителят не е намерен'}, status=404)
         except GameStats.DoesNotExist:
-            return Response({'detail': 'Stats not found'}, status=404)
+            return Response({'detail': 'Статистиките не са намерени'}, status=404)
 
     def delete(self, request, username, game_id):
         try:
@@ -337,16 +343,17 @@ class GameStatsUpdateView(APIView):
             
             # Check if the user is trying to delete their own stats
             if request.user != user:
-                return Response({'detail': 'You can only delete your own game stats'}, status=403)
+                return Response({'detail': 'Можете да изтривате само собствените си статистики'}, status=403)
             
             game_stats = GameStats.objects.get(user=user, game_id=game_id)
             game_stats.delete()
             return Response(status=204)
             
         except (MyUser.DoesNotExist, GameStats.DoesNotExist):
-            return Response({'detail': 'Stats not found'}, status=404)
+            return Response({'detail': 'Статистиките не са намерени'}, status=404)
 
 
+# Търсене с филтри
 class SearchView(APIView):
     permission_classes = [permissions.AllowAny]
 
@@ -501,7 +508,7 @@ class UploadAvatarView(APIView):
     def post(self, request, username):
         if request.user.username != username:
             return Response(
-                {"detail": "You can only upload your own avatar."},
+                {"detail": "Можете да качвате само своя аватар."},
                 status=status.HTTP_403_FORBIDDEN
             )
 
@@ -518,7 +525,7 @@ class UploadAvatarView(APIView):
         request.user.save()
 
         return Response({
-            "detail": "Avatar updated successfully",
+            "detail": "Аватарът е актуализиран успешно",
             "avatar_url": request.build_absolute_uri(request.user.avatar.url)
         })
 
@@ -534,12 +541,12 @@ class FollowUserView(APIView):
         to_follow = MyUser.objects.get(username=username)
         if to_follow == request.user:
             return Response(
-                {"detail": "You cannot follow yourself."},
+                {"detail": "Не можете да следвате себе си."},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
         request.user.following.add(to_follow)
-        return Response({"detail": f"You are now following {username}"})
+        return Response({"detail": f"Вече следвате {username}"})
 
 class UnfollowUserView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -551,7 +558,7 @@ class UnfollowUserView(APIView):
 
         to_unfollow = MyUser.objects.get(username=username)
         request.user.following.remove(to_unfollow)
-        return Response({"detail": f"You have unfollowed {username}"})
+        return Response({"detail": f"Спряхте да следвате {username}"})
 
 class FollowersListView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -564,7 +571,7 @@ class FollowersListView(APIView):
             return Response(serializer.data)
         except MyUser.DoesNotExist:
             return Response(
-                {"detail": "User not found."},
+                {"detail": "Потребителят не е намерен."},
                 status=status.HTTP_404_NOT_FOUND
             )
 
@@ -579,7 +586,7 @@ class FollowingListView(APIView):
             return Response(serializer.data)
         except MyUser.DoesNotExist:
             return Response(
-                {"detail": "User not found."},
+                {"detail": "Потребителят не е намерен."},
                 status=status.HTTP_404_NOT_FOUND
             )
 
@@ -596,7 +603,7 @@ class RankingSystemListView(APIView):
 
 class RankTierListView(APIView):
     """
-    Retrieve rank tiers for a specific ranking system.
+    Извличане на ранг нива за конкретна ранкинг система.
     """
     permission_classes = [permissions.AllowAny]
 
@@ -610,7 +617,7 @@ class RankTierListView(APIView):
 
 class PlayerGoalListView(APIView):
     """
-    List and create player goals.
+    Списък и създаване на цели за играчи.
     """
     permission_classes = [permissions.AllowAny]
 
@@ -623,9 +630,9 @@ class PlayerGoalListView(APIView):
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     def post(self, request):
-        """Create a new player goal"""
+        """Създаване на нова цел за играч"""
         if not request.user.is_staff:  # Only staff can create player goals
-            return Response({"detail": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
+            return Response({"detail": "Достъпът е отказан"}, status=status.HTTP_403_FORBIDDEN)
             
         serializer = PlayerGoalSerializer(data=request.data)
         if serializer.is_valid():
@@ -635,7 +642,7 @@ class PlayerGoalListView(APIView):
 
 class PlayerGoalDetailView(APIView):
     """
-    Retrieve, update or delete a player goal.
+    Извличане, актуализиране или изтриване на цел за играч.
     """
     permission_classes = [permissions.IsAdminUser]  # Only admin users can modify player goals
 
@@ -645,7 +652,7 @@ class PlayerGoalDetailView(APIView):
             serializer = PlayerGoalSerializer(goal)
             return Response(serializer.data)
         except PlayerGoal.DoesNotExist:
-            return Response({"detail": "Player goal not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"detail": "Целта на играча не е намерена"}, status=status.HTTP_404_NOT_FOUND)
 
     def put(self, request, goal_id):
         try:
@@ -656,7 +663,7 @@ class PlayerGoalDetailView(APIView):
                 return Response(serializer.data)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         except PlayerGoal.DoesNotExist:
-            return Response({"detail": "Player goal not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"detail": "Целта на играча не е намерена"}, status=status.HTTP_404_NOT_FOUND)
 
     def delete(self, request, goal_id):
         try:
@@ -664,19 +671,19 @@ class PlayerGoalDetailView(APIView):
             goal.delete()
             return Response(status=status.HTTP_204_NO_CONTENT)
         except PlayerGoal.DoesNotExist:
-            return Response({"detail": "Player goal not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"detail": "Целта на играча не е намерена"}, status=status.HTTP_404_NOT_FOUND)
 
 # New views for social features
 
 class PostListView(APIView):
     """
-    List all posts or create a new post.
+    Списък на всички публикации или създаване на нова публикация.
     """
     permission_classes = [permissions.IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
     
     def get(self, request):
-        """Get all posts from users the current user follows + their own posts"""
+        """Получаване на всички публикации от потребители, които текущият потребител следва + собствените му публикации"""
         following_users = request.user.following.all()
         posts = Post.objects.filter(
             Q(user=request.user) | Q(user__in=following_users)
@@ -695,7 +702,7 @@ class PostListView(APIView):
         return Response(serializer.data)
     
     def post(self, request):
-        """Create a new post"""
+        """Създаване на нова публикация"""
         serializer = PostSerializer(data=request.data, context={'request': request})
         if serializer.is_valid():
             # Handle game reference if provided
@@ -706,7 +713,7 @@ class PostListView(APIView):
                     game = Game.objects.get(id=game_id)
                 except Game.DoesNotExist:
                     return Response(
-                        {"detail": "Game not found."},
+                        {"detail": "Играта не е намерена."},
                         status=status.HTTP_400_BAD_REQUEST
                     )
             
@@ -717,9 +724,10 @@ class PostListView(APIView):
             )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+# Постове на потребител
 class UserPostsView(APIView):
     """
-    List all posts by a specific user.
+    Списък на всички публикации от конкретен потребител.
     """
     permission_classes = [permissions.IsAuthenticated]
     
@@ -731,13 +739,14 @@ class UserPostsView(APIView):
             return Response(serializer.data)
         except MyUser.DoesNotExist:
             return Response(
-                {"detail": "User not found."},
+                {"detail": "Потребителят не е намерен."},
                 status=status.HTTP_404_NOT_FOUND
             )
 
+# Работа с пост
 class PostDetailView(APIView):
     """
-    Retrieve, update or delete a post.
+    Извличане, актуализиране или изтриване на публикация.
     """
     permission_classes = [permissions.IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
@@ -749,7 +758,7 @@ class PostDetailView(APIView):
             return Response(serializer.data)
         except Post.DoesNotExist:
             return Response(
-                {"detail": "Post not found."},
+                {"detail": "Публикацията не е намерена."},
                 status=status.HTTP_404_NOT_FOUND
             )
     
@@ -760,7 +769,7 @@ class PostDetailView(APIView):
             # Check if the user is the owner of the post
             if post.user != request.user:
                 return Response(
-                    {"detail": "You can only update your own posts."},
+                    {"detail": "Можете да актуализирате само собствените си публикации."},
                     status=status.HTTP_403_FORBIDDEN
                 )
             
@@ -774,7 +783,7 @@ class PostDetailView(APIView):
                         post.game = game
                     except Game.DoesNotExist:
                         return Response(
-                            {"detail": "Game not found."},
+                            {"detail": "Играта не е намерена."},
                             status=status.HTTP_400_BAD_REQUEST
                         )
                 
@@ -783,7 +792,7 @@ class PostDetailView(APIView):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         except Post.DoesNotExist:
             return Response(
-                {"detail": "Post not found."},
+                {"detail": "Публикацията не е намерена."},
                 status=status.HTTP_404_NOT_FOUND
             )
     
@@ -794,24 +803,25 @@ class PostDetailView(APIView):
             # Check if the user is the owner of the post
             if post.user != request.user:
                 return Response(
-                    {"detail": "You can only delete your own posts."},
+                    {"detail": "Можете да изтривате само собствените си публикации."},
                     status=status.HTTP_403_FORBIDDEN
                 )
             
             post.delete()
             return Response(
-                {"detail": "Post deleted successfully."},
+                {"detail": "Публикацията е изтрита успешно."},
                 status=status.HTTP_204_NO_CONTENT
             )
         except Post.DoesNotExist:
             return Response(
-                {"detail": "Post not found."},
+                {"detail": "Публикацията не е намерена."},
                 status=status.HTTP_404_NOT_FOUND
             )
 
+# Лайкване на пост
 class LikeView(APIView):
     """
-    Like or unlike a post.
+    Харесване или отказ от харесване на публикация.
     """
     permission_classes = [permissions.IsAuthenticated]
     
@@ -824,17 +834,17 @@ class LikeView(APIView):
             
             if created:
                 return Response(
-                    {"detail": "Post liked successfully."},
+                    {"detail": "Публикацията е харесана успешно."},
                     status=status.HTTP_201_CREATED
                 )
             else:
                 return Response(
-                    {"detail": "You already liked this post."},
+                    {"detail": "Вече сте харесали тази публикация."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
         except Post.DoesNotExist:
             return Response(
-                {"detail": "Post not found."},
+                {"detail": "Публикацията не е намерена."},
                 status=status.HTTP_404_NOT_FOUND
             )
     
@@ -847,23 +857,24 @@ class LikeView(APIView):
                 like = Like.objects.get(user=request.user, post=post)
                 like.delete()
                 return Response(
-                    {"detail": "Post unliked successfully."},
+                    {"detail": "Отказахте харесването успешно."},
                     status=status.HTTP_204_NO_CONTENT
                 )
             except Like.DoesNotExist:
                 return Response(
-                    {"detail": "You haven't liked this post."},
+                    {"detail": "Не сте харесали тази публикация."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
         except Post.DoesNotExist:
             return Response(
-                {"detail": "Post not found."},
+                {"detail": "Публикацията не е намерена."},
                 status=status.HTTP_404_NOT_FOUND
             )
 
+# Потребители харесали пост
 class LikesListView(APIView):
     """
-    List all users who liked a post.
+    Списък на всички потребители, харесали публикация.
     """
     permission_classes = [permissions.IsAuthenticated]
     
@@ -875,13 +886,13 @@ class LikesListView(APIView):
             return Response(serializer.data)
         except Post.DoesNotExist:
             return Response(
-                {"detail": "Post not found."},
+                {"detail": "Публикацията не е намерена."},
                 status=status.HTTP_404_NOT_FOUND
             )
 
 class CommentView(APIView):
     """
-    Create, update or delete a comment.
+    Създаване, актуализиране или изтриване на коментар.
     """
     permission_classes = [permissions.IsAuthenticated]
     
@@ -889,7 +900,7 @@ class CommentView(APIView):
         try:
             post = Post.objects.get(id=post_id)
             
-            # Check if this is a reply to another comment
+            # Проверка дали това е отговор на друг коментар
             parent_id = request.data.get('parent')
             parent = None
             if parent_id:
@@ -897,11 +908,11 @@ class CommentView(APIView):
                     parent = Comment.objects.get(id=parent_id, post=post)
                 except Comment.DoesNotExist:
                     return Response(
-                        {"detail": "Parent comment not found."},
+                        {"detail": "Родителският коментар не е намерен."},
                         status=status.HTTP_400_BAD_REQUEST
                     )
             
-            # Create the comment
+            # Създаване на коментара
             comment = Comment.objects.create(
                 user=request.user,
                 post=post,
@@ -917,7 +928,7 @@ class CommentView(APIView):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         except Post.DoesNotExist:
             return Response(
-                {"detail": "Post not found."},
+                {"detail": "Публикацията не е намерена."},
                 status=status.HTTP_404_NOT_FOUND
             )
     
@@ -925,27 +936,27 @@ class CommentView(APIView):
         try:
             comment = Comment.objects.get(id=comment_id)
             
-            # Check if the user is the owner of the comment
+            # Проверка дали потребителят е собственик на коментара
             if comment.user != request.user:
                 return Response(
-                    {"detail": "You can only delete your own comments."},
+                    {"detail": "Можете да изтривате само собствените си коментари."},
                     status=status.HTTP_403_FORBIDDEN
                 )
             
             comment.delete()
             return Response(
-                {"detail": "Comment deleted successfully."},
+                {"detail": "Коментарът е изтрит успешно."},
                 status=status.HTTP_204_NO_CONTENT
             )
         except Comment.DoesNotExist:
             return Response(
-                {"detail": "Comment not found."},
+                {"detail": "Коментарът не е намерен."},
                 status=status.HTTP_404_NOT_FOUND
             )
 
 class CommentRepliesView(APIView):
     """
-    View for listing replies to a comment and creating new replies.
+    Преглед за списък с отговори на коментар и създаване на нови отговори.
     """
     permission_classes = [permissions.IsAuthenticated]
 
@@ -956,7 +967,7 @@ class CommentRepliesView(APIView):
             serializer = ReplySerializer(replies, many=True, context={'request': request})
             return Response(serializer.data)
         except Comment.DoesNotExist:
-            return Response({'error': 'Comment not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'Коментарът не е намерен'}, status=status.HTTP_404_NOT_FOUND)
 
     def post(self, request, comment_id):
         try:
@@ -967,13 +978,13 @@ class CommentRepliesView(APIView):
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         except Comment.DoesNotExist:
-            return Response({'error': 'Comment not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'Коментарът не е намерен'}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 class ChatListView(APIView):
     """
-    List all chats or create a new chat.
+    Списък на всички чатове или създаване на нов чат.
     """
     permission_classes = [permissions.IsAuthenticated]
 
@@ -993,7 +1004,7 @@ class ChatListView(APIView):
             import traceback
             traceback.print_exc()
             return Response(
-                {'detail': 'Failed to retrieve chats'},
+                {'detail': 'Неуспешно извличане на чатове'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
@@ -1003,7 +1014,7 @@ class ChatListView(APIView):
             other_username = request.data.get('username')
             if not other_username:
                 return Response(
-                    {'detail': 'Username is required'},
+                    {'detail': 'Името на потребителя е задължително'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
@@ -1012,14 +1023,14 @@ class ChatListView(APIView):
                 other_user = MyUser.objects.get(username=other_username)
             except MyUser.DoesNotExist:
                 return Response(
-                    {'detail': 'User not found'},
+                    {'detail': 'Потребителят не е намерен'},
                 status=status.HTTP_404_NOT_FOUND
             )
 
             # Check if the user is trying to chat with themselves
             if other_user == request.user:
                 return Response(
-                    {'detail': 'Cannot create chat with yourself'},
+                    {'detail': 'Не можете да създадете чат със себе си'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
@@ -1044,13 +1055,13 @@ class ChatListView(APIView):
             import traceback
             traceback.print_exc()
             return Response(
-                {'detail': 'Failed to create chat'},
+                {'detail': 'Неуспешно създаване на чат'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
 class ChatDetailView(APIView):
     """
-    Retrieve or delete a chat.
+    Извличане или изтриване на чат.
     """
     permission_classes = [permissions.IsAuthenticated]
 
@@ -1062,7 +1073,7 @@ class ChatDetailView(APIView):
                 chat = Chat.objects.get(id=chat_id, participants=request.user)
             except Chat.DoesNotExist:
                 return Response(
-                    {'detail': 'Chat not found or you are not a participant'},
+                    {'detail': 'Чатът не е намерен или не сте участник'},
                     status=status.HTTP_404_NOT_FOUND
                 )
             
@@ -1073,7 +1084,7 @@ class ChatDetailView(APIView):
             import traceback
             traceback.print_exc()
             return Response(
-                {'detail': f'Failed to retrieve chat: {str(e)}'},
+                {'detail': f'Неуспешно извличане на чат: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
@@ -1085,7 +1096,7 @@ class ChatDetailView(APIView):
                 chat = Chat.objects.get(id=chat_id, participants=request.user)
             except Chat.DoesNotExist:
                 return Response(
-                    {'detail': 'Chat not found or you are not a participant'},
+                    {'detail': 'Чатът не е намерен или не сте участник'},
                     status=status.HTTP_404_NOT_FOUND
                 )
             
@@ -1096,13 +1107,13 @@ class ChatDetailView(APIView):
             import traceback
             traceback.print_exc()
             return Response(
-                {'detail': f'Failed to delete chat: {str(e)}'},
+                {'detail': f'Неуспешно изтриване на чат: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
 class MessageListView(APIView):
     """
-    List all messages in a chat or create a new message.
+    Списък на всички съобщения в чат или създаване на ново съобщение.
     """
     permission_classes = [permissions.IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
@@ -1166,12 +1177,12 @@ class MessageListView(APIView):
             return Response(serializer.data)
         except Chat.DoesNotExist:
             return Response(
-                {'detail': 'Chat not found or you are not a participant'},
+                {'detail': 'Чатът не е намерен или не сте участник'},
                 status=status.HTTP_404_NOT_FOUND
             )
         except Exception as e:
             return Response(
-                {'detail': f'Failed to retrieve messages: {str(e)}'},
+                {'detail': f'Неуспешно извличане на съобщения: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
@@ -1211,7 +1222,7 @@ class MessageListView(APIView):
             # Validate that at least content or image is provided
             if not message.content and not message.image:
                 return Response(
-                    {'detail': 'Either content, image, or file must be provided'},
+                    {'detail': 'Трябва да се предостави съдържание, изображение или файл'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
                 
@@ -1230,18 +1241,18 @@ class MessageListView(APIView):
                 
         except Chat.DoesNotExist:
             return Response(
-                {'detail': 'Chat not found or you are not a participant'},
+                {'detail': 'Чатът не е намерен или не сте участник'},
                 status=status.HTTP_404_NOT_FOUND
             )
         except Exception as e:
             return Response(
-                {'detail': f'Failed to create message: {str(e)}'},
+                {'detail': f'Неуспешно създаване на съобщение: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
 class MessageDetailView(APIView):
     """
-    Retrieve, update or delete a message.
+    Извличане, актуализиране или изтриване на съобщение.
     """
     permission_classes = [permissions.IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
@@ -1257,7 +1268,7 @@ class MessageDetailView(APIView):
         
         # Check if user is a participant in the chat
         if request.user not in message.chat.participants.all():
-            return Response({"detail": "You do not have permission to view this message."}, status=status.HTTP_403_FORBIDDEN)
+            return Response({"detail": "Нямате разрешение да преглеждате това съобщение."}, status=status.HTTP_403_FORBIDDEN)
         
         serializer = MessageSerializer(message, context={'request': request})
         return Response(serializer.data)
@@ -1267,7 +1278,7 @@ class MessageDetailView(APIView):
         
         # Check if the user is the sender of the message
         if message.sender != request.user:
-            return Response({"detail": "You can only edit your own messages."}, status=status.HTTP_403_FORBIDDEN)
+            return Response({"detail": "Можете да редактирате само собствените си съобщения."}, status=status.HTTP_403_FORBIDDEN)
         
         # The 24-hour time limit check has been removed as requested
         
@@ -1283,7 +1294,7 @@ class MessageDetailView(APIView):
         
         # Check if the user is the sender or if they're in the chat
         if message.sender != request.user and request.user not in message.chat.participants.all():
-            return Response({"detail": "You do not have permission to delete this message."}, 
+            return Response({"detail": "Нямате разрешение да изтриете това съобщение."}, 
                            status=status.HTTP_403_FORBIDDEN)
         
         message.delete()
@@ -1291,7 +1302,7 @@ class MessageDetailView(APIView):
 
 class MessageReplyView(APIView):
     """
-    List all replies to a message or create a new reply.
+    Списък на всички отговори на съобщение или създаване на нов отговор.
     """
     permission_classes = [permissions.IsAuthenticated]
     
@@ -1303,7 +1314,7 @@ class MessageReplyView(APIView):
         
         # Check if user is a participant in the chat
         if request.user not in parent_message.chat.participants.all():
-            return Response({"detail": "You do not have permission to view replies to this message."}, 
+            return Response({"detail": "Нямате разрешение да преглеждате отговорите на това съобщение."}, 
                            status=status.HTTP_403_FORBIDDEN)
         
         replies = Message.objects.filter(parent=parent_message)
@@ -1318,7 +1329,7 @@ class MessageReplyView(APIView):
             
         # Check if user is a participant in the chat
         if request.user not in parent_message.chat.participants.all():
-            return Response({"detail": "You do not have permission to reply to this message."}, 
+            return Response({"detail": "Нямате разрешение да отговаряте на това съобщение."}, 
                            status=status.HTTP_403_FORBIDDEN)
                            
         # Create a new message as a reply
@@ -1338,7 +1349,7 @@ class MessageReplyView(APIView):
 
 class MessageStatusView(APIView):
     """
-    Update the read status of a message.
+    Актуализиране на статуса за прочитане на съобщение.
     """
     permission_classes = [permissions.IsAuthenticated]
     
@@ -1350,22 +1361,22 @@ class MessageStatusView(APIView):
             
         # Check if user is a participant in the chat but not the sender
         if request.user not in message.chat.participants.all():
-            return Response({"detail": "You do not have permission to update this message status."}, 
+            return Response({"detail": "Нямате разрешение да актуализирате състоянието на това съобщение."}, 
                            status=status.HTTP_403_FORBIDDEN)
                            
         if request.user == message.sender:
-            return Response({"detail": "You cannot mark your own messages as read."}, 
+            return Response({"detail": "Не можете да отбележите собствените си съобщения като прочетени."}, 
                           status=status.HTTP_400_BAD_REQUEST)
         
         # Mark as read
         message.is_read = True
         message.save()
         
-        return Response({"detail": "Message marked as read."}, status=status.HTTP_200_OK)
+        return Response({"detail": "Съобщението е отбелязано като прочетено."}, status=status.HTTP_200_OK)
 
 class ChatReadView(APIView):
     """
-    Mark all messages in a chat as read for the current user.
+    Маркиране на всички съобщения в чат като прочетени за текущия потребител.
     """
     permission_classes = [permissions.IsAuthenticated]
     
@@ -1383,25 +1394,25 @@ class ChatReadView(APIView):
             updated_count = unread_messages.update(is_read=True)
             
             return Response(
-                {"detail": f"Marked {updated_count} messages as read."}, 
+                {"detail": f"Маркирани {updated_count} съобщения като прочетени."}, 
                 status=status.HTTP_200_OK
             )
             
         except Chat.DoesNotExist:
             return Response(
-                {'detail': 'Chat not found or you are not a participant'},
+                {'detail': 'Чатът не е намерен или не сте участник'},
                 status=status.HTTP_404_NOT_FOUND
             )
         except Exception as e:
             print(f"Error in ChatReadView.post: {str(e)}")
             return Response(
-                {'detail': f'Failed to mark messages as read: {str(e)}'},
+                {'detail': f'Неуспешно отбелязване на съобщения като прочетени: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
 class MutualFollowersView(APIView):
     """
-    Search for mutual followers.
+    Търсене на взаимни последователи.
     """
     permission_classes = [permissions.IsAuthenticated]
 
@@ -1412,7 +1423,7 @@ class MutualFollowersView(APIView):
                 user = MyUser.objects.get(username=username)
             except MyUser.DoesNotExist:
                 return Response(
-                    {"detail": "User not found"},
+                    {"detail": "Потребителят не е намерен"},
                     status=status.HTTP_404_NOT_FOUND
                 )
 
@@ -1448,13 +1459,13 @@ class MutualFollowersView(APIView):
         except Exception as e:
             print(f"Error in MutualFollowersView.get: {str(e)}")
             return Response(
-                {"detail": "Failed to search mutual followers"},
+                {"detail": "Неуспешно търсене на взаимни последователи"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
 class PasswordResetRequestView(APIView):
     """
-    Request a password reset email.
+    Заявка за имейл за нулиране на парола.
     """
     permission_classes = [permissions.AllowAny]
 
@@ -1462,7 +1473,7 @@ class PasswordResetRequestView(APIView):
         email = request.data.get('email')
         if not email:
             return Response(
-                {'detail': 'Email is required'},
+                {'detail': 'Имейлът е задължителен'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -1470,7 +1481,7 @@ class PasswordResetRequestView(APIView):
             user = MyUser.objects.get(email=email)
         except MyUser.DoesNotExist:
             # We return success even if the email doesn't exist for security
-            return Response({'detail': 'Password reset email has been sent if the email exists'})
+            return Response({'detail': 'Имейлът за възстановяване на паролата е изпратен, ако имейлът съществува'})
 
         # Generate token and URL
         token = default_token_generator.make_token(user)
@@ -1502,17 +1513,17 @@ class PasswordResetRequestView(APIView):
                 [email],
                 fail_silently=False,
             )
-            return Response({'detail': 'Password reset email has been sent'})
+            return Response({'detail': 'Имейлът за нулиране на паролата е изпратен'})
         except Exception as e:
             print(f"Error sending email: {str(e)}")
             return Response(
-                {'detail': 'Failed to send reset email'},
+                {'detail': 'Неуспешно изпращане на имейл за нулиране'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
 class PasswordResetConfirmView(APIView):
     """
-    Confirm password reset and set new password.
+    Потвърждаване на нулирането на парола и задаване на нова парола.
     """
     permission_classes = [permissions.AllowAny]
 
@@ -1523,14 +1534,14 @@ class PasswordResetConfirmView(APIView):
             user = MyUser.objects.get(pk=uid)
         except (TypeError, ValueError, OverflowError, MyUser.DoesNotExist):
             return Response(
-                {'detail': 'Invalid reset link'},
+                {'detail': 'Невалидна връзка за нулиране'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
         # Check the token is valid
         if not default_token_generator.check_token(user, token):
             return Response(
-                {'detail': 'Invalid or expired reset link'},
+                {'detail': 'Невалидна или изтекла връзка за нулиране'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -1538,7 +1549,7 @@ class PasswordResetConfirmView(APIView):
         new_password = request.data.get('new_password')
         if not new_password:
             return Response(
-                {'detail': 'New password is required'},
+                {'detail': 'Необходима е нова парола'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -1546,4 +1557,4 @@ class PasswordResetConfirmView(APIView):
         user.set_password(new_password)
         user.save()
 
-        return Response({'detail': 'Password has been reset successfully'})
+        return Response({'detail': 'Паролата е нулирана успешно'})

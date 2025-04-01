@@ -71,7 +71,7 @@ import { toast } from 'react-toastify';
 import './Chat.css';
 import { keyframes } from '@emotion/react';
 
-// Define time periods with their corresponding hours - add this near the top of the file
+// Дефиниране на времеви периоди със съответните им часове - добавете това близо до началото на файла
 const TIME_PERIODS = [
   { id: "earlyMorning", name: "Early Morning (5-8 AM)", hours: ["05:00", "06:00", "07:00", "08:00"] },
   { id: "morning", name: "Morning (8-11 AM)", hours: ["08:00", "09:00", "10:00", "11:00"] },
@@ -83,14 +83,14 @@ const TIME_PERIODS = [
   { id: "overnight", name: "Overnight (2-5 AM)", hours: ["02:00", "03:00", "04:00", "05:00"] }
 ];
 
-// Utility function to safely format image URLs
+// Помощна функция за безопасно форматиране на URL адреси на изображения
 const formatImageUrl = (url) => {
   if (!url) return null;
   if (url.startsWith('http')) return url;
   return `${API.defaults.baseURL}${url}`;
 };
 
-// Add this utility function that's referenced but missing
+// Добавете тази помощна функция, която е цитирана, но липсва
 const stringToColor = (string) => {
   let hash = 0;
   let i;
@@ -105,7 +105,7 @@ const stringToColor = (string) => {
   return color;
 };
 
-// Define a utility function for formatting message timestamps in a user-friendly way
+// Дефиниране на помощна функция за форматиране на времеви маркери на съобщенията по разбираем за потребителя начин
 const formatMessageTime = (timestamp) => {
   if (!timestamp) return '';
   
@@ -117,36 +117,36 @@ const formatMessageTime = (timestamp) => {
   const diffHour = Math.floor(diffMin / 60);
   const diffDay = Math.floor(diffHour / 24);
   
-  // Format date as YYYY-MM-DD
+  // Форматиране на дата като ГГГГ-ММ-ДД
   const dateOptions = { year: 'numeric', month: '2-digit', day: '2-digit' };
   const formattedDate = messageDate.toLocaleDateString('en-GB', dateOptions).replace(/\//g, '-');
   
-  // Format time in 24h mode (HH:MM)
+  // Форматиране на време в 24-часов режим (ЧЧ:ММ)
   const timeOptions = { hour: '2-digit', minute: '2-digit', hour12: false };
   const formattedTime = messageDate.toLocaleTimeString('en-GB', timeOptions);
   
-  // Today: just show time
+  // За днес: показва само времето
   if (diffDay < 1) return formattedTime;
   
-  // Older: show date and time
+  // За по-стари съобщения: показва дата и време
   return `${formattedDate} ${formattedTime}`;
 };
 
-// Define the Message component for rendering individual messages
+// Дефиниране на компонента Message за визуализиране на отделни съобщения
 const Message = memo(({ message, highlightedId, onMenuOpen }) => {
   const { username } = useAuth();
   const isOwnMessage = typeof message.sender === 'string' 
     ? message.sender === username 
     : message.sender?.username === username;
   
-  // Add React imports
+  // Добавяне на React импорти
   const { useEffect, useState } = React;
   
-  // Local state for this message's menu
+  // Локално състояние за менюто на това съобщение
   const [anchorEl, setAnchorEl] = useState(null);
   const open = Boolean(anchorEl);
   
-  // Get the API
+  // Вземане на API
   const APIInstance = API;
   
   const senderName = typeof message.sender === 'string' 
@@ -155,11 +155,11 @@ const Message = memo(({ message, highlightedId, onMenuOpen }) => {
   
   const messageTime = message.timestamp || message.created_at || new Date();
   
-  // Function to determine if the attachment is an image or a file
+  // Функция за определяне дали прикаченият файл е изображение или файл
   const isImageAttachment = (url) => {
     if (!url) return false;
     
-    // Check for common image extensions in the URL
+    // Проверка за често срещани разширения на изображения в URL
     const imageExtensions = [
       '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg',
       '.tiff', '.tif', '.avif', '.heic', '.heif', '.jfif', '.pjpeg', '.pjp'
@@ -171,7 +171,7 @@ const Message = memo(({ message, highlightedId, onMenuOpen }) => {
     
     if (hasImageExtension) return true;
     
-    // Also check for image content types in the URL (from backend API responses)
+    // Проверка също за типове съдържание на изображения в URL (от отговорите на бекенд API)
     const imageContentTypes = [
       'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp', 'image/svg+xml',
       'image/tiff', 'image/avif', 'image/heic', 'image/heif'
@@ -181,14 +181,14 @@ const Message = memo(({ message, highlightedId, onMenuOpen }) => {
     return containsImageContentType;
   };
   
-  // Function to extract file name from URL
+  // Функция за извличане на име на файл от URL
   const getFileName = (url) => {
     if (!url) return 'File';
     const parts = url.split('/');
     return parts[parts.length - 1];
   };
   
-  // Handle file download
+  // Обработка на изтегляне на файл
   const handleFileDownload = (url, fileName) => {
     const link = document.createElement('a');
     link.href = url;
@@ -201,7 +201,7 @@ const Message = memo(({ message, highlightedId, onMenuOpen }) => {
   
   const isHighlighted = highlightedId === message.id;
 
-  // Handle menu open/close locally
+  // Локална обработка на отваряне/затваряне на меню
   const handleMenuClick = (event) => {
     event.stopPropagation();
     setAnchorEl(event.currentTarget);
@@ -393,7 +393,7 @@ const Message = memo(({ message, highlightedId, onMenuOpen }) => {
   );
 });
 
-// Add an EditMessageForm component before the main Chat component
+// Добавете компонент EditMessageForm преди основния компонент Chat
 const EditMessageForm = ({ message, onSave, onCancel }) => {
   const [content, setContent] = useState(message.content || '');
   const inputRef = useRef(null);
@@ -504,10 +504,10 @@ const Chat = () => {
   const [unreadChats, setUnreadChats] = useState({});
   const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
   
-  // Add polling interval reference
+  // Добавяне на референция за интервал на анкетиране
   const pollingIntervalRef = useRef(null);
 
-  // Simplified file handlers
+  // Опростени обработчици на файлове
   const handleRemoveFile = () => {
       setSelectedImage(null);
       setImagePreview(null);
@@ -521,18 +521,18 @@ const Chat = () => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       
-      // Validate file size
+      // Валидиране на размера на файла
       if (file.size > 5 * 1024 * 1024) {
         toast.error("Image size should be less than 5MB");
         if (fileInputRef.current) fileInputRef.current.value = "";
         return;
       }
       
-      // Set the selected image and create preview - do this before validation
-      // so we can show something to the user even if the file type is not ideal
+      // Задаване на избраното изображение и създаване на визуализация - правим това преди валидацията,
+      // така че да можем да покажем нещо на потребителя, дори ако типът на файла не е идеален
       setSelectedImage(file);
       
-      // Check if the file has correct extension but wrong content type
+      // Проверка дали файлът има правилно разширение, но грешен тип съдържание
       const fileName = file.name.toLowerCase();
       const imageExtensions = [
         ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg", 
@@ -540,13 +540,13 @@ const Chat = () => {
       ];
       const hasImageExtension = imageExtensions.some(ext => fileName.endsWith(ext));
       
-      // Validate file type with appropriate notifications
+      // Валидиране на типа на файла с подходящи известия
       const validImageTypes = [
         "image/jpeg", "image/png", "image/gif", "image/webp", "image/bmp", "image/svg+xml",
         "image/tiff", "image/avif", "image/heic", "image/heif"
       ];
       
-      // Just warn about suboptimal file types but don't prevent upload
+      // Само предупреждаваме за неоптимални типове файлове, но не предотвратяваме качването
       if (!validImageTypes.includes(file.type)) {
         if (hasImageExtension) {
           toast.warning("This file has an image extension but its format may not be fully supported. The upload will be attempted but might not display correctly.");
@@ -554,23 +554,23 @@ const Chat = () => {
           toast.warning("This file type is not recognized as an image. The upload will be attempted but might not display correctly.");
         }
       } else {
-        // For valid file types, show a success toast
+        // За валидни типове файлове показваме съобщение за успех
         toast.success("Image selected successfully");
       }
       
-      // Create a preview regardless of validation warnings
+      // Създаваме визуализация независимо от предупрежденията за валидация
       const reader = new FileReader();
       reader.onload = (e) => {
         try {
-          // Additional validation to verify image can be loaded
+          // Допълнителна валидация за проверка дали изображението може да бъде заредено
           const img = new Image();
           img.onload = () => {
-            // Image loaded successfully, set the preview
+            // Изображението е заредено успешно, задаваме визуализацията
             setImagePreview(reader.result);
             toast.info(`Image "${file.name}" ready to upload`);
           };
           img.onerror = () => {
-            // Image couldn't be loaded despite correct MIME type
+            // Изображението не може да бъде заредено въпреки правилния MIME тип
             toast.error("The file appears to be corrupted or is not a valid image. Please try another image.");
             setSelectedImage(null);
             setImagePreview(null);
@@ -595,7 +595,7 @@ const Chat = () => {
       
       reader.readAsDataURL(file);
       
-      // Clear any previously selected file
+      // Изчистване на преди това избран файл
       setSelectedFile(null);
       setFilePreview(null);
       if (documentInputRef.current) documentInputRef.current.value = "";
@@ -606,14 +606,14 @@ const Chat = () => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       
-      // Validate file size
+      // Валидиране на размера на файла
       if (file.size > 10 * 1024 * 1024) {
         toast.error("File size should be less than 10MB");
         if (documentInputRef.current) documentInputRef.current.value = "";
         return;
       }
       
-      // Block potentially dangerous file types
+      // Блокиране на потенциално опасни типове файлове
       const dangerousExtensions = [".exe", ".bat", ".cmd", ".msi", ".sh", ".vbs", ".ps1", ".js", ".php", ".dll"];
       const fileName = file.name.toLowerCase();
       const hasDangerousExtension = dangerousExtensions.some(ext => fileName.endsWith(ext));
@@ -625,18 +625,18 @@ const Chat = () => {
       }
       
       try {
-        // Set the file for upload
+        // Задаване на файла за качване
         setSelectedFile(file);
         setFilePreview(file);
         
-        // Clear any previously selected image
+        // Изчистване на предишно избрано изображение
         setSelectedImage(null);
         setImagePreview(null);
         if (fileInputRef.current) fileInputRef.current.value = "";
         
         toast.success(`File "${file.name}" ready to upload`);
         
-        // Additional validation for file size warning
+        // Допълнителна валидация за предупреждение за размера на файла
         if (file.size > 5 * 1024 * 1024) {
           toast.warning("Large files may take longer to upload");
         }
@@ -652,7 +652,7 @@ const Chat = () => {
     setContextMenu(null);
   };
 
-  // Message input component
+  // Компонент за въвеждане на съобщения
   const MessageInput = () => {
     const messageInputRef = useRef(null);
     const [message, setMessage] = useState('');
@@ -661,17 +661,17 @@ const Chat = () => {
     const [localSending, setLocalSending] = useState(false);
     const typingTimeoutRef = useRef(null);
     
-    // New function to handle typing with debounce
+    // Нова функция за обработка на набиране с отлагане
     const handleMessageChange = (e) => {
       const newValue = e.target.value;
       setMessage(newValue);
       
-      // Clear any existing timeout
+      // Изчистване на съществуващо забавяне
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
       }
       
-      // No need to send typing status if no chat is selected
+      // Няма нужда да изпращаме статус на писане, ако няма избран чат
       if (!selectedChat) return;
     };
     
@@ -685,25 +685,25 @@ const Chat = () => {
       try {
         setSending(true);
         
-        // Create form data for file upload
+        // Създаване на данни на формата за качване на файл
         const formData = new FormData();
         
-        // Add message content if present
+        // Добавяне на съдържание на съобщението, ако има такова
         if (message.trim()) {
           formData.append("content", message.trim());
         }
         
-        // Add image if present
+        // Добавяне на изображение, ако има такова
         if (selectedImage) {
           formData.append("image", selectedImage);
         }
         
-        // Add file if present
+        // Добавяне на файл, ако има такъв
         if (selectedFile) {
           formData.append("file", selectedFile);
         }
         
-        // Add reply_to if replying to a message
+        // Добавяне на reply_to, ако отговаряме на съобщение
         if (replyTo) {
           formData.append("parent", replyTo.id);
         }
@@ -716,10 +716,10 @@ const Chat = () => {
           },
         });
         
-        // Add the new message to the messages array
+        // Добавяне на новото съобщение към масива със съобщения
         setMessages(prevMessages => [...prevMessages, response.data]);
         
-        // Show success message
+        // Показване на съобщение за успех
         if (selectedImage) {
           toast.success("Image sent successfully");
         } else if (selectedFile) {
@@ -728,7 +728,7 @@ const Chat = () => {
           toast.success("Message sent");
         }
         
-        // Reset form state
+        // Нулиране на състоянието на формата
         setMessage("");
         setSelectedImage(null);
         setImagePreview(null);
@@ -738,7 +738,7 @@ const Chat = () => {
         setLocalFilePreview(null);
         setReplyTo(null);
         
-        // Always scroll to bottom when sending a new message
+        // Винаги скролиране надолу при изпращане на ново съобщение
         setTimeout(() => scrollToBottom({ smooth: true }), 100);
         
       } catch (error) {
@@ -751,22 +751,22 @@ const Chat = () => {
     
     const handleLocalImageSelect = (e) => {
       handleImageSelect(e);
-      // Additional local preview - this runs separately from handleImageSelect 
-      // to ensure we have a preview even if there are validation warnings
+      // Допълнителна локална визуализация - това се изпълнява отделно от handleImageSelect,
+      // за да сме сигурни, че имаме визуализация, дори ако има предупреждения за валидация
       if (e.target.files && e.target.files[0]) {
         const file = e.target.files[0];
         
         const reader = new FileReader();
         reader.onload = (e) => {
           try {
-            // Create image object to validate the image can be loaded
+            // Създаване на обект на изображението за валидиране дали изображението може да бъде заредено
             const img = new Image();
             img.onload = () => {
-              // Image loaded successfully
+              // Изображението е заредено успешно
               setLocalImagePreview(reader.result);
             };
             img.onerror = () => {
-              // Image couldn't be loaded
+              // Изображението не може да бъде заредено
               setLocalImagePreview(null);
               toast.error("Failed to preview image. It may be corrupted.");
             };
@@ -787,7 +787,7 @@ const Chat = () => {
 
     const handleLocalFileSelect = (e) => {
       handleFileSelect(e);
-      // Set local file preview
+      // Задаване на локална визуализация на файла
       if (e.target.files && e.target.files[0]) {
         const file = e.target.files[0];
         try {
@@ -1009,7 +1009,7 @@ const Chat = () => {
     setSelectedMessageForMenu(null);
   };
 
-  // Add missing handleReplyMessage function
+  // Добавяне на липсващата функция handleReplyMessage
   const handleReplyMessage = (message) => {
     setReplyTo(message);
     if (messageInputRef.current) {
@@ -1017,12 +1017,12 @@ const Chat = () => {
     }
   };
 
-  // Add missing handleDeleteMessage function
+  // Добавяне на липсващата функция handleDeleteMessage
   const handleDeleteMessage = async (messageId) => {
     try {
       await API.delete(`/messages/${messageId}/`);
       
-      // Remove the message from the local state
+      // Премахване на съобщението от локалното състояние
       setMessages(prevMessages => 
         prevMessages.filter(message => message.id !== messageId)
       );
@@ -1034,10 +1034,10 @@ const Chat = () => {
     }
   };
 
-  // Handle window resize
+  // Обработка на промяна на размера на прозореца
   const handleResize = () => setIsMobile(window.innerWidth <= 768);
 
-  // Add missing handleBack function
+  // Добавяне на липсващата функция handleBack
   const handleBack = () => {
     if (location.state?.returnTo) {
       navigate(location.state.returnTo);
@@ -1046,14 +1046,14 @@ const Chat = () => {
     }
   };
 
-  // Initial load
+  // Първоначално зареждане
   useEffect(() => {
     if (isLoggedIn) {
       fetchChats();
     }
   }, [isLoggedIn]);
 
-  // Handle initial chat selection from state
+  // Обработка на първоначалния избор на чат от състоянието
   useEffect(() => {
     if (location.state?.selectedChatId && chats.length > 0) {
       const chat = chats.find(c => c.id === location.state.selectedChatId);
@@ -1067,10 +1067,10 @@ const Chat = () => {
     }
   }, [location.state, chats]);
 
-  // Scroll to bottom only on initial load of messages
+  // Скролиране до долу само при първоначално зареждане на съобщенията
   useEffect(() => {
     if (messages.length > 0 && !olderMessagesLoading) {
-      // Only auto-scroll to bottom on initial load
+      // Автоматично скролиране до долу само при първоначално зареждане
       const shouldScrollToBottom = !messagesContainerRef.current || 
         messagesContainerRef.current.scrollTop === 0;
         
@@ -1078,9 +1078,9 @@ const Chat = () => {
         scrollToBottom();
       }
     }
-  }, [selectedChat]); // Only trigger on chat change, not on every message update
+  }, [selectedChat]); // Задейства се само при промяна на чата, не при всяка актуализация на съобщенията
 
-  // Function to scroll to the bottom of chat (defined as useCallback)
+  // Функция за скролиране до дъното на чата (дефинирана като useCallback)
   const scrollToBottom = useCallback((options = { smooth: true }) => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ 
@@ -1088,7 +1088,7 @@ const Chat = () => {
         block: 'end'
       });
     }
-  }, []); // Empty dependency array since messagesEndRef is a ref object
+  }, []); // Празен масив от зависимости, тъй като messagesEndRef е обект на референция
 
   const fetchChats = async () => {
     try {
@@ -1113,10 +1113,10 @@ const Chat = () => {
     try {
       setMessagesLoading(true);
       
-      // Build the request URL with pagination parameters
+      // Изграждане на URL на заявката с параметри за пагинация
       let url = `/chats/${chatId}/messages/`;
       const params = new URLSearchParams();
-      params.append('limit', 20); // Load 20 messages at a time
+      params.append('limit', 20); // Зареждане на 20 съобщения наведнъж
       
       if (before_id) {
         params.append('before_id', before_id);
@@ -1127,44 +1127,44 @@ const Chat = () => {
       const response = await API.get(url);
       const newMessages = response.data;
       
-      // Sort messages by created_at timestamp (oldest first)
+      // Сортиране на съобщенията по времеви маркер created_at (най-старите първи)
       const sortedMessages = [...newMessages].sort((a, b) => {
         return new Date(a.created_at) - new Date(b.created_at);
       });
       
       if (reset) {
-        // Set messages first
+        // Първо задаване на съобщенията
         setMessages(sortedMessages);
-        setHasMoreMessages(newMessages.length === 20); // If we got fewer than requested, there are no more
+        setHasMoreMessages(newMessages.length === 20); // Ако сме получили по-малко от поисканите, няма повече
         
-        // Use a longer timeout to ensure DOM has updated before scrolling
-        // This is critical for proper positioning
+        // Използване на по-дълъг таймаут, за да се уверим, че DOM е актуализиран преди скролиране
+        // Това е от решаващо значение за правилното позициониране
         setTimeout(() => {
-          // First try using scrollToBottom
+          // Първо опитайте да използвате scrollToBottom
           scrollToBottom({ smooth: false });
           
-          // As a backup, also directly set the scroll position
+          // Като резервен вариант, също директно задайте позицията на скролиране
           if (messagesContainerRef.current) {
             messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
           }
         }, 50);
         
-        // Mark messages as read when loading a chat
+        // Маркиране на съобщенията като прочетени при зареждане на чат
         if (selectedChat) {
           markChatAsRead(selectedChat.id);
         }
       } else {
-        // Save current scroll position and height before adding new messages
+        // Запазване на текущата позиция на скролиране и височина преди добавяне на нови съобщения
         const container = messagesContainerRef.current;
         const scrollHeight = container ? container.scrollHeight : 0;
         const scrollPosition = container ? container.scrollTop : 0;
         
-        // Sort all messages to ensure correct chronological order
+        // Сортиране на всички съобщения, за да се осигури правилен хронологичен ред
         setMessages(prevMessages => {
-          // Combine old and new messages
+          // Комбиниране на стари и нови съобщения
           const combinedMessages = [...sortedMessages, ...prevMessages];
           
-          // Sort all messages by timestamp
+          // Сортиране на всички съобщения по времеви маркер
           return combinedMessages.sort((a, b) => {
             return new Date(a.created_at) - new Date(b.created_at);
           });
@@ -1174,11 +1174,11 @@ const Chat = () => {
         
         setTimeout(() => {
           if (container) {
-            // Calculate how much new content was added
+            // Изчисляване колко ново съдържание е добавено
             const newScrollHeight = container.scrollHeight;
             const heightDifference = newScrollHeight - scrollHeight;
             
-            // Adjust scroll position to keep the same messages in view
+            // Коригиране на позицията на скролиране, за да се запазят същите съобщения в изгледа
             container.scrollTop = scrollPosition + heightDifference;
           }
         }, 50);
@@ -1191,22 +1191,22 @@ const Chat = () => {
       setOlderMessagesLoading(false);
     }
     
-    // Return a resolved promise to allow chaining in loadMoreMessages
+    // Връщане на разрешено обещание, за да се позволи верижно извикване в loadMoreMessages
     return Promise.resolve();
   };
   
-  // Function to load more (older) messages
+  // Функция за зареждане на повече (по-стари) съобщения
   const loadMoreMessages = () => {
     if (!selectedChat || olderMessagesLoading || !hasMoreMessages) return;
     
     setOlderMessagesLoading(true);
     
-    // Get the oldest message ID we currently have
+    // Вземане на ID на най-старото съобщение, което имаме в момента
     const oldestMessage = messages.length > 0 ? messages[0] : null;
     const before_id = oldestMessage ? oldestMessage.id : null;
     
     if (before_id) {
-      // Fetch older messages
+      // Извличане на по-стари съобщения
       fetchMessages(selectedChat.id, { reset: false, before_id });
     } else {
       setOlderMessagesLoading(false);
@@ -1314,14 +1314,14 @@ const Chat = () => {
   // Function to check for new messages in all chats (for notification)
   const checkAllChatsForNewMessages = async () => {
     try {
-      // Get updated list of chats with unread counts
+      // Получаване на актуализиран списък на чатове с непрочетени
       const response = await API.get('/chats/');
       const updatedChats = response.data;
       
-      // Update chat list without changing selected chat
+      // Актуализиране на списъка с чатове без промяна на избрания чат
       setChats(updatedChats);
       
-      // Create a map of chat IDs with unread messages
+      // Създаване на карта на ID на чатове с непрочетени съобщения
       const unreadMap = {};
       updatedChats.forEach(chat => {
         if (chat.unread_count > 0) {
@@ -1335,19 +1335,19 @@ const Chat = () => {
     }
   };
 
-  // Add function to mark messages as read
+  // Добавяне на функция за маркиране на съобщения като прочетени
   const markChatAsRead = async (chatId) => {
     try {
       await API.post(`/chats/${chatId}/read/`);
       
-      // Update unread chat count
+      // Актуализиране на броя непрочетени чатове
       setUnreadChats(prev => {
         const updated = {...prev};
         delete updated[chatId];
         return updated;
       });
       
-      // Update chats list to reflect read status
+      // Актуализиране на списъка с чатове, за да отразява статуса на прочитане
       setChats(prev => prev.map(chat => 
         chat.id === chatId 
           ? {...chat, unread_count: 0}
@@ -1359,20 +1359,20 @@ const Chat = () => {
   };
 
   const handleChatSelect = (chat) => {
-    // Reset state for the new chat
+    // Нулиране на състоянието за новия чат
     setMessages([]);
     setHasMoreMessages(true);
     setSelectedChat(chat);
     setOlderMessagesLoading(false);
     
     if (chat) {
-      // Set loading state while fetching messages
+      // Задаване на състояние на зареждане при извличане на съобщения
       setMessagesLoading(true);
       
-      // Fetch messages for the selected chat
+      // Извличане на съобщения за избрания чат
       fetchMessages(chat.id);
       
-      // Mark chat as read
+      // Маркиране на чата като прочетен
       markChatAsRead(chat.id);
     }
     
@@ -1381,21 +1381,21 @@ const Chat = () => {
     }
   };
 
-  // Add dedicated useEffect for message polling
+  // Добавяне на специален useEffect за анкетиране за съобщения
   useEffect(() => {
-    // Only set up polling when a chat is selected
+    // Настройка на анкетиране само когато е избран чат
     if (selectedChat) {
-      // Clear any existing polling interval
+      // Изчистване на всеки съществуващ интервал на анкетиране
       if (pollingIntervalRef.current) {
         clearInterval(pollingIntervalRef.current);
       }
       
-      // Check for new messages immediately when chat is selected
+      // Проверка за нови съобщения веднага, когато е избран чат
       checkForNewMessages();
       
-      // Set up polling for new messages every 5 seconds
+      // Настройка на анкетиране за нови съобщения на всеки 5 секунди
       pollingIntervalRef.current = setInterval(() => {
-        // Skip polling if user is actively typing in the message input
+        // Пропускане на анкетирането, ако потребителят активно пише в полето за съобщения
         const activeElement = document.activeElement;
         const isTypingMessage = activeElement && 
           (activeElement.classList.contains('message-input') || 
@@ -1404,24 +1404,24 @@ const Chat = () => {
         if (!isTypingMessage) {
           checkForNewMessages();
         }
-      }, 5000); // Less frequent polling to reduce input interference
+      }, 5000); // По-рядко анкетиране за намаляване на смущенията при въвеждане
     }
     
-    // Clean up when chat changes or component unmounts
+    // Почистване при промяна на чата или демонтиране на компонента
     return () => {
       if (pollingIntervalRef.current) {
         clearInterval(pollingIntervalRef.current);
         pollingIntervalRef.current = null;
       }
     };
-  }, [selectedChat, checkForNewMessages]); // Include checkForNewMessages in dependencies
+  }, [selectedChat, checkForNewMessages]); // Включване на checkForNewMessages в зависимостите
 
-  // Also add less frequent polling for all chats
+  // Добавяне и на по-рядко анкетиране за всички чатове
   useEffect(() => {
-    // Initial polling setup when component mounts
+    // Първоначална настройка на анкетирането при монтиране на компонента
     const allChatsPollingInterval = setInterval(() => {
       if (isLoggedIn) {
-        // Skip polling if user is actively typing in the message input
+        // Пропускане на анкетирането, ако потребителят активно пише в полето за съобщения
         const activeElement = document.activeElement;
         const isTypingMessage = activeElement && 
           (activeElement.classList.contains('message-input') || 
@@ -1431,9 +1431,9 @@ const Chat = () => {
           checkAllChatsForNewMessages();
         }
       }
-    }, 10000); // Check all chats every 10 seconds
+    }, 10000); // Проверка на всички чатове на всеки 10 секунди
     
-    // Clean up on unmount
+    // Почистване при демонтиране
     return () => {
       clearInterval(allChatsPollingInterval);
       if (pollingIntervalRef.current) {
@@ -1474,7 +1474,7 @@ const Chat = () => {
     return () => clearTimeout(delayDebounceFn);
   }, [searchQuery]);
 
-  // Clean up any open menus or pickers when chat changes
+  // Почистване на всички отворени менюта или селектори при промяна на чата
   useEffect(() => {
     setMessageMenuAnchorEl(null);
     setSelectedMessageForMenu(null);
@@ -1483,10 +1483,10 @@ const Chat = () => {
     setReplyTo(null);
   }, [selectedChat]);
 
-  // Add a cleanup effect for when the component unmounts
+  // Добавяне на ефект за почистване при демонтиране на компонента
   useEffect(() => {
     return () => {
-      // Clean up any open menus or pickers
+      // Почистване на всички отворени менюта или селектори
       setMessageMenuAnchorEl(null);
       setSelectedMessageForMenu(null);
       setEditingMessage(null);
@@ -1495,18 +1495,18 @@ const Chat = () => {
     };
   }, []);
 
-  // Custom hook for message scroll behavior
+  // Потребителски хук за поведение при скролиране на съобщенията
   useEffect(() => {
-    // Only scroll to bottom when messages change if we're not loading older messages
+    // Скролиране до дъното само когато съобщенията се променят, ако не зареждаме по-стари съобщения
     if (messages.length > 0 && !olderMessagesLoading) {
-      // If this is triggered by loading older messages, don't scroll
+      // Ако това е предизвикано от зареждане на по-стари съобщения, не скролирайте
       if (olderMessagesLoading) return;
       
-      // Only auto-scroll if it was a user sent message or we're at the bottom already
+      // Автоматично скролиране само ако това е съобщение, изпратено от потребителя, или вече сме на дъното
       const isUserSentMessage = messages.length > 0 && 
                                messages[messages.length - 1].sender === username;
       
-      // Only scroll automatically if user sent a message or is already at the bottom
+      // Скролиране автоматично само ако потребителят е изпратил съобщение или вече е на дъното
       if (isUserSentMessage || isUserAtBottom()) {
         setTimeout(() => {
           scrollToBottom({ smooth: isUserSentMessage });
@@ -1515,9 +1515,9 @@ const Chat = () => {
     }
   }, [messages, scrollToBottom, username, olderMessagesLoading, isUserAtBottom]);
 
-  // Improved message input focus
+  // Подобрен фокус на полето за въвеждане на съобщения
   useEffect(() => {
-    // Focus the message input when selected chat changes
+    // Фокусиране на полето за въвеждане на съобщения при промяна на избрания чат
     if (selectedChat && messageInputRef.current) {
       messageInputRef.current.focus();
     }
@@ -1615,7 +1615,7 @@ const Chat = () => {
             const lastMessage = chat.last_message;
             const isOwnLastMessage = lastMessage && lastMessage.sender === username;
             
-            // Prepare message preview with status
+            // Подготовка на преглед на съобщението със статус
             let messagePreview;
             
             if (lastMessage) {
@@ -1632,7 +1632,7 @@ const Chat = () => {
               messagePreview = 'New chat';
             }
             
-            // Format last message time
+            // Форматиране на времето на последното съобщение
             const messageTime = lastMessage ? formatMessageTime(lastMessage.created_at) : '';
             
             return (
@@ -1697,7 +1697,7 @@ const Chat = () => {
     </Box>
   );
 
-  // Add this CSS class to ensure the messages container is properly positioned
+  // Добавяне на този CSS клас, за да се гарантира, че контейнерът за съобщения е правилно позициониран
   const messagesContainerStyle = {
     flexGrow: 1,
     overflow: 'auto',
@@ -1705,20 +1705,20 @@ const Chat = () => {
     flexDirection: 'column',
     width: '100%',
     boxSizing: 'border-box',
-    height: '0', // Use auto-sizing based on parent container
-    minHeight: '0', // Allow container to shrink when needed
-    position: 'relative', // Add position relative
+    height: '0', // Използване на автоматично оразмеряване въз основа на родителския контейнер
+    minHeight: '0', // Позволяване на контейнера да се свива при необходимост
+    position: 'relative', // Добавяне на относителна позиция
     padding: '8px 16px',
   };
 
-  // Update renderChatMessages to use these styles
+  // Актуализиране на renderChatMessages, за да използва тези стилове
   const renderChatMessages = () => (
     <Box
       sx={messagesContainerStyle}
       className="messages-container"
       ref={messagesContainerRef}
     >
-      {/* Load More Messages Button */}
+      {/* Бутон за зареждане на повече съобщения */}
       {hasMoreMessages && (
         <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1, mb: 2, flexShrink: 0 }}>
           <Button 
@@ -1733,7 +1733,7 @@ const Chat = () => {
         </Box>
       )}
       
-      {/* Messages container */}
+      {/* Контейнер за съобщения */}
       <Box sx={{ 
         display: 'flex', 
         flexDirection: 'column',
@@ -1772,19 +1772,19 @@ const Chat = () => {
     }
 
     try {
-      // Create FormData
+      // Създаване на FormData
       const formData = new FormData();
       formData.append('content', content.trim());
       
-      // Send the request using the correct API endpoint format
+      // Изпращане на заявката, използвайки правилния формат на API крайната точка
       const response = await API.patch(`/messages/${messageId}/`, formData);
 
-      // Update the message in the state
+      // Актуализиране на съобщението в състоянието
       setMessages(prevMessages => prevMessages.map(msg => 
         msg.id === messageId ? response.data : msg
       ));
 
-      // Reset editing state
+      // Нулиране на състоянието за редактиране
       setEditingMessage(null);
     } catch (error) {
       console.error('Error editing message:', error);
@@ -2119,7 +2119,6 @@ const Chat = () => {
       <Box
         sx={{
           flexGrow: 1,
-          display: 'flex', // Added explicit display flex
           flexDirection: 'column',
           height: '100%', // Full height
           width: isMobile ? '100%' : `calc(100% - ${showUserInfo ? 650 : 350}px)`, // Adjust based on user info panel
