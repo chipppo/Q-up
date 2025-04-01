@@ -20,7 +20,7 @@ const MutualFollowers = ({ username }) => {
   const [loading, setLoading] = useState(true);
   const [showAll, setShowAll] = useState(false);
   
-  // Don't fetch mutual followers if viewing own profile or not logged in
+  // Без извличане на взаимни последователи, ако преглеждате собствения си профил или не сте влезли
   const shouldFetch = isLoggedIn && username !== currentUsername;
 
   useEffect(() => {
@@ -45,12 +45,12 @@ const MutualFollowers = ({ username }) => {
     fetchMutualFollowers();
   }, [username, currentUsername, shouldFetch]);
 
-  // If empty or loading or shouldn't fetch, return null
+  // Ако е празно, зарежда се или не трябва да се извлича, върнете null
   if (!shouldFetch || loading || mutualFollowers.length === 0) {
     return null;
   }
 
-  // Show the whole list or just first 5
+  // Показване на целия списък или само първите 5
   const displayedFollowers = showAll 
     ? mutualFollowers 
     : mutualFollowers.slice(0, 5);

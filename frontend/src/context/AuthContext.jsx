@@ -1,9 +1,9 @@
-// src/context/AuthContext.jsx
+// src/context/AuthContext.jsx - Контекст за автентикация на потребителя
 import React, { createContext, useState, useEffect, useContext } from "react";
 
 const AuthContext = createContext();
 
-// Custom hook to use the auth context
+// Потребителски хук за използване на контекста за автентикация
 const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
@@ -18,7 +18,7 @@ const AuthProvider = ({ children }) => {
   const [followers, setFollowers] = useState([]);
   const [following, setFollowing] = useState([]);
 
-  // Check localStorage on initial load
+  // Проверка на localStorage при първоначално зареждане
   useEffect(() => {
     const accessToken = localStorage.getItem("access");
     const storedUsername = localStorage.getItem("username");
@@ -28,7 +28,7 @@ const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  // Login function
+  // Функция за вход
   const login = (accessToken, refreshToken, username) => {
     localStorage.setItem("access", accessToken);
     localStorage.setItem("refresh", refreshToken);
@@ -37,7 +37,7 @@ const AuthProvider = ({ children }) => {
     setUsername(username);
   };
 
-  // Logout function
+  // Функция за изход
   const logout = (callback) => {
     localStorage.removeItem("access");
     localStorage.removeItem("refresh");
@@ -46,15 +46,15 @@ const AuthProvider = ({ children }) => {
     setUsername("");
     setFollowers([]);
     setFollowing([]);
-    if (callback) callback(); // Call the callback (e.g., navigate to Home)
+    if (callback) callback(); // Извикване на callback функцията (напр. навигация към Home)
   };
 
-  // Function to update followers
+  // Функция за обновяване на последователите
   const updateFollowers = (newFollowers) => {
     setFollowers(newFollowers);
   };
 
-  // Function to update following
+  // Функция за обновяване на следваните
   const updateFollowing = (newFollowing) => {
     setFollowing(newFollowing);
   };

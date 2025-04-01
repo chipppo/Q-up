@@ -28,12 +28,12 @@ function ResetPassword() {
     setError('');
 
     if (newPassword !== confirmPassword) {
-      setError('Passwords do not match');
+      setError('Паролите не съвпадат');
       return;
     }
 
     if (newPassword.length < 8) {
-      setError('Password must be at least 8 characters long');
+      setError('Паролата трябва да е поне 8 символа');
       return;
     }
 
@@ -45,16 +45,16 @@ function ResetPassword() {
       });
 
       setIsSuccess(true);
-      toast.success('Password has been reset successfully!');
+      toast.success('Паролата е успешно нулирана!');
       
-      // Redirect to login after 3 seconds
+      // Пренасочване към входа след 3 секунди
       setTimeout(() => {
         navigate('/login');
       }, 3000);
     } catch (error) {
-      console.error('Password reset error:', error);
-      setError(error.response?.data?.detail || 'Failed to reset password. Please try again.');
-      toast.error('Failed to reset password');
+      console.error('Грешка при нулиране на паролата:', error);
+      setError(error.response?.data?.detail || 'Неуспешно нулиране на паролата. Моля, опитайте отново.');
+      toast.error('Неуспешно нулиране на паролата');
     } finally {
       setIsLoading(false);
     }
@@ -65,20 +65,20 @@ function ResetPassword() {
       <Container maxWidth="sm" sx={{ mt: 8 }}>
         <Paper className="login-form-wrapper">
           <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
-            <img src={logo} alt="Q-up Logo" height="48" />
+            <img src={logo} alt="Q-up Лого" height="48" />
           </Box>
           <Box sx={{ textAlign: 'center' }}>
             <Typography variant="h5" gutterBottom color="primary">
-              Password Reset Successful!
+              Паролата е успешно нулирана!
             </Typography>
             <Typography variant="body1" sx={{ mb: 3 }}>
-              Your password has been reset. You will be redirected to the login page...
+              Вашата парола е нулирана. Ще бъдете пренасочени към страницата за вход...
             </Typography>
             <Button
               variant="contained"
               onClick={() => navigate('/login')}
             >
-              Go to Login
+              Към входа
             </Button>
           </Box>
         </Paper>
@@ -90,20 +90,20 @@ function ResetPassword() {
     <Container maxWidth="sm" sx={{ mt: 8 }}>
       <Paper className="login-form-wrapper">
         <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
-          <img src={logo} alt="Q-up Logo" height="48" />
+          <img src={logo} alt="Q-up Лого" height="48" />
         </Box>
         <Typography variant="h5" gutterBottom align="center">
-          Reset Your Password
+          Нулиране на вашата парола
         </Typography>
         <Typography variant="body1" sx={{ mb: 3 }} align="center" color="text.secondary">
-          Please enter your new password
+          Моля, въведете вашата нова парола
         </Typography>
 
         <form onSubmit={handleSubmit}>
           <TextField
             fullWidth
             type="password"
-            label="New Password"
+            label="Нова парола"
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
             margin="normal"
@@ -112,7 +112,7 @@ function ResetPassword() {
           <TextField
             fullWidth
             type="password"
-            label="Confirm New Password"
+            label="Потвърдете новата парола"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
             margin="normal"
@@ -133,7 +133,7 @@ function ResetPassword() {
             disabled={isLoading}
             sx={{ mt: 3 }}
           >
-            {isLoading ? 'Resetting Password...' : 'Reset Password'}
+            {isLoading ? 'Нулиране на паролата...' : 'Нулиране на паролата'}
           </Button>
         </form>
       </Paper>

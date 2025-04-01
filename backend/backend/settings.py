@@ -14,7 +14,7 @@ from datetime import timedelta
 from pathlib import Path
 import os
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
+# Път до коренната директория на проекта
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
@@ -29,10 +29,8 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
+#модел за потребители вместо стандартния
 AUTH_USER_MODEL = 'base.MyUser'
-
-
-# Application definition
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -47,13 +45,14 @@ INSTALLED_APPS = [
     'base'
 ]
 
-# settings.py
+# Настройки на АПИ за JWT автентикация
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ],
 }
 
+# Настройки на JWT токени
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(hours=1),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
@@ -76,15 +75,20 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
+# Разрешава CORS заявки от всички домейни - опасно 
 CORS_ALLOW_ALL_ORIGINS = True
 
+# Разрешава изпращане на credentials (cookies, auth headers) при CORS заявки
 CORS_ALLOW_CREDENTIALS = True
 
+# Настройки за медийни файлове (качени от потребители)
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
+# Основен URL конфигурационен файл
 ROOT_URLCONF = 'backend.urls'
 
+# Настройки на шаблони
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
@@ -104,9 +108,7 @@ TEMPLATES = [
 WSGI_APPLICATION = 'backend.wsgi.application'
 
 
-# Database
-# https://docs.djangoproject.com/en/5.1/ref/settings/#databases
-
+# Настройки на база данни
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
@@ -115,9 +117,7 @@ DATABASES = {
 }
 
 
-# Password validation
-# https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
-
+#правила за сигурност
 AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
@@ -134,9 +134,7 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
-# Internationalization
-# https://docs.djangoproject.com/en/5.1/topics/i18n/
-
+#интернационализация
 LANGUAGE_CODE = 'en-us'
 
 TIME_ZONE = 'UTC'
@@ -145,25 +143,15 @@ USE_I18N = True
 
 USE_TZ = True
 
-
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.1/howto/static-files/
-
 STATIC_URL = 'static/'
 
-# Default primary key field type
-# https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
-
+# Тип на първичния ключ по подразбиране
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Frontend URL for password reset
+# URL на фронтенд частта за възстановяване на пароли
 FRONTEND_URL = 'http://localhost:5173'  # Update this in production
 
-# Email settings for Gmail
-# To use Gmail, you need to:
-# 1. Enable 2-Step Verification in your Google account
-# 2. Generate an App Password: Google Account > Security > App Passwords
-# 3. Use that App Password below instead of your regular password
+# Настройки на имейл за Gmail
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
@@ -172,5 +160,5 @@ EMAIL_HOST_USER = 'qupbot@gmail.com'  # Replace with your Gmail address
 EMAIL_HOST_PASSWORD = 'aovngiuobwwrlcrz'  # Replace with your app password
 DEFAULT_FROM_EMAIL = 'Q-up Support qupbot@gmail.com'  # Replace with your email
 
-# Password reset settings
-PASSWORD_RESET_TIMEOUT = 3600  # 1 hour timeout for password reset links
+# Време за валидност на линка за възстановяване на парола (в секунди)
+PASSWORD_RESET_TIMEOUT = 3600

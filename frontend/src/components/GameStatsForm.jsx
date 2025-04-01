@@ -40,7 +40,7 @@ const GameStatsForm = ({ username, initialStats, onUpdate }) => {
     rankings: [],
   });
 
-  // Fetch initial data
+  // Извличане на първоначални данни
   useEffect(() => {
     const fetchData = async () => {
       try {

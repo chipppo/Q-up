@@ -1,12 +1,12 @@
-/* Define theme variables */
+/* Дефиниране на променливи на темата */
 :root {
-  /* Main colors */
+  /* Основни цветове */
   --color-bg-primary: #121212;
   --color-bg-secondary: #1E1E1E;
   --color-bg-tertiary: #2A2A2A;
   --color-bg-elevated: #333333;
   
-  /* Accent colors */
+  /* Акцентни цветове */
   --color-primary: #00FFAA;
   --color-primary-light: #33FFBB;
   --color-primary-dark: #00CC88;
@@ -15,17 +15,17 @@
   --color-secondary-light: #FF33BB;
   --color-secondary-dark: #CC0088;
   
-  /* Functional colors */
+  /* Функционални цветове */
   --color-success: #00E676;
   --color-warning: #FFD600;
   --color-error: #FF1744;
   
-  /* Text colors */
+  /* Цветове на текста */
   --color-text-primary: #FFFFFF;
   --color-text-secondary: #AAAAAA;
   --color-text-tertiary: #777777;
   
-  /* Border and shadow */
+  /* Рамки и сенки */
   --border-radius: 8px;
   --box-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
   --box-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
@@ -33,13 +33,13 @@
   --glow-primary: 0 0 10px rgba(0, 255, 170, 0.5);
   --glow-secondary: 0 0 10px rgba(255, 0, 170, 0.5);
   
-  /* Transitions */
+  /* Преходи */
   --transition-fast: 0.2s ease;
   --transition-normal: 0.3s ease;
   --transition-slow: 0.5s ease;
 }
 
-/* Reset some basic styles */
+/* Нулиране на някои основни стилове */
 * {
   margin: 0;
   padding: 0;
@@ -68,7 +68,7 @@ a:hover {
   color: var(--color-primary-light);
 }
 
-/* Scrollbar styling */
+/* Стилизиране на скролбара */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -87,7 +87,7 @@ a:hover {
   background: #777;
 }
 
-/* Basic button styling */
+/* Основно стилизиране на бутони */
 button {
   background-color: var(--color-primary);
   color: var(--color-bg-primary);
@@ -114,7 +114,7 @@ button.secondary:hover {
   box-shadow: var(--glow-secondary);
 }
 
-/* Input styling */
+/* Стилизиране на полета за въвеждане */
 input, textarea, select {
   background-color: var(--color-bg-tertiary);
   color: var(--color-text-primary);
@@ -130,7 +130,7 @@ input:focus, textarea:focus, select:focus {
   box-shadow: 0 0 0 2px rgba(0, 255, 170, 0.2);
 }
 
-/* Card styling */
+/* Стилизиране на карти */
 .card {
   background-color: var(--color-bg-secondary);
   border-radius: var(--border-radius);

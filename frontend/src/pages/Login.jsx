@@ -30,31 +30,31 @@ function Login() {
 
   const validateUsername = (value) => {
     if (!value.trim()) {
-      return "Username is required";
+      return "Потребителското име е задължително";
     }
     if (value.length < 3) {
-      return "Username must be at least 3 characters long";
+      return "Потребителското име трябва да е поне 3 символа";
     }
     if (value.length > 30) {
-      return "Username must be less than 30 characters";
+      return "Потребителското име трябва да е по-малко от 30 символа";
     }
     return "";
   };
 
   const validatePassword = (value) => {
     if (!value) {
-      return "Password is required";
+      return "Паролата е задължителна";
     }
     return "";
   };
 
   const validateEmail = (value) => {
     if (!value.trim()) {
-      return "Email is required";
+      return "Имейлът е задължителен";
     }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(value)) {
-      return "Please enter a valid email address";
+      return "Моля, въведете валиден имейл адрес";
     }
     return "";
   };
@@ -96,7 +96,7 @@ function Login() {
     e.preventDefault();
     setError("");
     
-    // Validate form fields
+    // Валидация на полетата във формуляра
     const usernameError = validateUsername(username);
     const passwordError = validatePassword(password);
     
@@ -116,15 +116,15 @@ function Login() {
       const { access, refresh } = response.data;
       
       login(access, refresh, username);
-      console.log("Login successful for:", username);
+      console.log("Успешно влизане за:", username);
       
       const destination = location.state?.from || "/dashboard";
-      toast.success(`Welcome back, ${username}!`);
+      toast.success(`Добре дошли отново, ${username}!`);
       navigate(destination, { replace: true });
     } catch (error) {
-      console.error('Login error:', error);
-      setError(error.response?.data?.detail || 'Login failed. Please try again.');
-      toast.error('Login failed. Please check your credentials.');
+      console.error('Грешка при влизане:', error);
+      setError(error.response?.data?.detail || 'Неуспешно влизане. Моля, опитайте отново.');
+      toast.error('Неуспешно влизане. Моля, проверете данните си.');
     } finally {
       setIsLoading(false);
     }
@@ -134,7 +134,7 @@ function Login() {
     e.preventDefault();
     setError("");
     
-    // Validate email
+    // Валидация на имейл
     const emailError = validateEmail(email);
     if (emailError) {
       setValidationErrors({
@@ -149,11 +149,11 @@ function Login() {
     try {
       await API.post("/password-reset/", { email });
       setResetSent(true);
-      toast.success("Password reset instructions have been sent to your email");
+      toast.success("Инструкции за нулиране на паролата са изпратени на вашия имейл");
     } catch (error) {
-      console.error('Password reset error:', error);
-      setError(error.response?.data?.detail || 'Failed to send reset instructions. Please try again.');
-      toast.error('Failed to send reset instructions');
+      console.error('Грешка при нулиране на паролата:', error);
+      setError(error.response?.data?.detail || 'Неуспешно изпращане на инструкции за нулиране. Моля, опитайте отново.');
+      toast.error('Неуспешно изпращане на инструкции за нулиране');
     } finally {
       setIsLoading(false);
     }
@@ -164,23 +164,23 @@ function Login() {
       <div className="login-container">
         <div className="login-form-wrapper">
           <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
-            <img src={logo} alt="Q-up Logo" height="48" />
+            <img src={logo} alt="Q-up Лого" height="48" />
           </Box>
           <div className="login-header">
-            <h2>Reset Password</h2>
-            <p>Enter your email to receive reset instructions</p>
+            <h2>Нулиране на паролата</h2>
+            <p>Въведете вашия имейл, за да получите инструкции за нулиране</p>
           </div>
 
           {resetSent ? (
             <div className="success-message">
-              <p>Password reset instructions have been sent to your email.</p>
+              <p>Инструкции за нулиране на паролата са изпратени на вашия имейл.</p>
               <Button 
                 onClick={() => setShowForgotPassword(false)}
                 variant="outlined"
                 fullWidth
                 sx={{ mt: 2 }}
               >
-                Return to Login
+                Връщане към входа
               </Button>
             </div>
           ) : (
@@ -188,7 +188,7 @@ function Login() {
               <div className="form-group">
                 <input
                   type="email"
-                  placeholder="Email"
+                  placeholder="Имейл"
                   value={email}
                   onChange={handleEmailChange}
                   required
@@ -210,7 +210,7 @@ function Login() {
                 className={`login-button ${isLoading ? 'loading' : ''}`}
                 disabled={isLoading}
               >
-                {isLoading ? 'Sending...' : 'Send Reset Instructions'}
+                {isLoading ? 'Изпращане...' : 'Изпрати инструкции за нулиране'}
               </button>
 
               <button 
@@ -222,7 +222,7 @@ function Login() {
                   setError("");
                 }}
               >
-                Back to Login
+                Обратно към входа
               </button>
             </form>
           )}
@@ -235,16 +235,16 @@ function Login() {
     <div className="login-container">
       <div className="login-form-wrapper">
         <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
-          <img src={logo} alt="Q-up Logo" height="48" />
+          <img src={logo} alt="Q-up Лого" height="48" />
         </Box>
         <div className="login-header">
-          <h2>Welcome Back</h2>
-          <p>Sign in to continue to Q-up</p>
+          <h2>Добре дошли отново</h2>
+          <p>Влезте, за да продължите към Q-up</p>
         </div>
 
       {location.state?.from && (
         <div className="redirect-message">
-          <p>Please log in to continue to the requested page.</p>
+          <p>Моля, влезте, за да продължите към поисканата страница.</p>
         </div>
       )}
 
@@ -252,7 +252,7 @@ function Login() {
           <div className="form-group">
             <input
               type="text"
-              placeholder="Username"
+              placeholder="Потребителско име"
               value={username}
               onChange={handleUsernameChange}
               required
@@ -267,7 +267,7 @@ function Login() {
           <div className="form-group">
             <input
               type="password"
-              placeholder="Password"
+              placeholder="Парола"
               value={password}
               onChange={handlePasswordChange}
               required
@@ -289,7 +289,7 @@ function Login() {
                 setError("");
               }}
             >
-              Forgot Password?
+              Забравена парола?
             </button>
           </div>
 
@@ -304,13 +304,13 @@ function Login() {
             className={`login-button ${isLoading ? 'loading' : ''}`}
             disabled={isLoading}
           >
-            {isLoading ? 'Signing in...' : 'Sign In'}
+            {isLoading ? 'Влизане...' : 'Вход'}
           </button>
       </form>
 
         <div className="register-link">
-          Don't have an account?
-          <Link to="/register" state={location.state}>Register here</Link>
+          Нямате акаунт?
+          <Link to="/register" state={location.state}>Регистрирайте се тук</Link>
         </div>
       </div>
     </div>

@@ -1,4 +1,4 @@
-// src/components/Header.jsx
+// src/components/Header.jsx - Компонент за горен колонтитул (хедър)
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -36,7 +36,7 @@ import API from "../api/axios";
 import "./Header.css";
 import logo from "../assets/qup-logo.svg";
 
-// Function to generate a color from a string
+// Функция за генериране на цвят от низ
 const stringToColor = (string) => {
   if (!string) return '#000000';
   let hash = 0;
@@ -51,7 +51,7 @@ const stringToColor = (string) => {
   return color;
 };
 
-// Utility function to safely format image URLs
+// Помощна функция за безопасно форматиране на URL адреси на изображения
 const formatImageUrl = (url) => {
   if (!url) return null;
   if (url.startsWith('http')) return url;
@@ -76,16 +76,16 @@ const Header = () => {
     }
   }, [isLoggedIn, username]);
 
-  // Check for unread messages
+  // Проверка за непрочетени съобщения
   useEffect(() => {
     if (isLoggedIn) {
-      // Set up polling to check for unread messages
-      const interval = setInterval(checkUnreadMessages, 10000); // Check every 10 seconds
+      // Настройка на анкетиране за проверка на непрочетени съобщения
+      const interval = setInterval(checkUnreadMessages, 10000); // Проверка на всеки 10 секунди
       
-      // Run initial check
+      // Изпълняване на първоначална проверка
       checkUnreadMessages();
       
-      // Cleanup on unmount
+      // Почистване при демонтиране
       return () => clearInterval(interval);
     }
   }, [isLoggedIn]);
@@ -95,7 +95,7 @@ const Header = () => {
       const response = await API.get('/chats/');
       const chats = response.data;
       
-      // Check if any chat has unread messages
+      // Проверка дали някой чат има непрочетени съобщения
       const hasUnread = chats.some(chat => chat.unread_count > 0);
       setHasUnreadMessages(hasUnread);
     } catch (error) {

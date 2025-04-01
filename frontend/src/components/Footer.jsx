@@ -1,4 +1,4 @@
-// src/components/Footer.jsx
+// src/components/Footer.jsx - Компонент за долен колонтитул (футър)
 
 import React from "react";
 import { Box, Typography, Container, Link } from "@mui/material";

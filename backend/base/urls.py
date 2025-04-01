@@ -39,6 +39,7 @@ from .views import (
     MessageStatusView,
 )
 
+# Всички API крайни точки
 urlpatterns = [
     path('users/<str:username>/', UserDetailView.as_view(), name='user-detail'),
     path('register/', RegisterUserView.as_view(), name='register'),
@@ -78,5 +79,6 @@ urlpatterns = [
     path('users/<str:username>/mutual-followers/', MutualFollowersView.as_view(), name='mutual-followers'),
 ]
 
+# Добавя медийни файлове в режим на разработка
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -27,7 +27,7 @@ const FollowSuggestions = ({ username, limit = 3 }) => {
   const [followingStatus, setFollowingStatus] = useState({});
   const [hasMore, setHasMore] = useState(false);
   
-  // Only show suggestions for the logged-in user's profile
+  // Показване на предложения само за профила на влезлия потребител
   const isOwnProfile = username === currentUsername;
   const shouldFetch = isLoggedIn && isOwnProfile;
 
@@ -41,14 +41,14 @@ const FollowSuggestions = ({ username, limit = 3 }) => {
       try {
         setLoading(true);
         
-        // For now, we'll just use a simple search to get some users
-        // In a real implementation, you'd want a dedicated endpoint for suggestions
-        // based on mutual followers, similar games, etc.
+        // Засега ще използваме просто търсене, за да получим някои потребители
+        // В реална имплементация бихте искали отделна крайна точка за предложения
+        // базирани на взаимни последователи, подобни игри и т.н.
         const response = await API.get('/search/?query=&type=user');
         
-        // Filter out the current user and users already followed
+        // Филтриране на текущия потребител и потребители, които вече са последвани
         if (response.data && Array.isArray(response.data)) {
-          // Get current user's following list to filter out
+          // Получаване на списъка на следваните от текущия потребител за филтриране
           const followingResponse = await API.get(`/users/${username}/following/`);
           const followingUsernames = followingResponse.data.map(user => user.username);
           
@@ -60,7 +60,7 @@ const FollowSuggestions = ({ username, limit = 3 }) => {
           setSuggestions(filteredUsers.slice(0, limit + 1));
           setHasMore(filteredUsers.length > limit);
           
-          // Initialize all as not followed
+          // Инициализиране на всички като неследвани
           const initialStatus = {};
           filteredUsers.forEach(user => {
             initialStatus[user.username] = false;
@@ -79,7 +79,7 @@ const FollowSuggestions = ({ username, limit = 3 }) => {
   }, [username, currentUsername, shouldFetch, limit]);
 
   const handleFollowToggle = async (targetUsername) => {
-    // Optimistic update
+    // Оптимистично обновяване
     setFollowingStatus(prev => ({
       ...prev,
       [targetUsername]: true
@@ -89,10 +89,10 @@ const FollowSuggestions = ({ username, limit = 3 }) => {
       await API.post(`/users/${targetUsername}/follow/`);
       toast.success(`Now following ${targetUsername}`);
       
-      // Remove from suggestions after following
+      // Премахване от предложенията след последване
       setSuggestions(prev => prev.filter(user => user.username !== targetUsername));
     } catch (error) {
-      // Revert on error
+      // Връщане на предишното състояние при грешка
       setFollowingStatus(prev => ({
         ...prev,
         [targetUsername]: false

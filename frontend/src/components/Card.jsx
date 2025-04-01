@@ -1,4 +1,4 @@
-// src/components/Card.jsx
+// src/components/Card.jsx - Компонент за карта
 
 import React from "react";
 

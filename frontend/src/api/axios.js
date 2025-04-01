@@ -1,4 +1,4 @@
-// src/api/axios.js
+// src/api/axios.js - Конфигурация на Axios за API заявки
 import axios from 'axios';
 
 const API = axios.create({
@@ -19,7 +19,7 @@ const processQueue = (error, token = null) => {
   failedQueue = [];
 };
 
-// Add a request interceptor to include the JWT token in all requests
+// Добавяне на интерцептор за заявки, за да включи JWT токена във всички заявки
 API.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('access');
@@ -33,13 +33,13 @@ API.interceptors.request.use(
   }
 );
 
-// Add a response interceptor to handle token refresh
+// Добавяне на интерцептор за отговори, за да обработва обновяването на токена
 API.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
 
-    // If the error is not 401 or the request was for refreshing token, reject
+    // Ако грешката не е 401 или заявката е била за обновяване на токена, отхвърлете
     if (!error.response || error.response.status !== 401 || originalRequest.url === '/token/refresh/') {
       return Promise.reject(error);
     }
@@ -56,16 +56,16 @@ API.interceptors.response.use(
         const { access } = response.data;
         localStorage.setItem('access', access);
 
-        // Update the original request's Authorization header
+        // Обновяване на заглавката Authorization на оригиналната заявка
         originalRequest.headers.Authorization = `Bearer ${access}`;
         
-        // Process any requests that were queued
+        // Обработка на всички заявки, които са били на опашка
         processQueue(null, access);
         
         return API(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError, null);
-        // Clear tokens and redirect to login
+        // Изчистване на токените и пренасочване към входа
         localStorage.removeItem('access');
         localStorage.removeItem('refresh');
         localStorage.removeItem('username');
@@ -76,7 +76,7 @@ API.interceptors.response.use(
       }
     }
 
-    // Queue the failed request
+    // Поставяне на неуспешната заявка на опашка
     return new Promise((resolve, reject) => {
       failedQueue.push({ resolve, reject });
     }).then(token => {
