@@ -31,5 +31,3 @@ python manage.py runserver
 cd frontend
 npm install
 npm run dev//run server
-npm install @emotion/react @emotion/styled @mui/icons-material @mui/material @mui/x-date-pickers
-npm install dayjs formik jwt-decode react-hot-toast react-toastify yup
