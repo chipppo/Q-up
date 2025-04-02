@@ -1,0 +1,50 @@
+.edit-message-form {
+  padding: 12px;
+  border-top: 1px solid var(--color-border);
+  background-color: rgba(0, 0, 0, 0.04);
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.edit-message-input .MuiOutlinedInput-root {
+  background-color: var(--color-bg-paper);
+  border-radius: 8px;
+}
+
+.edit-message-input .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
+  border-color: var(--color-primary);
+  border-width: 2px;
+}
+
+.edit-message-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.edit-message-actions .MuiButton-contained {
+  background-color: var(--color-primary);
+  color: var(--color-text-on-primary);
+}
+
+.edit-message-actions .MuiButton-contained:hover {
+  background-color: var(--color-primary-dark);
+}
+
+.edit-message-actions .MuiButton-outlined {
+  border-color: var(--color-border);
+  color: var(--color-text-secondary);
+}
+
+.edit-message-actions .MuiButton-outlined:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+  border-color: var(--color-text-secondary);
+}
+
+@media (max-width: 768px) {
+  .edit-message-form {
+    padding: 8px;
+  }
+} 

@@ -1,0 +1,201 @@
+.post-card {
+  background-color: var(--color-bg-paper);
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+}
+
+.post-header {
+  display: flex;
+  align-items: center;
+  padding: 1rem;
+  position: relative;
+}
+
+.post-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  margin-right: 0.75rem;
+  cursor: pointer;
+}
+
+.post-user-info {
+  flex: 1;
+}
+
+.post-author {
+  font-weight: 600;
+  display: block;
+  margin-bottom: 0.25rem;
+  text-decoration: none;
+  color: var(--color-text-primary);
+}
+
+.post-author:hover {
+  text-decoration: underline;
+}
+
+.post-date {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.post-options {
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  background: transparent;
+  border: none;
+  padding: 0.25rem;
+  transition: color 0.2s;
+}
+
+.post-options:hover {
+  color: var(--color-text-primary);
+}
+
+.post-content {
+  padding: 0 1rem 1rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.post-game-mention {
+  display: flex;
+  align-items: center;
+  background-color: var(--color-bg-secondary);
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  margin: 0.5rem 1rem 1rem;
+}
+
+.post-game-thumbnail {
+  width: 40px;
+  height: 40px;
+  border-radius: 4px;
+  margin-right: 0.75rem;
+  object-fit: cover;
+}
+
+.post-game-info {
+  flex: 1;
+}
+
+.post-game-title {
+  font-weight: 500;
+  display: block;
+  text-decoration: none;
+  color: var(--color-text-primary);
+}
+
+.post-game-title:hover {
+  text-decoration: underline;
+}
+
+.post-game-platform {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.post-image-container {
+  width: 100%;
+  max-height: 500px;
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+.post-image {
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  cursor: pointer;
+}
+
+.post-footer {
+  display: flex;
+  padding: 0.5rem 1rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.post-action {
+  display: flex;
+  align-items: center;
+  margin-right: 1.5rem;
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  transition: color 0.2s;
+  background: transparent;
+  border: none;
+  padding: 0.25rem;
+}
+
+.post-action:hover {
+  color: var(--color-primary);
+}
+
+.post-action.liked {
+  color: var(--color-primary);
+}
+
+.post-action-icon {
+  margin-right: 0.25rem;
+}
+
+.post-comments-container {
+  border-top: 1px solid var(--color-border);
+  padding: 1rem;
+}
+
+.post-comment-form {
+  display: flex;
+  margin-bottom: 1rem;
+}
+
+.post-comment-input {
+  flex: 1;
+  padding: 0.75rem;
+  border-radius: 20px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-bg-secondary);
+  resize: none;
+  margin-right: 0.5rem;
+}
+
+.post-comment-submit {
+  background-color: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: 20px;
+  padding: 0 1rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.post-comment-submit:hover {
+  background-color: var(--color-primary-dark);
+}
+
+.post-comment-submit:disabled {
+  background-color: var(--color-disabled);
+  cursor: not-allowed;
+}
+
+.comment-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.show-more-comments {
+  align-self: center;
+  margin-top: 0.5rem;
+  border: none;
+  background: transparent;
+  color: var(--color-primary);
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.show-more-comments:hover {
+  opacity: 0.8;
+} 

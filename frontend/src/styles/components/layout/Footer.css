@@ -1,0 +1,37 @@
+/* src/styles/components/Footer.css - Styles for the footer component */
+
+.footer {
+  padding: 1.5rem 0;
+  position: relative;
+  background-color: var(--color-bg-paper);
+  border-top: 1px solid var(--color-border);
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.footer-logo {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.footer-copyright {
+  text-align: center;
+  color: var(--color-text-secondary);
+}
+
+.footer-links {
+  margin-top: 0.5rem;
+  text-align: center;
+}
+
+.footer-link {
+  margin: 0 0.5rem;
+  color: var(--color-primary);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.footer-link:hover {
+  opacity: 0.8;
+  text-decoration: underline;
+} 

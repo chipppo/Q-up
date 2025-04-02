@@ -149,16 +149,16 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # URL на фронтенд частта за възстановяване на пароли
-FRONTEND_URL = 'http://localhost:5173'  # Update this in production
+FRONTEND_URL = 'http://localhost:5173'
 
 # Настройки на имейл за Gmail
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'qupbot@gmail.com'  # Replace with your Gmail address
-EMAIL_HOST_PASSWORD = 'aovngiuobwwrlcrz'  # Replace with your app password
-DEFAULT_FROM_EMAIL = 'Q-up Support qupbot@gmail.com'  # Replace with your email
+EMAIL_HOST_USER = 'qupbot@gmail.com'
+EMAIL_HOST_PASSWORD = 'aovngiuobwwrlcrz' 
+DEFAULT_FROM_EMAIL = 'Q-up Support qupbot@gmail.com'
 
 # Време за валидност на линка за възстановяване на парола (в секунди)
 PASSWORD_RESET_TIMEOUT = 3600

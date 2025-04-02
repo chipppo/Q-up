@@ -3,8 +3,22 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from .models import MyUser, Game, GameStats, RankSystem, RankTier, PlayerGoal, GameRanking, Post, Like, Comment, Message, Chat
 import json
 
+"""
+Serializers for the Q-up platform.
+
+These convert our Python models into JSON for the API and back again.
+Think of them as translators between what the database understands
+and what the frontend (React) needs to work with.
+"""
+
 # Сериализатор за потребителски данни - преобразува модела в JSON за API
 class UserSerializer(serializers.ModelSerializer):
+    """
+    Handles user profile data conversion.
+    
+    Includes extra calculated fields like follower counts
+    and URLs for the avatar image.
+    """
     followers_count = serializers.SerializerMethodField()
     following_count = serializers.SerializerMethodField()
     date_of_birth = serializers.DateField(format='%d/%m/%Y', input_formats=['%d/%m/%Y'], required=False)
@@ -26,20 +40,30 @@ class UserSerializer(serializers.ModelSerializer):
 
     # Връща брой последователи
     def get_followers_count(self, obj):
+        """Returns how many people follow this user"""
         return obj.followers.count()
 
     # Връща брой профили, които потребителят следва
     def get_following_count(self, obj):
+        """Returns how many people this user follows"""
         return obj.following.count()
 
     # Връща URL на аватара или път към стандартен аватар
     def get_avatar_url(self, obj):
+        """
+        Gets the URL for the user's avatar or returns a default
+        if they haven't uploaded one
+        """
         if obj.avatar:
             return obj.avatar.url
         return '/media/default/default-avatar.svg'
 
     # Валидация на полето active_hours - проверява дали е списък
     def validate_active_hours(self, value):
+        """
+        Makes sure active_hours is a valid list.
+        Tries to convert string JSON into a list if needed.
+        """
         if not isinstance(value, list):
             if isinstance(value, str):
                 try:
@@ -52,6 +76,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     # Валидация на часовата зона - проверява дали е в допустимите граници
     def validate_timezone_offset(self, value):
+        """Checks if timezone offset is within valid range (-12 to +14)"""
         if not -12 <= value <= 14:
             raise serializers.ValidationError("Timezone offset must be between -12 and +14")
         return value
@@ -59,6 +84,11 @@ class UserSerializer(serializers.ModelSerializer):
 
 # Сериализатор за регистрация на нов потребител
 class RegisterUserSerializer(serializers.ModelSerializer):
+    """
+    Handles new user registration.
+    
+    Takes care of securely setting the password when creating a new account.
+    """
     password = serializers.CharField(write_only=True)
 
     class Meta:
@@ -71,6 +101,10 @@ class RegisterUserSerializer(serializers.ModelSerializer):
 
     # Създава нов потребител със сигурна парола
     def create(self, validated_data):
+        """
+        Creates a new user with a properly hashed password.
+        Django handles the password hashing for security.
+        """
         password = validated_data.pop('password')
         user = MyUser(**validated_data)
         user.set_password(password)
@@ -80,7 +114,13 @@ class RegisterUserSerializer(serializers.ModelSerializer):
 
 # Сериализатор за JWT токен при вход в системата
 class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
+    """
+    Creates JWT tokens for user authentication.
+    
+    Adds the username to the token response for easy identification.
+    """
     def validate(self, attrs):
+        """Adds extra info to the token response"""
         data = super().validate(attrs)
         data['username'] = self.user.username
         return data
@@ -88,6 +128,7 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
 
 # Сериализатор за игри
 class GameSerializer(serializers.ModelSerializer):
+    """Simple serializer for game data including name, description and logo"""
     class Meta:
         model = Game
         fields = ['id', 'name', 'description', 'logo']
@@ -95,6 +136,10 @@ class GameSerializer(serializers.ModelSerializer):
 
 # Сериализатор за системи за класиране
 class RankSystemSerializer(serializers.ModelSerializer):
+    """
+    Handles data for ranking systems like CS2's levels or LoL's tiers.
+    Supports both numeric (ELO points) and tier-based systems.
+    """
     class Meta:
         model = RankSystem
         fields = ['id', 'name', 'is_numeric', 'max_numeric_value', 'increment', 'game']
@@ -102,6 +147,10 @@ class RankSystemSerializer(serializers.ModelSerializer):
 
 # Сериализатор за нива на ранг
 class RankTierSerializer(serializers.ModelSerializer):
+    """
+    Handles individual rank tier data like 'Gold', 'Platinum', etc.
+    Used only for non-numeric ranking systems.
+    """
     class Meta:
         model = RankTier
         fields = ['id', 'name', 'order', 'icon']
@@ -109,6 +158,10 @@ class RankTierSerializer(serializers.ModelSerializer):
 
 # Сериализатор за цели на играчите
 class PlayerGoalSerializer(serializers.ModelSerializer):
+    """
+    Serializes player goal data - why people play games 
+    (competitive, casual, etc.)
+    """
     class Meta:
         model = PlayerGoal
         fields = ['id', 'name', 'description']
@@ -116,6 +169,10 @@ class PlayerGoalSerializer(serializers.ModelSerializer):
 
 # Сериализатор за ранг на играч
 class GameRankingSerializer(serializers.ModelSerializer):
+    """
+    Handles a player's rank in a specific game and ranking system.
+    Includes related data for rank system and tier.
+    """
     rank_system = RankSystemSerializer(read_only=True)
     rank = RankTierSerializer(read_only=True)
 
@@ -126,6 +183,12 @@ class GameRankingSerializer(serializers.ModelSerializer):
 
 # Сериализатор за статистики на играч за игра
 class GameStatsSerializer(serializers.ModelSerializer):
+    """
+    Manages a user's stats for a specific game.
+    
+    Includes nested data for the game itself, player goals,
+    and all their rankings in different systems.
+    """
     game = GameSerializer(read_only=True)
     player_goal = PlayerGoalSerializer(read_only=True)
     rankings = GameRankingSerializer(many=True, read_only=True)
@@ -137,12 +200,19 @@ class GameStatsSerializer(serializers.ModelSerializer):
 
     # Валидация - часовете не могат да са отрицателни
     def validate_hours_played(self, value):
+        """Makes sure hours_played isn't negative - you can't play negative hours!"""
         if value < 0:
             raise serializers.ValidationError("Hours played cannot be negative")
         return value
 
     # Създаване на запис за статистика с рангове
     def create(self, validated_data):
+        """
+        Creates game stats with associated rankings.
+        
+        This handles the complex creation of a player's game stats
+        along with their rankings in different systems for that game.
+        """
         rankings_data = self.context.get('rankings', [])
         game_stats = GameStats.objects.create(**validated_data)
         
@@ -170,6 +240,12 @@ class GameStatsSerializer(serializers.ModelSerializer):
 
     # Обновяване на игрова статистика и рангове
     def update(self, instance, validated_data):
+        """
+        Updates game stats and rankings.
+        
+        This handles the complex update of a player's game stats
+        along with their rankings in different systems.
+        """
         rankings_data = self.context.get('rankings', [])
         
         # Update GameStats fields
