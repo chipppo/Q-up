@@ -1,0 +1,129 @@
+.profile-header {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  border-radius: 8px;
+  background-color: var(--color-bg-paper);
+  border: 1px solid var(--color-border);
+}
+
+.profile-top {
+  display: flex;
+  width: 100%;
+  gap: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.profile-avatar {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid var(--color-primary);
+}
+
+.profile-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.profile-name {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.profile-username {
+  font-size: 1rem;
+  color: var(--color-text-secondary);
+  margin-bottom: 0.75rem;
+}
+
+.profile-stats {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+}
+
+.stat-value {
+  font-weight: 600;
+}
+
+.stat-label {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+}
+
+.profile-bio {
+  width: 100%;
+  margin-bottom: 1rem;
+  line-height: 1.5;
+}
+
+.profile-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+  align-self: flex-start;
+}
+
+.edit-profile-button,
+.follow-button,
+.following-button,
+.message-button {
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.edit-profile-button {
+  background-color: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+}
+
+.follow-button {
+  background-color: var(--color-primary);
+  color: white;
+  border: none;
+}
+
+.following-button {
+  background-color: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+}
+
+.message-button {
+  background-color: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+}
+
+@media (max-width: 768px) {
+  .profile-top {
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+  }
+  
+  .profile-info {
+    align-items: center;
+    text-align: center;
+  }
+  
+  .profile-actions {
+    align-self: center;
+  }
+} 

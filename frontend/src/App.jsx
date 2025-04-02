@@ -1,28 +1,41 @@
-// src/App.jsx - Главен компонент на приложението
+/**
+ * Main App component for Q-up
+ * 
+ * This is the root component that sets up all our routing, providers,
+ * and the overall structure of the app. It has our theme configuration,
+ * routing logic, and wraps everything with the necessary providers.
+ */
+
 import { BrowserRouter as Router, Routes, Route, useLocation, createBrowserRouter, RouterProvider } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext.jsx";
-import Home from "./pages/Home";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
-import Dashboard from "./pages/Dashboard";
-import Profile from "./pages/Profile";
-import SearchProfiles from "./pages/SearchProfiles";
-import Feed from "./pages/Feed";
-import ProtectedRoute from "./components/ProtectedRoute";
-import Header from "./components/Header";
-import Footer from "./components/Footer";
-import "./App.css";
+import Home from "./pages/info/Home";
+import Login from "./pages/auth/Login";
+import Register from "./pages/auth/Register";
+import Dashboard from "./pages/dashboard/Dashboard";
+import Profile from "./pages/profile/Profile";
+import SearchProfiles from "./pages/search/SearchProfiles";
+import Feed from "./pages/feed/Feed";
+import ProtectedRoute from "./components/common/ProtectedRoute";
+import Header from "./components/layout/Header";
+import Footer from "./components/layout/Footer";
+import "./styles/global/App.css";
 import { ThemeProvider, createTheme } from '@mui/material';
-import EditProfileForm from "./components/EditProfileForm";
-import Chat from "./pages/Chat";
-import ResetPassword from "./pages/ResetPassword";
-import TermsOfService from "./pages/TermsOfService";
-import Contacts from "./pages/Contacts";
+import EditProfileForm from "./components/profile/EditProfileForm";
+import Chat from "./pages/chat/Chat";
+import ResetPassword from "./pages/auth/ResetPassword";
+import TermsOfService from "./pages/info/TermsOfService";
+import Contacts from "./pages/info/Contacts";
 import { CssBaseline } from '@mui/material';
 import { Box, CircularProgress } from '@mui/material';
 import { Suspense } from 'react';
 
-// Гейминг Неонова Тема
+/**
+ * Our custom gaming neon theme for Material UI
+ * 
+ * This theme has a dark background with neon green/pink highlights,
+ * custom typography, and cool scrollbars. It gives the app that
+ * modern gaming aesthetic.
+ */
 const theme = createTheme({
   palette: {
     mode: 'dark',
@@ -219,7 +232,15 @@ const theme = createTheme({
   },
 });
 
-// Създаване на обвиващ компонент за условно рендериране на футъра
+/**
+ * Inner app content component that handles conditional footer rendering
+ * 
+ * We have this separate component so we can use useLocation() to check
+ * the current route and decide whether to show the footer. The Chat page
+ * doesn't have a footer since it needs all the vertical space.
+ * 
+ * @returns {JSX.Element} The app content with conditional footer
+ */
 const AppContent = () => {
   const location = useLocation();
   const showFooter = location.pathname !== '/chat';
@@ -296,6 +317,17 @@ const AppContent = () => {
   );
 };
 
+/**
+ * The main App component that sets up our app's providers
+ * 
+ * This wraps everything with the necessary providers:
+ * - ThemeProvider: Applies our custom Material UI theme
+ * - CssBaseline: Resets CSS to a consistent baseline
+ * - AuthProvider: Manages user authentication state
+ * - Router: Handles route navigation
+ * 
+ * @returns {JSX.Element} The complete app with all providers
+ */
 function App() {
   return (
     <ThemeProvider theme={theme}>

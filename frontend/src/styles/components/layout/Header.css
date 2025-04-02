@@ -1,0 +1,169 @@
+/* src/styles/components/Header.css - Styles for the header component */
+
+.header {
+  background-color: var(--color-primary);
+  padding: 0.5rem 1rem;
+  color: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+.header-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.header-logo {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  color: inherit;
+}
+
+.header-logo img {
+  margin-right: 0.5rem;
+}
+
+.logo-text {
+  font-weight: bold;
+  font-size: 1.25rem;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.header-nav {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.nav-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: white;
+  text-decoration: none;
+  font-weight: 500;
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.nav-button:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.nav-button-outline {
+  border: 1px solid white;
+}
+
+.nav-button-outline:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.nav-icon {
+  font-size: 1.25rem;
+}
+
+.message-badge {
+  position: relative;
+}
+
+.message-badge::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 8px;
+  height: 8px;
+  background-color: var(--color-error);
+  border-radius: 50%;
+}
+
+.avatar-button {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  margin-left: 0.5rem;
+}
+
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid white;
+  object-fit: cover;
+}
+
+/* Mobile styles */
+.mobile-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.mobile-nav-button {
+  color: white;
+  padding: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.mobile-badge {
+  position: absolute;
+  top: 0.25rem;
+  right: 0.25rem;
+  width: 8px;
+  height: 8px;
+  background-color: var(--color-error);
+  border-radius: 50%;
+}
+
+.avatar-button-mobile {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.user-avatar-mobile {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid white;
+  object-fit: cover;
+}
+
+.mobile-menu-button {
+  background: none;
+  border: none;
+  color: white;
+  padding: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+@media (max-width: 768px) {
+  .header {
+    padding: 0.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .logo-text {
+    font-size: 1.1rem;
+  }
+  
+  .header-logo img {
+    height: 28px;
+  }
+} 

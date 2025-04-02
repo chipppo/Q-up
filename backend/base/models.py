@@ -5,8 +5,18 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 import os
 
+"""
+Models for the Q-up platform - this is where we define all our database stuff.
+The app is for gamers to connect with each other based on their games and ranks.
+"""
+
 # Разширен потребителски модел
 class MyUser(AbstractUser):
+    """
+    Custom user model that extends Django's built-in user.
+    Stores all the profile info about our gamers like their avatar, 
+    games they play, when they're online, etc.
+    """
     
     # Профилни полета
     avatar = models.ImageField(upload_to='profile_pics/', blank=True, null=True)
@@ -72,6 +82,10 @@ class MyUser(AbstractUser):
     
     # Валидация на потребителските данни
     def clean(self):
+        """
+        Validates all the user data before saving to make sure everything's legit.
+        Checks things like date of birth (can't be in the future) and timezone offset.
+        """
         super().clean()
         # Проверка за дата на раждане
         if self.date_of_birth and self.date_of_birth > timezone.now().date():
@@ -93,6 +107,7 @@ class MyUser(AbstractUser):
 
     # Пуска валидации при запис
     def save(self, *args, **kwargs):
+        """Runs validation before saving the user"""
         self.full_clean()
         super().save(*args, **kwargs)
 
@@ -101,10 +116,15 @@ class MyUser(AbstractUser):
         verbose_name_plural = 'Потребители'
 
     def __str__(self):
+        """Returns the username for admin panel and other displays"""
         return self.username  # Показва потребителското име в админ панела
 
 # Игра
 class Game(models.Model):
+    """
+    Stores information about each game in the platform.
+    Simple model with name, description and a logo.
+    """
     name = models.CharField(max_length=100, unique=True)
     description = models.TextField(blank=True, null=True)
     logo = models.ImageField(
@@ -116,22 +136,29 @@ class Game(models.Model):
 
     # Проверка за тип на файла
     def clean(self):
+        """Makes sure the logo is a valid image format"""
         super().clean()
         if self.logo:
             if not self.logo.name.lower().endswith(('.png', '.jpg', '.jpeg', '.gif')):
                 raise ValidationError({'logo': 'Разрешени са само PNG, JPG, JPEG или GIF файлове.'})
 
     def __str__(self):
+        """Shows game name in admin and other displays"""
         return self.name
 
     # Изтрива файла с логото
     def delete(self, *args, **kwargs):
+        """Deletes the logo file when deleting the game to prevent orphaned files"""
         if self.logo:
             self.logo.delete()
         super().delete(*args, **kwargs)
 
 # Ранг система (ELO, рангове)
 class RankSystem(models.Model):
+    """
+    Represents a ranking system for a game (like ranks in CS2, LoL, etc).
+    Can be either tier-based (Bronze, Silver, Gold) or numeric (like ELO points).
+    """
     game = models.ForeignKey(Game, on_delete=models.CASCADE, related_name='rank_systems')
     name = models.CharField(max_length=100)
     is_numeric = models.BooleanField(
@@ -153,6 +180,10 @@ class RankSystem(models.Model):
 
     # Валидация на типа ранг система
     def clean(self):
+        """
+        Makes sure numeric rank systems have required values set and
+        non-numeric systems don't have them to avoid confusion.
+        """
         super().clean()
         if self.is_numeric:
             if not self.max_numeric_value:
@@ -163,6 +194,7 @@ class RankSystem(models.Model):
             raise ValidationError('Нечисловите ранг системи не трябва да имат максимална стойност или стъпка')
 
     def __str__(self):
+        """Shows the game name and rank system name together"""
         return f"{self.game.name} - {self.name}"
 
     class Meta:
@@ -172,6 +204,11 @@ class RankSystem(models.Model):
 
 # Ниво на ранг (злато, диамант)
 class RankTier(models.Model):
+    """
+    Individual ranks within a tier-based ranking system.
+    For example: Bronze, Silver, Gold in League of Legends.
+    Only used for non-numeric rank systems.
+    """
     rank_system = models.ForeignKey(RankSystem, on_delete=models.CASCADE, related_name='ranks')
     name = models.CharField(max_length=100)
     order = models.IntegerField(
@@ -187,6 +224,10 @@ class RankTier(models.Model):
 
     # Само за не-числови системи
     def clean(self):
+        """
+        Validates that this is only used with non-numeric rank systems 
+        and that the icon is a valid image format.
+        """
         super().clean()
         if self.rank_system.is_numeric:
             raise ValidationError('Не може да се създават степенни рангове за числови ранкинг системи')
@@ -195,10 +236,12 @@ class RankTier(models.Model):
                 raise ValidationError({'icon': 'Разрешени са само PNG, JPG, JPEG или GIF файлове.'})
 
     def __str__(self):
+        """Shows the game name and rank name together"""
         return f"{self.rank_system.game.name} - {self.name}"
 
     # Изтрива файла с иконата
     def delete(self, *args, **kwargs):
+        """Removes the icon file when deleting the rank"""
         if self.icon:
             self.icon.delete()
         super().delete(*args, **kwargs)
@@ -209,6 +252,10 @@ class RankTier(models.Model):
 
 # Цел на играча (състезателно, забавление)
 class PlayerGoal(models.Model):
+    """
+    Represents what a player wants to get out of playing a game.
+    Examples: competitive play, casual fun, achievement hunting, etc.
+    """
     name = models.CharField(
         max_length=100,
         unique=True,
@@ -219,6 +266,7 @@ class PlayerGoal(models.Model):
     )
 
     def __str__(self):
+        """Returns the goal name for display"""
         return self.name
 
     class Meta:
@@ -227,6 +275,10 @@ class PlayerGoal(models.Model):
 
 # Статистика за игра на потребител
 class GameStats(models.Model):
+    """
+    Tracks a user's stats for a specific game, like hours played
+    and what their goals are with that game.
+    """
     user = models.ForeignKey(MyUser, on_delete=models.CASCADE, related_name='game_stats')
     game = models.ForeignKey(Game, on_delete=models.CASCADE, related_name='stats')
     hours_played = models.IntegerField(
@@ -242,6 +294,7 @@ class GameStats(models.Model):
     )
 
     def __str__(self):
+        """Shows username and game name together"""
         return f"{self.user.username} - {self.game.name}"
 
     class Meta:

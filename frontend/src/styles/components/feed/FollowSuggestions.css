@@ -1,0 +1,147 @@
+/* FollowSuggestions.css - Styles for follow suggestions component */
+
+.follow-suggestions-container {
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  border-radius: 8px;
+  background-color: var(--color-bg-paper);
+  border: 1px solid var(--color-border);
+}
+
+.follow-suggestions-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.follow-suggestions-title {
+  margin-left: 0.5rem;
+  font-weight: 500;
+  font-size: 1.1rem;
+}
+
+.follow-suggestions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.follow-suggestion-card {
+  display: flex;
+  flex-direction: column;
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  transition: transform 0.2s, box-shadow 0.2s;
+  background-color: var(--color-bg-secondary);
+}
+
+.follow-suggestion-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.follow-suggestion-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.follow-suggestion-avatar {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  margin-bottom: 0.75rem;
+  cursor: pointer;
+  object-fit: cover;
+}
+
+.follow-suggestion-name {
+  text-decoration: none;
+  color: var(--color-text-primary);
+  font-weight: 500;
+  text-align: center;
+  margin-bottom: 0.25rem;
+}
+
+.follow-suggestion-name:hover {
+  color: var(--color-primary);
+}
+
+.follow-suggestion-username {
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+  text-align: center;
+  margin-bottom: 0.5rem;
+}
+
+.follow-suggestion-followers {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  background-color: var(--color-bg-paper);
+  padding: 0.25rem 0.5rem;
+  border-radius: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.follow-suggestion-actions {
+  display: flex;
+  justify-content: center;
+}
+
+.follow-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background-color: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: 20px;
+  padding: 0.5rem 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  width: 100%;
+}
+
+.follow-button:hover {
+  background-color: var(--color-primary-dark);
+}
+
+.follow-button.following {
+  background-color: var(--color-bg-paper);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+}
+
+.follow-icon {
+  font-size: 1rem;
+}
+
+.discover-more-container {
+  margin-top: 1rem;
+  text-align: center;
+}
+
+.discover-more-button {
+  display: inline-block;
+  text-decoration: none;
+  color: var(--color-primary);
+  border: 1px solid var(--color-primary);
+  border-radius: 20px;
+  padding: 0.5rem 1rem;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.discover-more-button:hover {
+  background-color: var(--color-primary);
+  color: white;
+}
+
+@media (max-width: 768px) {
+  .follow-suggestions-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  }
+} 
