@@ -443,12 +443,12 @@ class MessageSerializer(serializers.ModelSerializer):
         model = Message
         fields = [
             'id', 'chat', 'sender', 'content', 'image',
-            'parent', 'is_edited', 'is_read', 'is_delivered',
+            'parent', 'is_read', 'is_delivered',
             'created_at', 'updated_at', 'replies_count', 
             'parent_sender', 'parent_message'
         ]
         read_only_fields = [
-            'id', 'sender', 'is_edited', 'is_read', 'is_delivered',
+            'id', 'sender', 'is_read', 'is_delivered',
             'created_at', 'updated_at', 'replies_count', 
             'parent_sender', 'parent_message'
         ]

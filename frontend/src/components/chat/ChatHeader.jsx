@@ -45,10 +45,9 @@ const formatImageUrl = (url) => {
  * @param {string} props.username - Current user's username
  * @param {boolean} props.isMobile - Whether the device is mobile
  * @param {Function} props.onBackClick - Handler for back button click
- * @param {Function} props.onUserInfoClick - Handler for user info click
  * @returns {JSX.Element|null} The header component or null if no chat selected
  */
-const ChatHeader = ({ selectedChat, username, isMobile, onBackClick, onUserInfoClick }) => {
+const ChatHeader = ({ selectedChat, username, isMobile, onBackClick }) => {
   const navigate = useNavigate();
   
   if (!selectedChat) return null;

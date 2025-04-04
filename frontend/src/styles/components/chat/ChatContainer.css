@@ -142,20 +142,6 @@
   }
 }
 
-/* User info panel */
-.user-info-content {
-  height: 100%;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-}
-
-.active-hour-chip {
-  margin: 4px;
-  background-color: rgba(0, 255, 170, 0.1);
-  border: 1px solid rgba(0, 255, 170, 0.3);
-}
-
 /* Responsive styles */
 @media (max-width: 768px) {
   .chat-page-container {
