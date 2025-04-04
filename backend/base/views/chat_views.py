@@ -351,7 +351,6 @@ class MessageDetailView(APIView):
         
         serializer = MessageSerializer(message, data=request.data, partial=True, context={'request': request})
         if serializer.is_valid():
-            message.is_edited = True  # Mark as edited
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

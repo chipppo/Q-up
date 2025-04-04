@@ -36,7 +36,6 @@ import Message from '../../components/chat/Message';
 import MessageInput from '../../components/chat/MessageInput';
 import EditMessageForm from '../../components/chat/EditMessageForm';
 import ChatHeader from '../../components/chat/ChatHeader';
-import UserInfoPanel from '../../components/chat/UserInfoPanel';
 
 // Import CSS
 import '../../styles/components/chat/ChatContainer.css';
@@ -64,7 +63,6 @@ const Chat = () => {
   // UI state
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [showChatList, setShowChatList] = useState(true);
-  const [showUserInfo, setShowUserInfo] = useState(false);
   const [replyTo, setReplyTo] = useState(null);
   const [editingMessage, setEditingMessage] = useState(null);
   const [highlightedMessageId, setHighlightedMessageId] = useState(null);
@@ -762,7 +760,7 @@ const Chat = () => {
           flexGrow: 1,
           flexDirection: 'column',
           height: '100%', // Full height
-          width: isMobile ? '100%' : `calc(100% - ${showUserInfo ? 650 : 350}px)`, // Adjust based on user info panel
+          width: isMobile ? '100%' : `calc(100% - 350px)`, // Adjust width without user info panel
           display: (!isMobile || selectedChat) ? 'flex' : 'none',
           overflow: 'hidden' // Prevent container overflow
         }}
@@ -777,7 +775,6 @@ const Chat = () => {
                 setSelectedChat(null);
                 setShowChatList(true);
               }}
-              onUserInfoClick={() => setShowUserInfo(!showUserInfo)}
             />
 
             <Box
@@ -865,24 +862,6 @@ const Chat = () => {
           </Box>
         )}
       </Box>
-
-      {/* Right panel - User info */}
-      {showUserInfo && selectedChat && (
-        <Box 
-          sx={{
-            width: isMobile ? '100%' : 300,
-            height: '100%',
-            borderLeft: '1px solid',
-            borderColor: 'divider',
-            display: (showUserInfo && !isMobile) ? 'block' : 'none'
-          }}
-        >
-          <UserInfoPanel 
-            user={selectedChat?.participants.find(p => p.username !== username)}
-            onClose={() => setShowUserInfo(false)}
-          />
-        </Box>
-      )}
 
       {/* Context Menu */}
       <Menu
