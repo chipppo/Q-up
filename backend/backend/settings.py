@@ -27,7 +27,9 @@ SECRET_KEY = 'django-insecure-fh&k6=oa(wn$kx!$senwp)y9f2a-r=cfirgc3h(ghogek827wz
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    '51.20.183.126'
+]
 
 #модел за потребители вместо стандартния
 AUTH_USER_MODEL = 'base.MyUser'
