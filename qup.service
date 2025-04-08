@@ -12,8 +12,8 @@ ExecStart=/home/ubuntu/Q-up/venv/bin/gunicorn \
 
 # Environment variables - REPLACE THESE VALUES on the server
 # DO NOT COMMIT ACTUAL CREDENTIALS to GitHub
-Environment="AWS_ACCESS_KEY_ID=YOUR_AWS_ACCESS_KEY_ID_HERE"
-Environment="AWS_SECRET_ACCESS_KEY=YOUR_AWS_SECRET_ACCESS_KEY_HERE"
+Environment="AWS_ACCESS_KEY_ID=AKIARUOHJW7QHCZVOHFR"
+Environment="AWS_SECRET_ACCESS_KEY=DYxIkdmCY8A+npAo2IKVV8RINjDewdLdeumsjPs3"
 Environment="AWS_STORAGE_BUCKET_NAME=qup-media-files"
 Environment="AWS_S3_REGION_NAME=eu-north-1"
 Environment="DJANGO_SETTINGS_MODULE=backend.settings"
