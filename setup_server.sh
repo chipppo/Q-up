@@ -20,22 +20,31 @@ echo "Setting up directories..."
 mkdir -p ~/logs
 
 # Clone the repository (if not already cloned)
-if [ ! -d "~/Q-up" ]; then
+REPO_DIR="$HOME/Q-up"
+if [ ! -d "$REPO_DIR/.git" ]; then # Check for .git directory for a valid repo
     echo "Cloning repository..."
-    cd ~
-    git clone https://github.com/yourusername/Q-up.git
-    cd Q-up
+    # Remove potentially incomplete directory before cloning
+    rm -rf "$REPO_DIR"
+    cd "$HOME"
+    # Replace with your actual repository URL
+    git clone https://github.com/KrisMashkov/Q-up.git "$REPO_DIR"
+    cd "$REPO_DIR"
 else
     echo "Repository already exists, updating..."
-    cd ~/Q-up
-    git pull
+    cd "$REPO_DIR"
+    # Fetch and reset to ensure it matches origin, handling unrelated histories
+    git fetch origin
+    git reset --hard origin/main # Replace main with your default branch if different
+    git clean -fdx # Optional: remove untracked files
 fi
 
-# Create a virtual environment
+# Create a virtual environment inside the repo directory
 echo "Setting up Python virtual environment..."
 sudo apt-get install -y python3-venv
-python3 -m venv ~/Q-up/venv
-source ~/Q-up/venv/bin/activate
+# Ensure we are in the repo directory before creating venv
+cd "$REPO_DIR"
+python3 -m venv venv
+source venv/bin/activate
 
 # Install Python dependencies
 echo "Installing Python dependencies..."
