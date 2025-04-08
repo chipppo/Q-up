@@ -7,7 +7,6 @@ class MediaStorage(S3Boto3Storage):
     """
     location = 'media'
     file_overwrite = False
-    default_acl = 'public-read'
 
 class StaticStorage(S3Boto3Storage):
     """
@@ -15,5 +14,4 @@ class StaticStorage(S3Boto3Storage):
     Stores files in the 'static' directory on S3
     """
     location = 'static'
-    file_overwrite = True
-    default_acl = 'public-read' 
+    file_overwrite = True 
