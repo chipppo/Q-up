@@ -28,7 +28,9 @@ SECRET_KEY = 'django-insecure-fh&k6=oa(wn$kx!$senwp)y9f2a-r=cfirgc3h(ghogek827wz
 DEBUG = True
 
 ALLOWED_HOSTS = [
-    '51.20.183.126'
+    '51.20.183.126', 
+    'localhost',
+    '127.0.0.1',
 ]
 
 #модел за потребители вместо стандартния
@@ -44,7 +46,8 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'corsheaders',
-    'base'
+    'base',
+    'storages',
 ]
 
 # Настройки на АПИ за JWT автентикация
@@ -164,3 +167,38 @@ DEFAULT_FROM_EMAIL = 'Q-up Support qupbot@gmail.com'
 
 # Време за валидност на линка за възстановяване на парола (в секунди)
 PASSWORD_RESET_TIMEOUT = 3600
+
+# AWS S3 Settings (reading from environment variables)
+AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
+AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
+AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME')
+AWS_S3_REGION_NAME = os.environ.get('AWS_S3_REGION_NAME')
+
+if AWS_ACCESS_KEY_ID and AWS_STORAGE_BUCKET_NAME: # Only configure S3 if variables are set
+    AWS_S3_FILE_OVERWRITE = False
+    AWS_DEFAULT_ACL = 'public-read' # Set to 'private' if you want signed URLs
+    AWS_S3_SIGNATURE_VERSION = 's3v4'
+    AWS_S3_OBJECT_PARAMETERS = {
+        'CacheControl': 'max-age=86400',
+    }
+    # Use custom storage backends
+    DEFAULT_FILE_STORAGE = 'backend.storage_backends.MediaStorage'
+    STATICFILES_STORAGE = 'backend.storage_backends.StaticStorage'
+
+    # Static files URL (served from S3)
+    STATIC_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com/static/'
+    # Media files URL (served from S3)
+    MEDIA_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com/media/'
+    MEDIA_ROOT = '' # Django shouldn't handle media root when using S3 storage
+
+else:
+    # Fallback to local storage if S3 variables aren't set (useful for local dev)
+    MEDIA_URL = '/media/'
+    MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+    STATIC_URL = '/static/'
+    # STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles') # Define if needed locally
+
+# Remove the old MEDIA_ROOT and MEDIA_URL if they exist elsewhere outside the if/else block
+# MEDIA_URL = '/media/' # REMOVE or comment out
+# MEDIA_ROOT = os.path.join(BASE_DIR, 'media') # REMOVE or comment out
+# STATIC_URL = 'static/' # REMOVE or comment out
