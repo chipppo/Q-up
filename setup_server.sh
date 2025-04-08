@@ -78,6 +78,12 @@ sed -i "s|YOUR_AWS_SECRET_ACCESS_KEY_HERE|$aws_secret_key|g" ~/Q-up/backend/.env
 sed -i "s|qup-media-files|$aws_bucket_name|g" ~/Q-up/backend/.env
 sed -i "s|eu-north-1|$aws_region|g" ~/Q-up/backend/.env
 
+# Create Gunicorn log directory and set permissions
+echo "Creating Gunicorn log directory..."
+sudo mkdir -p /var/log/gunicorn
+sudo chown ubuntu:www-data /var/log/gunicorn
+sudo chmod 775 /var/log/gunicorn # Ensure group can write
+
 # Configure Gunicorn
 echo "Setting up Gunicorn service..."
 sudo cp ~/Q-up/qup.service /etc/systemd/system/

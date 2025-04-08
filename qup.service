@@ -23,9 +23,9 @@ Environment="DJANGO_SECRET_KEY=django-insecure-fh&k6=oa(wn$kx!$senwp)y9f2a-r=cfi
 Restart=on-failure
 RestartSec=5s
 
-# Create required directories
-ExecStartPre=/bin/mkdir -p /var/log/gunicorn
-ExecStartPre=/bin/chown -R ubuntu:www-data /var/log/gunicorn
+# Create required directories - REMOVED, handled by setup_server.sh
+# ExecStartPre=/bin/mkdir -p /var/log/gunicorn
+# ExecStartPre=/bin/chown -R ubuntu:www-data /var/log/gunicorn
 
 [Install]
 WantedBy=multi-user.target 
