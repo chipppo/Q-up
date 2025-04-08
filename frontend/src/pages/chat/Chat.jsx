@@ -358,6 +358,65 @@ const Chat = () => {
   };
 
   /**
+   * Checks for new messages in the currently selected chat
+   * 
+   * @async
+   * @function checkForNewMessages
+   */
+  const checkForNewMessages = useCallback(async () => {
+    if (!selectedChat) return;
+    
+    try {
+      // Get the latest message we have
+      const latestMessage = messages.length > 0 ? messages[messages.length - 1] : null;
+      const after_id = latestMessage ? latestMessage.id : null;
+      
+      // Build query parameters
+      let url = `/chats/${selectedChat.id}/messages/`;
+      const params = new URLSearchParams();
+      
+      if (after_id) {
+        params.append('after_id', after_id);
+      }
+      
+      url = `${url}?${params.toString()}`;
+      
+      const response = await API.get(url);
+      const newMessages = response.data;
+      
+      if (newMessages.length > 0) {
+        // Add new messages to the chat
+        setMessages(prevMessages => {
+          // Filter out any messages we already have
+          const uniqueNewMessages = newMessages.filter(
+            newMsg => !prevMessages.some(msg => msg.id === newMsg.id)
+          );
+          
+          if (uniqueNewMessages.length === 0) return prevMessages;
+          
+          // Add new messages and sort by timestamp
+          const updatedMessages = [...prevMessages, ...uniqueNewMessages];
+          return updatedMessages.sort((a, b) => 
+            new Date(a.created_at) - new Date(b.created_at)
+          );
+        });
+        
+        // If user is at the bottom, scroll to newest message
+        if (isUserAtBottom()) {
+          setTimeout(() => {
+            scrollToBottom({ smooth: true });
+          }, 50);
+        }
+        
+        // Mark messages as read if the chat is currently selected
+        markChatAsRead(selectedChat.id);
+      }
+    } catch (error) {
+      console.error('Error checking for new messages:', error);
+    }
+  }, [selectedChat, messages, isUserAtBottom, scrollToBottom]);
+
+  /**
    * Handles selecting a chat from the chat list
    * 
    * @function handleChatSelect
