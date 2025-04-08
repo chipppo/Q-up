@@ -43,6 +43,32 @@ cd ~/Q-up/backend
 pip install -r requirements.txt
 pip install gunicorn django-storages boto3 psycopg2-binary
 
+# Prompt for AWS credentials
+echo ""
+echo "Configuring AWS credentials for S3 storage..."
+echo "Please enter your AWS credentials (these will only be stored on this server):"
+read -p "AWS Access Key ID: " aws_access_key
+read -p "AWS Secret Access Key: " aws_secret_key
+read -p "AWS S3 Bucket Name [qup-media-files]: " aws_bucket_name
+aws_bucket_name=${aws_bucket_name:-qup-media-files}
+read -p "AWS Region [eu-north-1]: " aws_region
+aws_region=${aws_region:-eu-north-1}
+
+# Update the systemd service file with the provided credentials
+echo "Updating service file with AWS credentials..."
+sed -i "s|YOUR_AWS_ACCESS_KEY_ID_HERE|$aws_access_key|g" ~/Q-up/qup.service
+sed -i "s|YOUR_AWS_SECRET_ACCESS_KEY_HERE|$aws_secret_key|g" ~/Q-up/qup.service
+sed -i "s|qup-media-files|$aws_bucket_name|g" ~/Q-up/qup.service
+sed -i "s|eu-north-1|$aws_region|g" ~/Q-up/qup.service
+
+# Create .env file for local development/testing
+echo "Creating .env file for local development..."
+cp ~/Q-up/backend/.env.example ~/Q-up/backend/.env
+sed -i "s|YOUR_AWS_ACCESS_KEY_ID_HERE|$aws_access_key|g" ~/Q-up/backend/.env
+sed -i "s|YOUR_AWS_SECRET_ACCESS_KEY_HERE|$aws_secret_key|g" ~/Q-up/backend/.env
+sed -i "s|qup-media-files|$aws_bucket_name|g" ~/Q-up/backend/.env
+sed -i "s|eu-north-1|$aws_region|g" ~/Q-up/backend/.env
+
 # Configure Gunicorn
 echo "Setting up Gunicorn service..."
 sudo cp ~/Q-up/qup.service /etc/systemd/system/

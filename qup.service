@@ -6,13 +6,18 @@ After=network.target
 User=ubuntu
 Group=www-data
 WorkingDirectory=/home/ubuntu/Q-up/backend
-# Load environment variables from a file (more secure)
-EnvironmentFile=/etc/environment
-# Alternatively, specify a dedicated file: 
-# EnvironmentFile=/home/ubuntu/Q-up/prod.env 
 ExecStart=/home/ubuntu/Q-up/venv/bin/gunicorn \
           --config /home/ubuntu/Q-up/backend/gunicorn_config.py \
           backend.wsgi:application
+
+# Environment variables - REPLACE THESE VALUES on the server
+# DO NOT COMMIT ACTUAL CREDENTIALS to GitHub
+Environment="AWS_ACCESS_KEY_ID=YOUR_AWS_ACCESS_KEY_ID_HERE"
+Environment="AWS_SECRET_ACCESS_KEY=YOUR_AWS_SECRET_ACCESS_KEY_HERE"
+Environment="AWS_STORAGE_BUCKET_NAME=qup-media-files"
+Environment="AWS_S3_REGION_NAME=eu-north-1"
+Environment="DJANGO_SETTINGS_MODULE=backend.settings"
+Environment="DJANGO_SECRET_KEY=django-insecure-fh&k6=oa(wn$kx!$senwp)y9f2a-r=cfirgc3h(ghogek827wz"
 
 # Restart service if it fails
 Restart=on-failure
