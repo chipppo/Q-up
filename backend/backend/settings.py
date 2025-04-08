@@ -168,31 +168,34 @@ DEFAULT_FROM_EMAIL = 'Q-up Support qupbot@gmail.com'
 # Време за валидност на линка за възстановяване на парола (в секунди)
 PASSWORD_RESET_TIMEOUT = 3600
 
-# AWS S3 Settings (using environment variables OR fallback to hardcoded for immediate use)
-# In production on your server, these should be set as environment variables
-AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID', 'AKIARUOHJW7QHCZVOHFR')
-AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY', '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')
-AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME', 'qup-media-files')
-AWS_S3_REGION_NAME = os.environ.get('AWS_S3_REGION_NAME', 'eu-north-1')
+# AWS S3 Settings (using environment variables)
+AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID') # MUST be set in environment
+AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY') # MUST be set in environment
+AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME') # MUST be set in environment
+AWS_S3_REGION_NAME = os.environ.get('AWS_S3_REGION_NAME') # MUST be set in environment
 
 # S3 Configuration
-AWS_S3_FILE_OVERWRITE = False
-# Removed ACL settings since your bucket doesn't support them
-# AWS_DEFAULT_ACL = 'public-read' 
-AWS_S3_SIGNATURE_VERSION = 's3v4'
-AWS_S3_OBJECT_PARAMETERS = {
-    'CacheControl': 'max-age=86400',
-}
-
-# Storage backends
-DEFAULT_FILE_STORAGE = 'backend.storage_backends.MediaStorage'
-STATICFILES_STORAGE = 'backend.storage_backends.StaticStorage'
-
-# URL patterns
-S3_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com'
-STATIC_URL = f'{S3_URL}/static/'
-MEDIA_URL = f'{S3_URL}/media/'
-MEDIA_ROOT = '' # Django shouldn't handle media root when using S3 storage
+# Ensure the variables above are set in the environment where Django runs
+if AWS_ACCESS_KEY_ID and AWS_STORAGE_BUCKET_NAME:
+    AWS_S3_FILE_OVERWRITE = False
+    AWS_S3_SIGNATURE_VERSION = 's3v4'
+    AWS_S3_OBJECT_PARAMETERS = {
+        'CacheControl': 'max-age=86400',
+    }
+    DEFAULT_FILE_STORAGE = 'backend.storage_backends.MediaStorage'
+    STATICFILES_STORAGE = 'backend.storage_backends.StaticStorage'
+    S3_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com'
+    STATIC_URL = f'{S3_URL}/static/'
+    MEDIA_URL = f'{S3_URL}/media/'
+    MEDIA_ROOT = ''
+else:
+    # Fallback ONLY if critical AWS vars aren't set (e.g., local dev without S3)
+    print("WARNING: AWS S3 environment variables not set. Falling back to local file storage.")
+    MEDIA_URL = '/media/'
+    MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+    STATIC_URL = '/static/'
+    DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
+    STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
 
 # Configure CORS to allow access to S3 resources
 CORS_ALLOWED_ORIGINS = [
