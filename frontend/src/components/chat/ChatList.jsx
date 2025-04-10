@@ -16,7 +16,7 @@ import {
   Search as SearchIcon,
   ArrowBack as ArrowBackIcon,
 } from '@mui/icons-material';
-import API from '../../api/axios';
+import API, { formatAvatarUrl } from '../../api/axios';
 import { useAuth } from '../../context/AuthContext';
 import '../../styles/components/chat/ChatList.css';
 
@@ -49,8 +49,9 @@ const formatMessageTime = (timestamp) => {
 
 // Helper function to safely format image URLs
 const formatImageUrl = (url) => {
-  if (!url) return '/images/profile-placeholder.svg';
+  if (!url) return 'https://ui-avatars.com/api/?name=U';
   if (url.startsWith('http')) return url;
+  if (url.startsWith('/media/default/')) return 'https://ui-avatars.com/api/?name=U';
   return `${API.defaults.baseURL}${url}`;
 };
 
@@ -169,7 +170,7 @@ const ChatList = ({
                   sx={{ py: 1 }}
                 >
                   <ListItemAvatar>
-                    <Avatar src={formatImageUrl(user.avatar_url)}>
+                    <Avatar src={formatAvatarUrl(user.avatar_url, user.username)}>
                       {user.username[0].toUpperCase()}
                     </Avatar>
                   </ListItemAvatar>
@@ -237,7 +238,7 @@ const ChatList = ({
                   <ListItemAvatar>
                     <Badge color="primary" variant="dot" invisible={!unreadChats[chat.id]}>
                       <Avatar 
-                        src={formatImageUrl(otherUser?.avatar_url)}
+                        src={formatAvatarUrl(otherUser?.avatar_url, otherUser?.username)}
                       >
                         {otherUser?.username?.[0]?.toUpperCase()}
                       </Avatar>

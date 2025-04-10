@@ -2,6 +2,7 @@ from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from .models import MyUser, Game, GameStats, RankSystem, RankTier, PlayerGoal, GameRanking, Post, Like, Comment, Message, Chat
 import json
+import logging
 
 """
 Serializers for the Q-up platform.
@@ -55,8 +56,12 @@ class UserSerializer(serializers.ModelSerializer):
         if they haven't uploaded one
         """
         if obj.avatar:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.avatar.url)
             return obj.avatar.url
-        return '/media/default/default-avatar.svg'
+        # Return a reliable default avatar URL that doesn't depend on media files
+        return 'https://ui-avatars.com/api/?name=' + obj.username[0].upper()
 
     # Валидация на полето active_hours - проверява дали е списък
     def validate_active_hours(self, value):
@@ -471,18 +476,31 @@ class MessageSerializer(serializers.ModelSerializer):
     
     def get_image(self, obj):
         try:
-            if hasattr(obj, 'image') and obj.image:
-                try:
-                    request = self.context.get('request')
-                    if request:
-                        return request.build_absolute_uri(obj.image.url)
+            if not hasattr(obj, 'image') or not obj.image:
+                return None
+                
+            try:
+                request = self.context.get('request')
+                if request:
+                    # Check if the image URL is already absolute
+                    image_url = obj.image.url
+                    if image_url.startswith('http://') or image_url.startswith('https://'):
+                        return image_url
+                        
+                    # Build absolute URL
+                    return request.build_absolute_uri(image_url)
+                else:
+                    # Return relative URL if request is not available
                     return obj.image.url
-                except Exception as e:
-                    print(f"Error getting image URL: {str(e)}")
-                    return None
-            return None
+            except Exception as e:
+                logger = logging.getLogger(__name__)
+                logger.error(f"Error getting image URL for message {obj.id}: {str(e)}")
+                import traceback
+                logger.error(traceback.format_exc())
+                return None
         except Exception as e:
-            print(f"Error in get_image: {str(e)}")
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error in get_image: {str(e)}")
             return None
     
     def get_file_info(self, obj):

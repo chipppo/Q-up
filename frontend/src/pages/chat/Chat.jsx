@@ -186,7 +186,7 @@ const Chat = () => {
    * @returns {Promise<void>}
    */
   const fetchMessages = async (chatId, options = {}) => {
-    const { reset = true, before_id = null } = options;
+    const { reset = true, before_id = null, retryCount = 0 } = options;
     
     if (!chatId) return Promise.resolve();
     
@@ -269,7 +269,25 @@ const Chat = () => {
       }
     } catch (err) {
       console.error('Error fetching messages:', err);
-      toast.error('Failed to load messages');
+      
+      // Retry logic for transient errors (max 3 retries)
+      if (retryCount < 3) {
+        console.log(`Retrying fetch messages (attempt ${retryCount + 1})...`);
+        
+        // Wait a bit between retries (exponential backoff)
+        const delay = Math.pow(2, retryCount) * 1000;
+        await new Promise(resolve => setTimeout(resolve, delay));
+        
+        // Try again with incremented retry counter
+        return fetchMessages(chatId, { ...options, retryCount: retryCount + 1 });
+      }
+      
+      toast.error('Failed to load messages. Please try again later.');
+      
+      // Set empty messages array rather than leaving it in loading state
+      if (reset) {
+        setMessages([]);
+      }
     } finally {
       setMessagesLoading(false);
       setOlderMessagesLoading(false);
@@ -372,52 +390,42 @@ const Chat = () => {
     try {
       // Get the latest message we have
       const latestMessage = messages.length > 0 ? messages[messages.length - 1] : null;
-      const after_id = latestMessage ? latestMessage.id : null;
-      
-      // Build query parameters
-      let url = `/chats/${selectedChat.id}/messages/`;
       const params = new URLSearchParams();
       
-      if (after_id) {
-        params.append('after_id', after_id);
+      if (latestMessage) {
+        // Use timestamp-based fetching
+        params.append('after_timestamp', latestMessage.created_at);
       }
       
-      url = `${url}?${params.toString()}`;
+      const url = `/chats/${selectedChat.id}/messages/?${params.toString()}`;
       
       const response = await API.get(url);
       const newMessages = response.data;
       
       if (newMessages.length > 0) {
-        // Add new messages to the chat
+        // Add the new messages to the existing ones
         setMessages(prevMessages => {
-          // Filter out any messages we already have
-          const uniqueNewMessages = newMessages.filter(
-            newMsg => !prevMessages.some(msg => msg.id === newMsg.id)
-          );
+          // Combine with existing messages
+          const combined = [...prevMessages, ...newMessages];
           
-          if (uniqueNewMessages.length === 0) return prevMessages;
-          
-          // Add new messages and sort by timestamp
-          const updatedMessages = [...prevMessages, ...uniqueNewMessages];
-          return updatedMessages.sort((a, b) => 
-            new Date(a.created_at) - new Date(b.created_at)
-          );
+          // Sort messages by timestamp
+          return combined.sort((a, b) => {
+            return new Date(a.created_at) - new Date(b.created_at);
+          });
         });
         
-        // If user is at the bottom, scroll to newest message
+        // Mark messages as read if user is at the bottom
         if (isUserAtBottom()) {
-          setTimeout(() => {
-            scrollToBottom({ smooth: true });
-          }, 50);
+          markChatAsRead(selectedChat.id);
+          // Scroll to bottom to show new messages
+          scrollToBottom({ smooth: true });
         }
-        
-        // Mark messages as read if the chat is currently selected
-        markChatAsRead(selectedChat.id);
       }
     } catch (error) {
       console.error('Error checking for new messages:', error);
+      // Don't show error toast for background polling to avoid spamming the user
     }
-  }, [selectedChat, messages, isUserAtBottom, scrollToBottom]);
+  }, [selectedChat, messages, isUserAtBottom, markChatAsRead, scrollToBottom]);
 
   /**
    * Handles selecting a chat from the chat list

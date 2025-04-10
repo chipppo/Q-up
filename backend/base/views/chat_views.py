@@ -191,7 +191,17 @@ class MessageListView(APIView):
             before_id = request.query_params.get('before_id')  # Message ID to load messages before
             after_timestamp = request.query_params.get('after_timestamp')  # Timestamp to load messages after
             
-            chat = Chat.objects.get(id=chat_id, participants=request.user)
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f"Fetching messages for chat {chat_id}, before_id={before_id}, after_timestamp={after_timestamp}")
+            
+            try:
+                chat = Chat.objects.get(id=chat_id, participants=request.user)
+            except Chat.DoesNotExist:
+                return Response(
+                    {'detail': 'Чатът не е намерен или не сте участник'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
             
             # Start with all messages in this chat
             messages_query = chat.messages.all()
@@ -202,14 +212,13 @@ class MessageListView(APIView):
                     before_message = Message.objects.get(id=before_id)
                     messages_query = messages_query.filter(created_at__lt=before_message.created_at)
                 except Message.DoesNotExist:
+                    logger.warning(f"Message with ID {before_id} not found")
                     pass
             
             # Filter messages after the given timestamp if specified
             if after_timestamp:
                 try:
                     # Parse the timestamp and convert to timezone-aware datetime if needed
-                    
-                    # Try to parse the timestamp
                     parsed_timestamp = parse_datetime(after_timestamp)
                     
                     # Make it timezone-aware if it's not
@@ -217,16 +226,15 @@ class MessageListView(APIView):
                         parsed_timestamp = timezone.make_aware(parsed_timestamp)
                     
                     if parsed_timestamp:
-                        # Add slight buffer to avoid missing messages created at the exact same timestamp
-                        # This provides a 0.1 second buffer
                         messages_query = messages_query.filter(created_at__gte=parsed_timestamp)
                     else:
+                        logger.warning(f"Failed to parse timestamp: {after_timestamp}")
                         # If parsing fails, try direct comparison (this works with some formats)
                         messages_query = messages_query.filter(created_at__gt=after_timestamp)
                 except Exception as e:
-                    print(f"Error parsing timestamp: {e}")
-                    # Attempt a direct string comparison as a fallback
-                    messages_query = messages_query.filter(created_at__gt=after_timestamp)
+                    logger.error(f"Error parsing timestamp {after_timestamp}: {e}")
+                    # Skip timestamp filtering on error rather than attempting string comparison
+                    pass
             
             # Get messages in the appropriate order and limit the result
             if after_timestamp:
@@ -237,14 +245,15 @@ class MessageListView(APIView):
                 messages = messages_query.order_by('-created_at')[:limit]
                 messages = list(reversed(messages))
             
+            logger.info(f"Found {len(messages)} messages for chat {chat_id}")
+            
             serializer = MessageSerializer(messages, many=True, context={'request': request})
             return Response(serializer.data)
-        except Chat.DoesNotExist:
-            return Response(
-                {'detail': 'Чатът не е намерен или не сте участник'},
-                status=status.HTTP_404_NOT_FOUND
-            )
         except Exception as e:
+            import traceback
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error fetching messages for chat {chat_id}: {str(e)}")
+            logger.error(traceback.format_exc())
             return Response(
                 {'detail': f'Неуспешно извличане на съобщения: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR

@@ -21,20 +21,7 @@ import {
   ArrowBack as ArrowBackIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
-import API from '../../api/axios';
-
-/**
- * Formats image URLs by adding the API base URL if needed
- * 
- * @function formatImageUrl
- * @param {string|null} url - The image URL to format
- * @returns {string|null} The properly formatted URL or null
- */
-const formatImageUrl = (url) => {
-  if (!url) return null;
-  if (url.startsWith('http')) return url;
-  return `${API.defaults.baseURL}${url}`;
-};
+import API, { formatAvatarUrl } from '../../api/axios';
 
 /**
  * Header bar for chat conversations showing the current chat partner
@@ -84,7 +71,7 @@ const ChatHeader = ({ selectedChat, username, isMobile, onBackClick }) => {
         
         <Avatar
           sx={{ width: 40, height: 40 }}
-          src={formatImageUrl(otherUser?.avatar_url)}
+          src={formatAvatarUrl(otherUser?.avatar_url, otherUser?.username || 'U')}
         >
           {otherUser?.username?.[0]?.toUpperCase()}
         </Avatar>

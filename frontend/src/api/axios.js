@@ -126,4 +126,18 @@ API.interceptors.response.use(
   }
 );
 
+/**
+ * Utility function to format avatar URLs consistently across the application
+ * 
+ * @param {string|null} url - The avatar URL to format
+ * @param {string} username - The username to use as fallback for generating avatar
+ * @returns {string} Properly formatted avatar URL
+ */
+export const formatAvatarUrl = (url, username = 'U') => {
+  if (!url) return `https://ui-avatars.com/api/?name=${username[0].toUpperCase()}`;
+  if (url.startsWith('http')) return url;
+  if (url.startsWith('/media/default/')) return `https://ui-avatars.com/api/?name=${username[0].toUpperCase()}`;
+  return `${API.defaults.baseURL}${url}`;
+};
+
 export default API;
