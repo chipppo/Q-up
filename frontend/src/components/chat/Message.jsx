@@ -54,20 +54,18 @@ const formatImageUrl = (url) => {
  * @param {Object} props.message - The message data to display
  * @param {string|number} props.highlightedId - ID of currently highlighted message
  * @param {Function} props.onMenuOpen - Callback when message menu is opened
+ * @param {Object} props.deletingMessages - Object containing IDs of messages being deleted
  * @returns {JSX.Element} The message component
  */
-const Message = ({ message, highlightedId, onMenuOpen }) => {
-  const { username } = useAuth();
-  const isOwnMessage = typeof message.sender === 'string' 
-    ? message.sender === username 
-    : message.sender?.username === username;
+const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) => {
+  const { username } = useAuth().auth?.user || {};
+  const isOwnMessage = message.sender_username === username || message.sender === username;
+  const senderName = message.sender_username || message.sender_display_name || message.sender;
+  const isHighlighted = highlightedId === message.id;
   
   const [anchorEl, setAnchorEl] = useState(null);
   const open = Boolean(anchorEl);
-  
-  const senderName = typeof message.sender === 'string' 
-    ? message.sender 
-    : message.sender?.display_name || message.sender?.username || 'Unknown';
+  const isDeleting = deletingMessages[message.id];
   
   const messageTime = message.timestamp || message.created_at || new Date();
   
@@ -133,8 +131,6 @@ const Message = ({ message, highlightedId, onMenuOpen }) => {
     document.body.removeChild(link);
   };
   
-  const isHighlighted = highlightedId === message.id;
-
   /**
    * Handles opening the message action menu
    * 
@@ -347,11 +343,14 @@ const Message = ({ message, highlightedId, onMenuOpen }) => {
             </MenuItem>
           )}
           {isOwnMessage && (
-            <MenuItem onClick={() => handleMenuAction('delete')}>
+            <MenuItem 
+              onClick={() => handleMenuAction('delete')}
+              disabled={isDeleting}
+            >
               <ListItemIcon>
-                <DeleteIcon fontSize="small" color="error" />
+                <DeleteIcon fontSize="small" />
               </ListItemIcon>
-              <Typography color="error">Delete</Typography>
+              {isDeleting ? 'Deleting...' : 'Delete'}
             </MenuItem>
           )}
         </Menu>

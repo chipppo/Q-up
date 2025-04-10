@@ -86,6 +86,9 @@ const Chat = () => {
   const pollingIntervalRef = useRef(null);
   const messageRefs = useRef({});
 
+  // Add a state to track which messages are being deleted
+  const [deletingMessages, setDeletingMessages] = useState({});
+
   /**
    * Updates isMobile state when window is resized
    * 
@@ -594,7 +597,17 @@ const Chat = () => {
    * @param {string|number} messageId - ID of the message to delete
    */
   const handleDeleteMessage = async (messageId) => {
+    // If already deleting this message, prevent duplicate requests
+    if (deletingMessages[messageId]) return;
+    
     try {
+      // Mark this message as being deleted
+      setDeletingMessages(prev => ({ ...prev, [messageId]: true }));
+      
+      // Close menu immediately to prevent further clicks
+      setMessageMenuAnchorEl(null);
+      
+      // Make the API call to delete the message
       await API.delete(`/messages/${messageId}/`);
       
       // Remove the message from local state
@@ -606,6 +619,13 @@ const Chat = () => {
     } catch (error) {
       console.error('Error deleting message:', error);
       toast.error('Failed to delete message');
+    } finally {
+      // Remove the deleting flag for this message
+      setDeletingMessages(prev => {
+        const updated = { ...prev };
+        delete updated[messageId];
+        return updated;
+      });
     }
   };
 
@@ -881,7 +901,8 @@ const Chat = () => {
                     key={`${message.id}-${index}`} 
                     message={message} 
                     highlightedId={highlightedMessageId} 
-                    onMenuOpen={handleMessageMenuOpen} 
+                    onMenuOpen={handleMessageMenuOpen}
+                    deletingMessages={deletingMessages}
                   />
                 ))}
                 

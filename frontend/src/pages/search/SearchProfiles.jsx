@@ -37,7 +37,7 @@ const TIME_PERIODS = [
  * @returns {string|null} The formatted URL or null if no URL provided
  */
 const formatImageUrl = (url) => {
-  if (!url) return null;
+  if (!url) return '/images/profile-placeholder.png'; // Use a file that actually exists
   if (url.startsWith('http')) return url;
   return `${API.defaults.baseURL}${url}`;
 };
