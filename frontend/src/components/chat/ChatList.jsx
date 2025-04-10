@@ -48,10 +48,18 @@ const formatMessageTime = (timestamp) => {
 };
 
 // Helper function to safely format image URLs
-const formatImageUrl = (url) => {
-  if (!url) return 'https://ui-avatars.com/api/?name=U';
-  if (url.startsWith('http')) return url;
-  if (url.startsWith('/media/default/')) return 'https://ui-avatars.com/api/?name=U';
+const formatImageUrl = (url, username = 'U') => {
+  if (!url) return `https://ui-avatars.com/api/?name=${username[0].toUpperCase()}&background=random&color=fff`;
+  if (url.startsWith('http')) {
+    // Don't use default URLs that result in 404s
+    if (url.includes('/media/default/') || url.includes('profile_pics') && url.includes('404')) {
+      return `https://ui-avatars.com/api/?name=${username[0].toUpperCase()}&background=random&color=fff`;
+    }
+    return url;
+  }
+  if (url.includes('/media/default/')) {
+    return `https://ui-avatars.com/api/?name=${username[0].toUpperCase()}&background=random&color=fff`;
+  }
   return `${API.defaults.baseURL}${url}`;
 };
 
@@ -170,7 +178,13 @@ const ChatList = ({
                   sx={{ py: 1 }}
                 >
                   <ListItemAvatar>
-                    <Avatar src={formatAvatarUrl(user.avatar_url, user.username)}>
+                    <Avatar 
+                      src={formatAvatarUrl(user.avatar_url, user.username)}
+                      onError={(e) => {
+                        // Replace broken image with letter avatar
+                        e.target.src = `https://ui-avatars.com/api/?name=${user.username[0].toUpperCase()}&background=random&color=fff`;
+                      }}
+                    >
                       {user.username[0].toUpperCase()}
                     </Avatar>
                   </ListItemAvatar>
@@ -239,6 +253,10 @@ const ChatList = ({
                     <Badge color="primary" variant="dot" invisible={!unreadChats[chat.id]}>
                       <Avatar 
                         src={formatAvatarUrl(otherUser?.avatar_url, otherUser?.username)}
+                        onError={(e) => {
+                          // Replace broken image with letter avatar
+                          e.target.src = `https://ui-avatars.com/api/?name=${otherUser?.username?.[0]?.toUpperCase() || 'U'}&background=random&color=fff`;
+                        }}
                       >
                         {otherUser?.username?.[0]?.toUpperCase()}
                       </Avatar>

@@ -134,9 +134,17 @@ API.interceptors.response.use(
  * @returns {string} Properly formatted avatar URL
  */
 export const formatAvatarUrl = (url, username = 'U') => {
-  if (!url) return `https://ui-avatars.com/api/?name=${username[0].toUpperCase()}`;
-  if (url.startsWith('http')) return url;
-  if (url.startsWith('/media/default/')) return `https://ui-avatars.com/api/?name=${username[0].toUpperCase()}`;
+  if (!url) return `https://ui-avatars.com/api/?name=${username[0].toUpperCase()}&background=random&color=fff`;
+  if (url.startsWith('http')) {
+    // Check if it's an external URL that contains a default avatar path
+    if (url.includes('/media/default/') || url.includes('/media/profile_pics/') && url.includes('404')) {
+      return `https://ui-avatars.com/api/?name=${username[0].toUpperCase()}&background=random&color=fff`;
+    }
+    return url;
+  }
+  if (url.includes('/media/default/') || url.includes('/media/profile_pics/') && url.includes('404')) {
+    return `https://ui-avatars.com/api/?name=${username[0].toUpperCase()}&background=random&color=fff`;
+  }
   return `${API.defaults.baseURL}${url}`;
 };
 

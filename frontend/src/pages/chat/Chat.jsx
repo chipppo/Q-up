@@ -98,173 +98,23 @@ const Chat = () => {
   const [userActive, setUserActive] = useState(true);
   const userActivityTimeoutRef = useRef(null);
   
-  // Track user activity to optimize polling
-  const resetUserActivityTimeout = useCallback(() => {
-    if (userActivityTimeoutRef.current) {
-      clearTimeout(userActivityTimeoutRef.current);
-    }
-    
-    setUserActive(true);
-    
-    // Set user as inactive after 5 minutes of no activity
-    userActivityTimeoutRef.current = setTimeout(() => {
-      setUserActive(false);
-    }, 5 * 60 * 1000);
-  }, []);
-  
-  // Set up user activity tracking
-  useEffect(() => {
-    // Track mouse and keyboard activity
-    const handleUserActivity = () => {
-      resetUserActivityTimeout();
-    };
-    
-    // Add event listeners for user activity
-    window.addEventListener('mousemove', handleUserActivity);
-    window.addEventListener('keydown', handleUserActivity);
-    window.addEventListener('click', handleUserActivity);
-    window.addEventListener('scroll', handleUserActivity);
-    
-    // Initialize activity timeout
-    resetUserActivityTimeout();
-    
-    // Clean up
-    return () => {
-      if (userActivityTimeoutRef.current) {
-        clearTimeout(userActivityTimeoutRef.current);
-      }
-      window.removeEventListener('mousemove', handleUserActivity);
-      window.removeEventListener('keydown', handleUserActivity);
-      window.removeEventListener('click', handleUserActivity);
-      window.removeEventListener('scroll', handleUserActivity);
-    };
-  }, [resetUserActivityTimeout]);
-
   /**
-   * Optimized function to check for new messages only
-   * Uses a timestamp-based approach to only fetch new messages
-   */
-  const checkForNewMessages = useCallback(async () => {
-    if (!selectedChat || isPolling.current) return;
-    
-    isPolling.current = true;
-    
-    try {
-      // Build query URL with timestamp filter to only get new messages
-      const latestMessage = messages.length > 0 ? messages[messages.length - 1] : null;
-      const latestTimestamp = latestMessage ? latestMessage.created_at : null;
-      
-      if (latestTimestamp !== lastMessageTimestamp) {
-        setLastMessageTimestamp(latestTimestamp);
-      }
-      
-      // Only fetch if we have a timestamp to filter by
-      if (latestTimestamp) {
-        let url = `/chats/${selectedChat.id}/messages/`;
-        const params = new URLSearchParams();
-        params.append('limit', 10);
-        params.append('after', latestTimestamp);
-        url = `${url}?${params.toString()}`;
-        
-        const response = await API.get(url);
-        const newMessages = response.data;
-        
-        if (newMessages && newMessages.length > 0) {
-          // Check for duplicates and add only new messages
-          const existingMessageIds = new Set(messages.map(m => m.id));
-          const messagesToAdd = newMessages.filter(m => !existingMessageIds.has(m.id));
-          
-          if (messagesToAdd.length > 0) {
-            // Sort messages by timestamp (oldest first)
-            const sortedMessages = [...messagesToAdd].sort((a, b) => {
-              return new Date(a.created_at) - new Date(b.created_at);
-            });
-            
-            // Update the messages state
-            setMessages(prevMessages => {
-              const updatedMessages = [...prevMessages, ...sortedMessages];
-              return updatedMessages.sort((a, b) => 
-                new Date(a.created_at) - new Date(b.created_at)
-              );
-            });
-            
-            // Scroll to bottom if user was already at bottom
-            if (isUserAtBottom()) {
-              setTimeout(() => {
-                scrollToBottom({ smooth: true });
-              }, 50);
-            }
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Error checking for new messages:', error);
-    } finally {
-      isPolling.current = false;
-    }
-  }, [selectedChat, messages, isUserAtBottom, scrollToBottom, lastMessageTimestamp]);
-
-  // Set up polling for new messages
-  useEffect(() => {
-    // Clear any existing polling interval when chat changes
-    if (pollingIntervalRef.current) {
-      clearInterval(pollingIntervalRef.current);
-      pollingIntervalRef.current = null;
-    }
-    
-    if (selectedChat) {
-      // Initial check for new messages
-      checkForNewMessages();
-      
-      // Set up new polling interval with adaptive frequency based on user activity
-      const setupPolling = () => {
-        if (pollingIntervalRef.current) {
-          clearInterval(pollingIntervalRef.current);
-        }
-        
-        // Use shorter polling interval when user is active, longer when inactive
-        const pollingInterval = userActive ? 8000 : 30000; // 8 seconds vs 30 seconds
-        
-        pollingIntervalRef.current = setInterval(() => {
-          checkForNewMessages();
-        }, pollingInterval);
-      };
-      
-      // Set up initial polling
-      setupPolling();
-      
-      // Update polling interval when user activity changes
-      return () => {
-        if (pollingIntervalRef.current) {
-          clearInterval(pollingIntervalRef.current);
-          pollingIntervalRef.current = null;
-        }
-      };
-    }
-  }, [selectedChat, checkForNewMessages, userActive]);
-
-  /**
-   * Updates isMobile state when window is resized
+   * Checks if the user is at the bottom of the chat messages
+   * Used to auto-scroll only when appropriate
    * 
-   * @function handleResize
+   * @function isUserAtBottom
+   * @returns {boolean} Whether user is at the bottom of messages
    */
-  const handleResize = () => setIsMobile(window.innerWidth <= 768);
-
-  /**
-   * Handles clicking the back button in mobile view
-   * Returns to previous screen or shows chat list
-   * 
-   * @function handleBack
-   */
-  const handleBack = () => {
-    if (location.state?.returnTo) {
-      navigate(location.state.returnTo);
-    } else {
-      setSelectedChat(null);
-      setShowChatList(true);
-    }
+  const isUserAtBottom = () => {
+    const container = messagesContainerRef.current;
+    if (!container) return true;
+    
+    // Consider user at bottom if within 100px of the bottom
+    const threshold = 100;
+    const position = container.scrollHeight - container.scrollTop - container.clientHeight;
+    return position < threshold;
   };
-
+  
   /**
    * Scrolls to the bottom of the chat messages
    * 
@@ -280,24 +130,36 @@ const Chat = () => {
       });
     }
   }, []);
-
+  
   /**
-   * Checks if user has scrolled to the bottom of the chat
-   * Used to determine whether to auto-scroll on new messages
+   * Marks a chat as read by the current user
    * 
-   * @function isUserAtBottom
-   * @returns {boolean} True if at bottom of chat
+   * @async
+   * @function markChatAsRead
+   * @param {string|number} chatId - ID of the chat to mark as read
    */
-  const isUserAtBottom = () => {
-    if (!messagesContainerRef.current) return true;
+  const markChatAsRead = async (chatId) => {
+    if (!chatId) return;
     
-    const container = messagesContainerRef.current;
-    const scrollOffset = 30; // Allow small offset from bottom
-    return container.scrollHeight - container.scrollTop - container.clientHeight <= scrollOffset;
+    try {
+      // Send request to mark messages as read
+      await API.post(`/chats/${chatId}/read/`);
+      
+      // Update unread chats map
+      setUnreadChats(prev => {
+        const updated = { ...prev };
+        delete updated[chatId];
+        return updated;
+      });
+    } catch (error) {
+      console.error('Error marking chat as read:', error);
+      // Don't show error to user, just log it - this is a background operation
+    }
   };
-
+  
   /**
-   * Fetches all user's chats from the API
+   * Fetches the list of chats for the current user
+   * Uses a retry mechanism and fallback endpoints for reliability
    * 
    * @async
    * @function fetchChats
@@ -570,6 +432,39 @@ const Chat = () => {
   };
 
   /**
+   * Deletes a message from the chat
+   * 
+   * @function handleDeleteMessage
+   * @param {string} messageId - ID of the message to delete
+   */
+  const handleDeleteMessage = async (messageId) => {
+    if (!messageId) return;
+    
+    setDeletingMessages(prev => ({ ...prev, [messageId]: true }));
+    
+    try {
+      await API.delete(`/messages/${messageId}/`);
+      
+      // Remove message from local state
+      setMessages(prevMessages => prevMessages.filter(m => m.id !== messageId));
+      
+      toast.success('Message deleted successfully');
+      
+      // Close menu if open
+      setMessageMenuAnchorEl(null);
+    } catch (error) {
+      console.error('Error deleting message:', error);
+      toast.error('Failed to delete message');
+    } finally {
+      setDeletingMessages(prev => {
+        const updated = { ...prev };
+        delete updated[messageId];
+        return updated;
+      });
+    }
+  };
+  
+  /**
    * Periodically checks for new messages in all chats
    * Updates unread counts and fetches new messages for active chat
    * 
@@ -688,36 +583,8 @@ const Chat = () => {
   };
 
   /**
-   * Marks all messages in a chat as read
-   * 
-   * @async
-   * @function markChatAsRead
-   * @param {string|number} chatId - ID of the chat to mark as read
-   */
-  const markChatAsRead = async (chatId) => {
-    try {
-      await API.post(`/chats/${chatId}/read/`);
-      
-      // Update unread chat counts
-      setUnreadChats(prev => {
-        const updated = {...prev};
-        delete updated[chatId];
-        return updated;
-      });
-      
-      // Update chats list to reflect read status
-      setChats(prev => prev.map(chat => 
-        chat.id === chatId 
-          ? {...chat, unread_count: 0}
-          : chat
-      ));
-    } catch (error) {
-      console.error('Error marking chat as read:', error);
-    }
-  };
-
-  /**
-   * Handles selecting a chat from the chat list
+   * Handles selecting a chat from the list
+   * Loads messages and marks the chat as read
    * 
    * @function handleChatSelect
    * @param {Object} chat - The selected chat object
@@ -744,7 +611,7 @@ const Chat = () => {
       setShowChatList(false);
     }
   };
-
+  
   /**
    * Starts a new chat with a specific user
    * 
@@ -887,67 +754,6 @@ const Chat = () => {
   };
 
   /**
-   * Handles deleting a message
-   * 
-   * @async
-   * @function handleDeleteMessage
-   * @param {string|number} messageId - ID of the message to delete
-   */
-  const handleDeleteMessage = async (messageId) => {
-    // If already deleting this message, prevent duplicate requests
-    if (deletingMessages[messageId]) return;
-    
-    // Store the message being deleted in case we need to restore it
-    const messageToDelete = messages.find(msg => msg.id === messageId);
-    if (!messageToDelete) return; // Message not found
-    
-    // Optimistically remove the message from the UI
-    setMessages(prevMessages => 
-      prevMessages.filter(message => message.id !== messageId)
-    );
-    
-    // Mark this message as being deleted (for potential UI feedback, though it's removed now)
-    setDeletingMessages(prev => ({ ...prev, [messageId]: true }));
-    
-    // Close menu immediately
-    setMessageMenuAnchorEl(null);
-    
-    try {
-      // Make the API call to delete the message
-      await API.delete(`/messages/${messageId}/`);
-      
-      // If successful, no need to update state further, just maybe a success toast
-      // toast.success('Message deleted successfully'); // Optional: Re-enable if desired
-      
-    } catch (error) {
-      console.error('Error deleting message:', error);
-      toast.error('Failed to delete message. Restoring...');
-      
-      // If deletion failed, add the message back to the state in its original position
-      setMessages(prevMessages => {
-        // Find the index where the message should be reinserted
-        const originalIndex = messages.findIndex(msg => msg.id === messageId);
-        // Create a new array with the message reinserted
-        const restoredMessages = [
-          ...prevMessages.slice(0, originalIndex),
-          messageToDelete, // Reinsert the original message data
-          ...prevMessages.slice(originalIndex)
-        ];
-        // Ensure correct sorting after reinsertion
-        return restoredMessages.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-      });
-      
-    } finally {
-      // Remove the deleting flag regardless of success or failure
-      setDeletingMessages(prev => {
-        const updated = { ...prev };
-        delete updated[messageId];
-        return updated;
-      });
-    }
-  };
-
-  /**
    * Adds a new message to the current chat
    * Handles scrolling and updating the UI
    * 
@@ -977,6 +783,173 @@ const Chat = () => {
     
     // Force reset user activity when sending a message
     resetUserActivityTimeout();
+  };
+
+  // Track user activity to optimize polling
+  const resetUserActivityTimeout = useCallback(() => {
+    if (userActivityTimeoutRef.current) {
+      clearTimeout(userActivityTimeoutRef.current);
+    }
+    
+    setUserActive(true);
+    
+    // Set user as inactive after 5 minutes of no activity
+    userActivityTimeoutRef.current = setTimeout(() => {
+      setUserActive(false);
+    }, 5 * 60 * 1000);
+  }, []);
+
+  // Set up user activity tracking
+  useEffect(() => {
+    // Track mouse and keyboard activity
+    const handleUserActivity = () => {
+      resetUserActivityTimeout();
+    };
+    
+    // Add event listeners for user activity
+    window.addEventListener('mousemove', handleUserActivity);
+    window.addEventListener('keydown', handleUserActivity);
+    window.addEventListener('click', handleUserActivity);
+    window.addEventListener('scroll', handleUserActivity);
+    
+    // Initialize activity timeout
+    resetUserActivityTimeout();
+    
+    // Clean up
+    return () => {
+      if (userActivityTimeoutRef.current) {
+        clearTimeout(userActivityTimeoutRef.current);
+      }
+      window.removeEventListener('mousemove', handleUserActivity);
+      window.removeEventListener('keydown', handleUserActivity);
+      window.removeEventListener('click', handleUserActivity);
+      window.removeEventListener('scroll', handleUserActivity);
+    };
+  }, [resetUserActivityTimeout]);
+
+  /**
+   * Optimized function to check for new messages only
+   * Uses a timestamp-based approach to only fetch new messages
+   */
+  const checkForNewMessages = useCallback(async () => {
+    if (!selectedChat || isPolling.current) return;
+    
+    isPolling.current = true;
+    
+    try {
+      // Build query URL with timestamp filter to only get new messages
+      const latestMessage = messages.length > 0 ? messages[messages.length - 1] : null;
+      const latestTimestamp = latestMessage ? latestMessage.created_at : null;
+      
+      if (latestTimestamp !== lastMessageTimestamp) {
+        setLastMessageTimestamp(latestTimestamp);
+      }
+      
+      // Only fetch if we have a timestamp to filter by
+      if (latestTimestamp) {
+        let url = `/chats/${selectedChat.id}/messages/`;
+        const params = new URLSearchParams();
+        params.append('limit', 10);
+        params.append('after', latestTimestamp);
+        url = `${url}?${params.toString()}`;
+        
+        const response = await API.get(url);
+        const newMessages = response.data;
+        
+        if (newMessages && newMessages.length > 0) {
+          // Check for duplicates and add only new messages
+          const existingMessageIds = new Set(messages.map(m => m.id));
+          const messagesToAdd = newMessages.filter(m => !existingMessageIds.has(m.id));
+          
+          if (messagesToAdd.length > 0) {
+            // Sort messages by timestamp (oldest first)
+            const sortedMessages = [...messagesToAdd].sort((a, b) => {
+              return new Date(a.created_at) - new Date(b.created_at);
+            });
+            
+            // Update the messages state
+            setMessages(prevMessages => {
+              const updatedMessages = [...prevMessages, ...sortedMessages];
+              return updatedMessages.sort((a, b) => 
+                new Date(a.created_at) - new Date(b.created_at)
+              );
+            });
+            
+            // Scroll to bottom if user was already at bottom
+            if (isUserAtBottom()) {
+              setTimeout(() => {
+                scrollToBottom({ smooth: true });
+              }, 50);
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error checking for new messages:', error);
+    } finally {
+      isPolling.current = false;
+    }
+  }, [selectedChat, messages, isUserAtBottom, scrollToBottom, lastMessageTimestamp]);
+
+  // Set up polling for new messages
+  useEffect(() => {
+    // Clear any existing polling interval when chat changes
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
+    
+    if (selectedChat) {
+      // Initial check for new messages
+      checkForNewMessages();
+      
+      // Set up new polling interval with adaptive frequency based on user activity
+      const setupPolling = () => {
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+        }
+        
+        // Use shorter polling interval when user is active, longer when inactive
+        const pollingInterval = userActive ? 8000 : 30000; // 8 seconds vs 30 seconds
+        
+        pollingIntervalRef.current = setInterval(() => {
+          checkForNewMessages();
+        }, pollingInterval);
+      };
+      
+      // Set up initial polling
+      setupPolling();
+      
+      // Update polling interval when user activity changes
+      return () => {
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = null;
+        }
+      };
+    }
+  }, [selectedChat, checkForNewMessages, userActive]);
+
+  /**
+   * Updates isMobile state when window is resized
+   * 
+   * @function handleResize
+   */
+  const handleResize = () => setIsMobile(window.innerWidth <= 768);
+
+  /**
+   * Handles clicking the back button in mobile view
+   * Returns to previous screen or shows chat list
+   * 
+   * @function handleBack
+   */
+  const handleBack = () => {
+    if (location.state?.returnTo) {
+      navigate(location.state.returnTo);
+    } else {
+      setSelectedChat(null);
+      setShowChatList(true);
+    }
   };
 
   // Initial load

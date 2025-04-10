@@ -2,30 +2,45 @@ import API from '../api/axios';
 
 /**
  * Formats image URLs by ensuring they have the correct base URL
- * and fixes any incorrect S3 region formats (eu-north-1b → eu-north-1)
+ * and handles invalid or missing images appropriately
  * 
  * @function formatImageUrl
  * @param {string|null} url - The image URL to format
+ * @param {string|null} username - Optional username for generating fallback avatars
  * @returns {string|null} The formatted URL or null if no URL provided
  */
-export const formatImageUrl = (url) => {
+export const formatImageUrl = (url, username = null) => {
+  // Generate UI Avatars URL if username is provided
+  const generateAvatarUrl = (user) => {
+    if (!user) return null;
+    return `https://ui-avatars.com/api/?name=${user[0].toUpperCase()}&background=random&color=fff`;
+  };
+
+  // Handle null/undefined URLs
   if (!url) {
-    // Return null instead of a default avatar path that doesn't exist
-    return null;
+    return username ? generateAvatarUrl(username) : null;
+  }
+  
+  // Handle default avatar patterns or 404 URLs
+  if (url.includes('/media/default/') || 
+      url.includes('default-avatar') || 
+      url.includes('profile_pics') && url.includes('404')) {
+    return username ? generateAvatarUrl(username) : null;
   }
   
   // Handle already fully-qualified URLs
   if (url.startsWith('http')) {
     // Fix incorrect region format in existing URLs
     if (url.includes('eu-north-1b')) {
-      return url.replace('eu-north-1b', 'eu-north-1');
+      url = url.replace('eu-north-1b', 'eu-north-1');
     }
+    
+    // Check for problematic patterns in full URLs
+    if (url.includes('/media/default/') || url.includes('placeholder')) {
+      return username ? generateAvatarUrl(username) : null;
+    }
+    
     return url;
-  }
-  
-  // Skip paths that reference non-existent default avatars
-  if (url.includes('default-avatar') || url.includes('default/') || url.includes('/media/default/')) {
-    return null;
   }
   
   // Handle relative URLs by adding the API base URL

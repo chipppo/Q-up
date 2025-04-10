@@ -35,16 +35,26 @@ import API from '../../api/axios';
 import '../../styles/components/chat/Message.css';
 
 /**
- * Formats image URLs by adding the API base URL if needed
+ * Formats image URLs to handle various image source formats
  * 
  * @function formatImageUrl
- * @param {string|null} url - The image URL to format
- * @returns {string|null} The properly formatted URL or null
+ * @param {string} url - URL to format
+ * @returns {string|null} Formatted URL or null if URL is missing
  */
 const formatImageUrl = (url) => {
   if (!url) return null;
-  if (url.startsWith('http')) return url;
-  return `${API.defaults.baseURL}${url}`;
+  
+  // Only append baseURL if not already a full URL
+  if (url.startsWith('http')) {
+    // Check for broken profiles
+    if (url.includes('/media/profile_pics/') && url.includes('404')) {
+      return null;
+    }
+    return url;
+  }
+  
+  // Handle relative URLs
+  return `/api${url}`;
 };
 
 /**
@@ -316,6 +326,20 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
                   alt="Message attachment" 
                   className="message-image"
                   style={{ maxWidth: '100%', borderRadius: '8px' }}
+                  onError={(e) => {
+                    // Replace broken image with a generic "Image not available" message
+                    e.target.style.display = 'none';
+                    const container = e.target.parentNode;
+                    const errorMsg = document.createElement('div');
+                    errorMsg.className = 'image-error-message';
+                    errorMsg.style.padding = '10px';
+                    errorMsg.style.backgroundColor = 'rgba(0,0,0,0.05)';
+                    errorMsg.style.borderRadius = '8px';
+                    errorMsg.style.color = 'red';
+                    errorMsg.style.fontStyle = 'italic';
+                    errorMsg.textContent = 'Image could not be loaded.';
+                    container.appendChild(errorMsg);
+                  }}
                 />
               ) : (
                 <Box 
