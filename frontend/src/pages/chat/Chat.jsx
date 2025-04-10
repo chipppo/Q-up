@@ -149,28 +149,117 @@ const Chat = () => {
    * @function fetchChats
    */
   const fetchChats = async () => {
-    try {
-      setLoading(true);
-      const response = await API.get('/chats/');
-      setChats(response.data);
-      
-      // Create a map of chat IDs with unread messages
-      const unreadMap = {};
-      response.data.forEach(chat => {
-        if (chat.unread_count > 0) {
-          unreadMap[chat.id] = chat.unread_count;
+    let retryCount = 0;
+    const maxRetries = 3;
+    let useSimpleEndpoint = false;
+    let useRawEndpoint = false;
+    
+    const attemptFetch = async () => {
+      try {
+        setLoading(true);
+        
+        // Choose endpoint based on previous failures
+        let endpoint = '/chats/';
+        if (useRawEndpoint) {
+          endpoint = '/raw-chats/';
+        } else if (useSimpleEndpoint) {
+          endpoint = '/simple-chats/';
         }
-      });
-      
-      setUnreadChats(unreadMap);
-      setError(null);
-    } catch (err) {
-      console.error('Error fetching chats:', err);
-      setError('Failed to load chats');
-      toast.error('Failed to load chats');
-    } finally {
-      setLoading(false);
+        
+        console.log(`Attempting to fetch chats from ${endpoint}, attempt: ${retryCount + 1}`);
+        
+        const response = await API.get(endpoint);
+        setChats(response.data);
+        
+        // Create a map of chat IDs with unread messages
+        const unreadMap = {};
+        response.data.forEach(chat => {
+          if (chat.unread_count > 0) {
+            unreadMap[chat.id] = chat.unread_count;
+          }
+        });
+        
+        setUnreadChats(unreadMap);
+        setError(null);
+        return true;
+      } catch (err) {
+        console.error(`Error fetching chats from ${useRawEndpoint ? 'raw' : (useSimpleEndpoint ? 'simple' : 'standard')} endpoint (attempt ${retryCount + 1}):`, err);
+        
+        // Strategy for retries and endpoint selection
+        if (retryCount < maxRetries) {
+          retryCount++;
+          
+          // Progressive fallback strategy
+          if (retryCount === 1 && !useSimpleEndpoint && !useRawEndpoint) {
+            // First retry: try again with the same endpoint
+            console.log('Retrying same endpoint');
+          } else if (retryCount === 2 && !useSimpleEndpoint && !useRawEndpoint) {
+            // Second retry: switch to simple endpoint
+            useSimpleEndpoint = true;
+            useRawEndpoint = false;
+            console.log('Switching to simple-chats endpoint');
+          } else if (retryCount === 3 || (useSimpleEndpoint && !useRawEndpoint)) {
+            // Third retry or after simple endpoint failed: use raw endpoint
+            useSimpleEndpoint = false;
+            useRawEndpoint = true;
+            console.log('Switching to raw-chats endpoint');
+          }
+          
+          // Try to diagnose the issue by calling the debug endpoint
+          try {
+            console.log('Calling chat-debug endpoint to diagnose issues');
+            const debugResponse = await API.get('/chat-debug/');
+            console.log('Chat debug info:', debugResponse.data);
+          } catch (debugError) {
+            console.error('Error with debug endpoint:', debugError);
+          }
+          
+          // Wait with exponential backoff before retrying
+          const delay = Math.pow(2, retryCount) * 1000;
+          console.log(`Retrying in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          return false; // Retry needed
+        } else {
+          // All retry attempts exhausted
+          setError('Failed to load chats after multiple attempts.');
+          
+          // Show more helpful error message based on error type
+          if (err.response) {
+            // Server responded with an error
+            if (err.response.status === 401) {
+              toast.error('Your session has expired. Please log in again.');
+              // Redirect to login page
+              navigate('/login', { state: { from: '/chat' } });
+            } else if (err.response.status === 404) {
+              toast.error('Chat service not found. Please try again later.');
+            } else if (err.response.status >= 500) {
+              toast.error('Server error. Please try again later.');
+            } else {
+              toast.error(`Failed to load chats: ${err.response.data?.detail || 'Unknown error'}`);
+            }
+          } else if (err.request) {
+            // Request was made but no response received
+            toast.error('No response from server. Please check your connection.');
+          } else {
+            // Something else went wrong
+            toast.error('Failed to load chats: ' + (err.message || 'Unknown error'));
+          }
+          return true; // Done with attempts
+        }
+      } finally {
+        if (retryCount >= maxRetries) {
+          setLoading(false);
+        }
+      }
+    };
+    
+    // Start the retry loop
+    let done = false;
+    while (!done && retryCount <= maxRetries) {
+      done = await attemptFetch();
     }
+    
+    setLoading(false);
   };
 
   /**
@@ -327,25 +416,113 @@ const Chat = () => {
    * @function checkAllChatsForNewMessages
    */
   const checkAllChatsForNewMessages = async () => {
+    let useSimpleEndpoint = false;
+    let useRawEndpoint = false;
+    let successfulFetch = false;
+    
     try {
-      // Get updated list of chats with unread counts
-      const response = await API.get('/chats/');
-      const updatedChats = response.data;
+      // Try each endpoint in sequence until one works
       
-      // Update chats list without changing the selected chat
-      setChats(updatedChats);
-      
-      // Create a map of chat IDs with unread messages
-      const unreadMap = {};
-      updatedChats.forEach(chat => {
-        if (chat.unread_count > 0) {
-          unreadMap[chat.id] = chat.unread_count;
+      // 1. First try regular endpoint
+      if (!successfulFetch) {
+        try {
+          console.log('Checking for new messages using regular chats endpoint');
+          const response = await API.get('/chats/');
+          const updatedChats = response.data;
+          
+          // Update chats list without changing the selected chat
+          setChats(updatedChats);
+          
+          // Create a map of chat IDs with unread messages
+          const unreadMap = {};
+          updatedChats.forEach(chat => {
+            if (chat.unread_count > 0) {
+              unreadMap[chat.id] = chat.unread_count;
+            }
+          });
+          
+          setUnreadChats(unreadMap);
+          successfulFetch = true;
+        } catch (mainError) {
+          console.error('Error with main chats endpoint in background check:', mainError);
+          useSimpleEndpoint = true;
         }
-      });
+      }
       
-      setUnreadChats(unreadMap);
+      // 2. Try simple endpoint as first fallback
+      if (!successfulFetch && useSimpleEndpoint) {
+        try {
+          console.log('Falling back to simple-chats endpoint for background update');
+          const response = await API.get('/simple-chats/');
+          const updatedChats = response.data;
+          
+          // Update chats list without changing the selected chat
+          setChats(updatedChats);
+          
+          // Create a map of chat IDs with unread messages
+          const unreadMap = {};
+          updatedChats.forEach(chat => {
+            if (chat.unread_count > 0) {
+              unreadMap[chat.id] = chat.unread_count;
+            }
+          });
+          
+          setUnreadChats(unreadMap);
+          successfulFetch = true;
+        } catch (simpleError) {
+          console.error('Error with simple chats endpoint in background check:', simpleError);
+          useRawEndpoint = true;
+        }
+      }
+      
+      // 3. Try raw endpoint as last resort
+      if (!successfulFetch && useRawEndpoint) {
+        try {
+          console.log('Falling back to raw-chats endpoint for background update');
+          const response = await API.get('/raw-chats/');
+          const updatedChats = response.data;
+          
+          // Update chats list without changing the selected chat
+          setChats(updatedChats);
+          
+          // Create a map of chat IDs with unread messages
+          const unreadMap = {};
+          updatedChats.forEach(chat => {
+            if (chat.unread_count > 0) {
+              unreadMap[chat.id] = chat.unread_count;
+            }
+          });
+          
+          setUnreadChats(unreadMap);
+          successfulFetch = true;
+        } catch (rawError) {
+          console.error('Error with raw chats endpoint in background check:', rawError);
+        }
+      }
     } catch (error) {
       console.error('Error checking all chats:', error);
+      
+      // Try to diagnose the issue by calling the debug endpoint
+      try {
+        console.log('Calling chat-debug endpoint to diagnose issues');
+        const debugResponse = await API.get('/chat-debug/');
+        console.log('Chat debug info:', debugResponse.data);
+      } catch (debugError) {
+        console.error('Error with debug endpoint:', debugError);
+      }
+      
+      // Don't show toast for background polling errors to avoid spamming the user
+      
+      // Only handle actual response errors
+      if (error.response && error.response.status === 401) {
+        // Token expired or invalid
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = null;
+        }
+        // Don't redirect to login automatically for background polling,
+        // but stop polling to prevent more errors
+      }
     }
   };
 

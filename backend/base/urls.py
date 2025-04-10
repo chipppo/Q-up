@@ -38,6 +38,8 @@ from .views import (
     PasswordResetConfirmView,
     MessageStatusView,
 )
+# Import the new SimpleChatsView
+from .views.chat_views import SimpleChatsView, ChatDebugView, raw_chats_view
 
 # Всички API крайни точки
 urlpatterns = [
@@ -70,6 +72,11 @@ urlpatterns = [
     path('comments/<int:comment_id>/', CommentView.as_view(), name='comment-detail'),
     path('comments/<int:comment_id>/replies/', CommentRepliesView.as_view(), name='comment-replies'),
     path('chats/', ChatListView.as_view(), name='chat-list'),
+    # Add the simplified chats route
+    path('simple-chats/', SimpleChatsView.as_view(), name='simple-chats-list'),
+    # Add chat debug route
+    path('chat-debug/', ChatDebugView.as_view(), name='chat-debug'),
+    path('raw-chats/', raw_chats_view, name='raw-chats'),
     path('chats/<int:chat_id>/', ChatDetailView.as_view(), name='chat-detail'),
     path('chats/<int:chat_id>/messages/', MessageListView.as_view(), name='message-list'),
     path('chats/<int:chat_id>/read/', ChatReadView.as_view(), name='chat-read'),

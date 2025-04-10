@@ -2,7 +2,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
 from rest_framework.parsers import MultiPartParser, FormParser
-from django.http import Http404
+from django.http import Http404, JsonResponse
 from ..models import Chat, Message, MyUser
 from ..serializers import (
     ChatSerializer,
@@ -19,45 +19,49 @@ class ChatListView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
+        """
+        Get all chats for the current user
+        """
+        import logging
+        logger = logging.getLogger(__name__)
+        
         try:
-            # Get all chats where the user is a participant
-            import logging
-            logger = logging.getLogger(__name__)
+            # If user isn't authenticated, return 401
+            if not request.user.is_authenticated:
+                return Response(
+                    {"detail": "Authentication credentials were not provided."},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
+            
             logger.info(f"Fetching chats for user {request.user.username}")
             
+            # Try to get chats with explicit error handling
             try:
-                chats = Chat.objects.filter(participants=request.user).prefetch_related(
-                    'participants',
-                    'messages'
-                ).order_by('-updated_at')
-                logger.info(f"Found {chats.count()} chats")
+                chats = Chat.objects.filter(participants=request.user)
+                logger.info(f"Found {chats.count()} chats for user {request.user.username}")
             except Exception as db_error:
                 logger.error(f"Database error in ChatListView.get: {str(db_error)}")
-                import traceback
-                logger.error(traceback.format_exc())
                 return Response(
-                    {'detail': f'Database error: {str(db_error)}'},
+                    {'detail': f'Database error. Please try again later.'},
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
-
-            # Serialize the chats
+            
+            # Serialize with explicit error handling
             try:
+                # Use a smaller context and simpler serialization
                 serializer = ChatSerializer(chats, many=True, context={'request': request})
                 return Response(serializer.data)
             except Exception as ser_error:
                 logger.error(f"Serialization error in ChatListView.get: {str(ser_error)}")
-                import traceback
-                logger.error(traceback.format_exc())
                 return Response(
-                    {'detail': f'Serialization error: {str(ser_error)}'},
+                    {'detail': 'Error processing chat data. Please try again later.'},
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
+                
         except Exception as e:
-            print(f"Error in ChatListView.get: {str(e)}")
-            import traceback
-            traceback.print_exc()
+            logger.error(f"Unexpected error in ChatListView.get: {str(e)}")
             return Response(
-                {'detail': 'Неуспешно извличане на чатове'},
+                {'detail': 'An unexpected error occurred. Please try again later.'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
@@ -574,4 +578,241 @@ class MessageStatusView(APIView):
         message.is_read = True
         message.save()
         
-        return Response({"detail": "Съобщението е отбелязано като прочетено."}, status=status.HTTP_200_OK) 
+        return Response({"detail": "Съобщението е отбелязано като прочетено."}, status=status.HTTP_200_OK)
+
+
+class SimpleChatsView(APIView):
+    """
+    Simplified chat list endpoint that returns minimal data.
+    This is a fallback to help troubleshoot issues with the main chat list endpoint.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request):
+        try:
+            # Get all chats where the user is a participant
+            chats_data = []
+            
+            try:
+                # Get chat objects but don't use complex prefetch_related
+                chats = Chat.objects.filter(participants=request.user).order_by('-updated_at')
+                
+                # Manually construct a simple response
+                for chat in chats:
+                    try:
+                        # Get participants with basic info only
+                        participants = []
+                        for participant in chat.participants.all():
+                            participants.append({
+                                'id': participant.id,
+                                'username': participant.username,
+                                'display_name': participant.display_name or participant.username
+                            })
+                        
+                        # Get last message with minimal processing
+                        last_message = None
+                        try:
+                            last_msg = chat.messages.order_by('-created_at').first()
+                            if last_msg:
+                                last_message = {
+                                    'id': last_msg.id,
+                                    'content': last_msg.content[:50] if last_msg.content else '',
+                                    'sender': last_msg.sender.username,
+                                    'created_at': last_msg.created_at.isoformat()
+                                }
+                        except Exception:
+                            pass
+                        
+                        # Count unread messages safely
+                        try:
+                            unread_count = chat.messages.filter(is_read=False).exclude(sender=request.user).count()
+                        except Exception:
+                            unread_count = 0
+                        
+                        # Add to result
+                        chats_data.append({
+                            'id': chat.id,
+                            'participants': participants,
+                            'created_at': chat.created_at.isoformat(),
+                            'updated_at': chat.updated_at.isoformat(),
+                            'last_message': last_message,
+                            'unread_count': unread_count
+                        })
+                    except Exception as chat_error:
+                        # If processing a chat fails, skip it
+                        print(f"Error processing chat {chat.id}: {str(chat_error)}")
+                        continue
+                        
+                return JsonResponse(chats_data, safe=False)
+            except Exception as db_error:
+                print(f"Database error in SimpleChatsView: {str(db_error)}")
+                return JsonResponse({
+                    'error': 'Database error',
+                    'message': str(db_error)
+                }, status=500)
+                
+        except Exception as e:
+            print(f"Unexpected error in SimpleChatsView: {str(e)}")
+            return JsonResponse({
+                'error': 'Unexpected error',
+                'message': str(e)
+            }, status=500)
+
+
+class ChatDebugView(APIView):
+    """
+    Debug endpoint to check chat functionality.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request):
+        """
+        Run diagnostics on the chat system.
+        """
+        import datetime
+        import sys
+        import django
+        from django.db import connection
+        
+        diagnostics = {
+            'timestamp': datetime.datetime.now().isoformat(),
+            'auth': {
+                'user_authenticated': request.user.is_authenticated,
+                'username': request.user.username if request.user.is_authenticated else None,
+                'user_id': request.user.id if request.user.is_authenticated else None,
+            },
+            'system': {
+                'python_version': sys.version,
+                'django_version': django.get_version(),
+                'timezone': datetime.datetime.now().astimezone().tzinfo.tzname(None),
+            },
+            'database': {
+                'engine': connection.settings_dict['ENGINE'],
+                'name': connection.settings_dict['NAME'],
+            },
+            'tables': {},
+            'counts': {},
+            'latest': {}
+        }
+        
+        # Check database connectivity
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT 1")
+                row = cursor.fetchone()
+                diagnostics['database']['connection_test'] = "OK" if row[0] == 1 else "Failed"
+        except Exception as e:
+            diagnostics['database']['connection_test'] = f"Error: {str(e)}"
+        
+        # Check model counts
+        try:
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            
+            # Get counts of various models
+            diagnostics['counts']['users'] = User.objects.count()
+            diagnostics['counts']['chats'] = Chat.objects.count()
+            diagnostics['counts']['messages'] = Message.objects.count()
+            
+            # Get user's chats count
+            if request.user.is_authenticated:
+                user_chats = Chat.objects.filter(participants=request.user)
+                diagnostics['counts']['user_chats'] = user_chats.count()
+                
+                # Get info about latest chat
+                if user_chats.exists():
+                    latest_chat = user_chats.order_by('-updated_at').first()
+                    diagnostics['latest']['chat'] = {
+                        'id': latest_chat.id,
+                        'updated_at': latest_chat.updated_at.isoformat(),
+                        'participant_count': latest_chat.participants.count(),
+                        'message_count': latest_chat.messages.count()
+                    }
+                    
+                    # Add participant info
+                    diagnostics['latest']['chat']['participants'] = [
+                        {'id': p.id, 'username': p.username}
+                        for p in latest_chat.participants.all()
+                    ]
+                    
+                    # Check latest message
+                    latest_message = latest_chat.messages.order_by('-created_at').first()
+                    if latest_message:
+                        diagnostics['latest']['message'] = {
+                            'id': latest_message.id,
+                            'sender_id': latest_message.sender.id,
+                            'sender_username': latest_message.sender.username,
+                            'created_at': latest_message.created_at.isoformat(),
+                            'has_content': bool(latest_message.content),
+                            'has_image': bool(latest_message.image)
+                        }
+        except Exception as e:
+            diagnostics['error'] = str(e)
+        
+        return Response(diagnostics)
+
+
+def raw_chats_view(request):
+    """
+    A pure Django view that returns chats without using Django REST Framework.
+    This is a last resort to debug issues with DRF.
+    """
+    # Check if user is authenticated
+    if not request.user.is_authenticated:
+        return JsonResponse({'error': 'Authentication required'}, status=401)
+    
+    try:
+        # Get all chats for this user
+        chats = Chat.objects.filter(participants=request.user).order_by('-updated_at')
+        
+        # Prepare response manually
+        chats_data = []
+        
+        for chat in chats:
+            try:
+                # Get basic chat data
+                chat_data = {
+                    'id': chat.id,
+                    'created_at': chat.created_at.isoformat() if chat.created_at else None,
+                    'updated_at': chat.updated_at.isoformat() if chat.updated_at else None,
+                    'participants': [],
+                    'last_message': None,
+                    'unread_count': 0
+                }
+                
+                # Get participants
+                for participant in chat.participants.all():
+                    chat_data['participants'].append({
+                        'id': participant.id,
+                        'username': participant.username,
+                        'display_name': participant.display_name or participant.username
+                    })
+                
+                # Get last message
+                last_message = chat.messages.order_by('-created_at').first()
+                if last_message:
+                    chat_data['last_message'] = {
+                        'id': last_message.id,
+                        'content': last_message.content[:50] if last_message.content else '',
+                        'sender': last_message.sender.username,
+                        'created_at': last_message.created_at.isoformat() if last_message.created_at else None,
+                        'has_image': bool(last_message.image)
+                    }
+                
+                # Count unread messages
+                chat_data['unread_count'] = chat.messages.filter(
+                    is_read=False
+                ).exclude(
+                    sender=request.user
+                ).count()
+                
+                # Add to result
+                chats_data.append(chat_data)
+            except Exception as chat_error:
+                print(f"Error processing chat {chat.id}: {str(chat_error)}")
+                continue
+        
+        return JsonResponse(chats_data, safe=False)
+    except Exception as e:
+        print(f"Error in raw_chats_view: {str(e)}")
+        return JsonResponse({'error': str(e)}, status=500) 

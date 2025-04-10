@@ -3,6 +3,7 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from .models import MyUser, Game, GameStats, RankSystem, RankTier, PlayerGoal, GameRanking, Post, Like, Comment, Message, Chat
 import json
 import logging
+from django.utils import timezone
 
 """
 Serializers for the Q-up platform.
@@ -635,99 +636,112 @@ class ChatSerializer(serializers.ModelSerializer):
     # Връща последното съобщение в чата
     def get_last_message(self, obj):
         try:
-            import logging
-            logger = logging.getLogger(__name__)
+            # Basic default response if anything fails
+            default_response = {
+                'id': None,
+                'content': "",
+                'sender': "",
+                'created_at': timezone.now(),
+                'has_image': False,
+                'has_file': False
+            }
             
+            # Get the most recent message with error handling
             try:
                 last_message = obj.messages.order_by('-created_at').first()
+                if not last_message:
+                    return None
             except Exception as query_error:
+                import logging
+                logger = logging.getLogger(__name__)
                 logger.error(f"Error querying last message: {str(query_error)}")
-                return None
+                return default_response
+            
+            # Extract message data safely
+            try:
+                message_id = getattr(last_message, 'id', None)
+                if not message_id:
+                    return default_response
                 
-            if last_message:
+                # Get content safely
+                content = ""
                 try:
-                    # Safely get content with fallbacks
-                    content = ""
-                    if hasattr(last_message, 'content') and last_message.content:
+                    if last_message.content:
                         content = last_message.content[:50] + '...' if len(last_message.content) > 50 else last_message.content
-                    
-                    # Safely get sender with fallbacks
-                    sender = ""
+                except (AttributeError, TypeError):
+                    pass
+                
+                # Get sender safely
+                sender = ""
+                try:
                     if hasattr(last_message, 'sender') and last_message.sender:
                         sender = last_message.sender.username
-                    
-                    # Safely check for image with fallbacks
-                    has_image = False
-                    if hasattr(last_message, 'image') and last_message.image:
-                        has_image = bool(last_message.image)
-                    
-                    # Safely check for file with fallbacks
-                    has_file = False
-                    if hasattr(last_message, 'file') and last_message.file:
-                        has_file = True
-                        
-                    return {
-                        'id': last_message.id,
-                        'content': content,
-                        'sender': sender,
-                        'created_at': last_message.created_at,
-                        'has_image': has_image,
-                        'has_file': has_file
-                    }
-                except Exception as format_error:
-                    logger.error(f"Error formatting last message: {str(format_error)}")
-                    import traceback
-                    logger.error(traceback.format_exc())
-                    # Return a minimal response that won't break the frontend
-                    return {
-                        'id': last_message.id,
-                        'content': "",
-                        'sender': "",
-                        'created_at': last_message.created_at,
-                        'has_image': False,
-                        'has_file': False
-                    }
-            return None
+                except (AttributeError, TypeError):
+                    pass
+                
+                # Check for image safely
+                has_image = False
+                try:
+                    has_image = bool(last_message.image) if hasattr(last_message, 'image') else False
+                except (AttributeError, TypeError):
+                    pass
+                
+                # Get created_at safely
+                created_at = timezone.now()
+                try:
+                    if hasattr(last_message, 'created_at') and last_message.created_at:
+                        created_at = last_message.created_at
+                except (AttributeError, TypeError):
+                    pass
+                
+                return {
+                    'id': message_id,
+                    'content': content,
+                    'sender': sender,
+                    'created_at': created_at,
+                    'has_image': has_image,
+                    'has_file': has_image  # Use image field as indicator for file too
+                }
+            except Exception as format_error:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Error formatting last message: {str(format_error)}")
+                return default_response
+                
         except Exception as e:
-            print(f"Error in get_last_message: {str(e)}")
-            import traceback
-            traceback.print_exc()
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error in get_last_message: {str(e)}")
+            # Return None instead of failing
             return None
     
     # Връща брой непрочетени съобщения за текущия потребител
     def get_unread_count(self, obj):
         try:
-            import logging
-            logger = logging.getLogger(__name__)
-            
             # Safely get user with fallbacks
             request = self.context.get('request')
             if not request:
-                logger.warning("No request in context")
                 return 0
                 
             user = request.user
             if not user or not user.is_authenticated:
-                logger.warning("No authenticated user")
                 return 0
             
             try:    
                 # Count unread messages sent by others
-                unread_count = obj.messages.filter(
+                return obj.messages.filter(
                     is_read=False
                 ).exclude(
                     sender=user
                 ).count()
-                
-                return unread_count
             except Exception as query_error:
+                import logging
+                logger = logging.getLogger(__name__)
                 logger.error(f"Error counting unread messages: {str(query_error)}")
-                import traceback
-                logger.error(traceback.format_exc())
                 return 0
             
         except Exception as e:
-            print(f"Error in get_unread_count: {str(e)}")
-            import traceback
-            traceback.print_exc()
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error in get_unread_count: {str(e)}")
             return 0
