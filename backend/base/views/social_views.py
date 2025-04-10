@@ -46,11 +46,11 @@ class PostListView(APIView):
         
         try:
             # Get data from request
-            content = request.data.get('content', '').strip()
+            caption = request.data.get('content', '').strip()  # Keep accepting 'content' from frontend but assign to caption
             image = request.FILES.get('image', None)
             
-            # Check that at least one of content or image is provided
-            if not content and not image:
+            # Check that at least one of caption or image is provided
+            if not caption and not image:
                 return Response(
                     {'detail': 'Публикацията трябва да съдържа текст или снимка'},
                     status=status.HTTP_400_BAD_REQUEST
@@ -79,7 +79,7 @@ class PostListView(APIView):
             try:
                 post = Post.objects.create(
                     user=request.user,
-                    content=content,
+                    caption=caption,  # Use caption instead of content
                     image=image
                 )
                 
