@@ -56,16 +56,24 @@ class UpdateProfileView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
+    def patch(self, request, username, format=None):
+        """Handle PATCH requests for backward compatibility with frontend"""
+        return self.update_profile(request, username)
+        
     def put(self, request, username, format=None):
+        """Handle PUT requests"""
+        return self.update_profile(request, username)
+        
+    def update_profile(self, request, username):
         """
-        PUT method to update the user's profile.
+        Common method to update a user's profile that works with both PATCH and PUT requests.
         
         Args:
             request: The HTTP request
             username: The username of the profile to update
             
         Returns:
-            Updated profile data or 404 if user not found
+            Updated profile data or error response
         """
         try:
             user = MyUser.objects.get(username=username)
