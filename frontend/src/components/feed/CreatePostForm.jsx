@@ -124,7 +124,7 @@ const CreatePostForm = ({ onPostCreated }) => {
         gameId: game || 'None'
       });
       
-      // Always append caption if available 
+      // Always append caption if available - use 'caption' as field name to match backend
       if (caption.trim()) {
         formData.append('caption', caption.trim());
       }

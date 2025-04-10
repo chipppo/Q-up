@@ -24,7 +24,7 @@ export const formatImageUrl = (url) => {
   }
   
   // Skip paths that reference non-existent default avatars
-  if (url.includes('default-avatar.svg') || url.includes('default/default-avatar')) {
+  if (url.includes('default-avatar') || url.includes('default/') || url.includes('/media/default/')) {
     return null;
   }
   

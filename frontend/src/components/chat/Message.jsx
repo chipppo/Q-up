@@ -76,6 +76,9 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
     )
   );
   
+  // Add console log to debug sender identification
+  console.debug(`Message ${message.id} from ${typeof message.sender === 'object' ? message.sender?.username : message.sender} - isOwnMessage: ${isOwnMessage}, currentUser: ${currentUsername}`);
+  
   // Get sender name from various possible properties
   const senderName = 
     (typeof message.sender === 'object' ? message.sender?.display_name || message.sender?.username : null) || 
@@ -99,6 +102,11 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
    * @returns {boolean} True if the attachment appears to be an image
    */
   const isImageAttachment = (url) => {
+    // First check if we have file metadata from the server
+    if (message.file_info && message.file_info.is_image !== undefined) {
+      return message.file_info.is_image;
+    }
+    
     if (!url) return false;
     
     // Check for common image extensions in URL
@@ -124,13 +132,18 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
   };
   
   /**
-   * Extracts a filename from a URL
+   * Extracts a filename from a URL or message metadata
    * 
    * @function getFileName
    * @param {string} url - The URL to extract filename from
    * @returns {string} The extracted filename or 'File' if not found
    */
   const getFileName = (url) => {
+    // First check if we have file metadata from the server
+    if (message.file_info && message.file_info.name) {
+      return message.file_info.name;
+    }
+    
     if (!url) return 'File';
     const parts = url.split('/');
     return parts[parts.length - 1];
@@ -259,6 +272,17 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
         <div 
           className={`message-bubble ${isOwnMessage ? 'sent' : 'received'} ${isHighlighted ? 'highlighted-message' : ''}`}
           id={`message-${message.id}`}
+          style={{ 
+            backgroundColor: isHighlighted 
+              ? 'rgba(255, 214, 0, 0.2)' 
+              : (isOwnMessage 
+                  ? 'var(--color-primary)' 
+                  : 'var(--color-bg-tertiary)'),
+            color: isOwnMessage ? 'white' : 'var(--color-text-primary)',
+            borderTopRightRadius: isOwnMessage ? '4px' : '16px',
+            borderTopLeftRadius: isOwnMessage ? '16px' : '4px',
+            position: 'relative'
+          }}
         >
           {message.parent && (
             <Box 
@@ -305,17 +329,30 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
                 <Box 
                   className="file-attachment"
                   onClick={() => handleFileDownload(formatImageUrl(message.image), getFileName(message.image))}
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    p: 1.5,
+                    backgroundColor: 'rgba(0,0,0,0.05)',
+                    borderRadius: 2,
+                    mt: 1,
+                    cursor: 'pointer',
+                    transition: 'background-color 0.2s',
+                    '&:hover': {
+                      backgroundColor: 'rgba(0,0,0,0.08)'
+                    }
+                  }}
                 >
-                  <AttachFileIcon />
-                  <Box sx={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', ml: 1 }}>
-                    <Typography className="file-name" variant="body2" noWrap sx={{ fontWeight: 'medium' }}>
+                  <AttachFileIcon color="primary" />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', ml: 2, flex: 1 }}>
+                    <Typography variant="body2" noWrap sx={{ fontWeight: 'medium' }}>
                       {getFileName(message.image)}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
-                      Click to download
+                      {message.file_info?.type || 'File'} • Click to download
                     </Typography>
                   </Box>
-                  <DownloadIcon sx={{ ml: 'auto' }} />
+                  <DownloadIcon sx={{ ml: 'auto' }} color="action" />
                 </Box>
               )}
             </Box>

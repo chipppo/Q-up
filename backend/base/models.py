@@ -474,7 +474,9 @@ class Message(models.Model):
     chat = models.ForeignKey(Chat, on_delete=models.CASCADE, related_name='messages')
     sender = models.ForeignKey(MyUser, on_delete=models.CASCADE, related_name='sent_messages')
     content = models.TextField(blank=True)
-    image = models.ImageField(upload_to='chat_images/', null=True, blank=True)
+    image = models.FileField(upload_to='chat_files/', null=True, blank=True)  # Changed from ImageField to FileField to support all types
+    file_name = models.CharField(max_length=255, blank=True, null=True)  # Add field to store original filename
+    file_type = models.CharField(max_length=100, blank=True, null=True)  # Add field to store content type
     parent = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='replies')
     is_edited = models.BooleanField(default=False)
     is_read = models.BooleanField(default=False)

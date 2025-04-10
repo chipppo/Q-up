@@ -438,6 +438,7 @@ class MessageSerializer(serializers.ModelSerializer):
     parent_sender = serializers.SerializerMethodField()
     image = serializers.SerializerMethodField()
     parent_message = serializers.SerializerMethodField()
+    file_info = serializers.SerializerMethodField()
 
     class Meta:
         model = Message
@@ -445,34 +446,54 @@ class MessageSerializer(serializers.ModelSerializer):
             'id', 'chat', 'sender', 'content', 'image',
             'parent', 'is_read', 'is_delivered',
             'created_at', 'updated_at', 'replies_count', 
-            'parent_sender', 'parent_message'
+            'parent_sender', 'parent_message', 'file_info'
         ]
         read_only_fields = [
-            'id', 'sender', 'is_read', 'is_delivered',
-            'created_at', 'updated_at', 'replies_count', 
-            'parent_sender', 'parent_message'
+            'id', 'chat', 'sender', 'created_at', 
+            'updated_at', 'replies_count', 'parent_sender'
         ]
-
-    # Връща брой отговори на съобщението
+    
     def get_replies_count(self, obj):
         return obj.replies.count()
-
-    # Връща потребителя, изпратил родителското съобщение
+    
     def get_parent_sender(self, obj):
-        if obj.parent:
+        if obj.parent and obj.parent.sender:
             return obj.parent.sender.username
         return None
     
-    # Връща пълен URL към снимката в съобщението
     def get_image(self, obj):
         if obj.image:
-            request = self.context.get('request')
-            if request:
-                return request.build_absolute_uri(obj.image.url)
-            return obj.image.url
+            try:
+                request = self.context.get('request')
+                if request:
+                    return request.build_absolute_uri(obj.image.url)
+                return obj.image.url
+            except Exception as e:
+                return None
         return None
     
-    # Връща информация за родителското съобщение
+    def get_file_info(self, obj):
+        """Get file metadata like name, type, and if it's an image"""
+        if not obj.image:
+            return None
+            
+        is_image = False
+        if obj.file_type and obj.file_type.startswith('image/'):
+            is_image = True
+        elif not obj.file_type and obj.image:
+            # Try to guess from file extension
+            file_ext = obj.image.name.lower().split('.')[-1] if '.' in obj.image.name else ''
+            image_extensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp']
+            is_image = file_ext in image_extensions
+            
+        return {
+            'name': obj.file_name or obj.image.name.split('/')[-1],
+            'type': obj.file_type or 'application/octet-stream',
+            'is_image': is_image,
+            'size': obj.image.size if hasattr(obj.image, 'size') else None
+        }
+
+    # Return information about the parent message
     def get_parent_message(self, obj):
         if obj.parent:
             return {
@@ -482,8 +503,8 @@ class MessageSerializer(serializers.ModelSerializer):
                 'created_at': obj.parent.created_at
             }
         return None
-
-    # Валидация - трябва да има текст или снимка
+    
+    # Validation - must have text or file
     def validate(self, data):
         # Make chat field optional since we'll set it in the view
         if 'chat' not in data:

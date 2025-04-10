@@ -12,10 +12,12 @@
 
 .message-wrapper.sent {
   align-items: flex-end;
+  width: 100%; /* Full width for wrapper */
 }
 
 .message-wrapper.received {
   align-items: flex-start;
+  width: 100%; /* Full width for wrapper */
 }
 
 /* -------- Message Bubbles -------- */

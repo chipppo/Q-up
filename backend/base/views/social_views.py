@@ -46,8 +46,13 @@ class PostListView(APIView):
         
         try:
             # Get data from request
-            caption = request.data.get('content', '').strip()  # Keep accepting 'content' from frontend but assign to caption
+            caption = request.data.get('caption', '').strip()  # Fix: use 'caption' field name
             image = request.FILES.get('image', None)
+            game_id = request.data.get('game', None)
+            
+            # Log the received data
+            logger.info(f"Post creation - received data: caption={bool(caption)}, image={bool(image)}, game={game_id}")
+            logger.info(f"Post data fields: {list(request.data.keys())}")
             
             # Check that at least one of caption or image is provided
             if not caption and not image:
@@ -77,11 +82,26 @@ class PostListView(APIView):
             
             # Create post
             try:
-                post = Post.objects.create(
-                    user=request.user,
-                    caption=caption,  # Use caption instead of content
-                    image=image
-                )
+                post_data = {
+                    'user': request.user,
+                    'caption': caption
+                }
+                
+                if image:
+                    post_data['image'] = image
+                
+                # Add game if provided
+                if game_id:
+                    try:
+                        game = Game.objects.get(id=game_id)
+                        post_data['game'] = game
+                    except Game.DoesNotExist:
+                        return Response(
+                            {'detail': 'Играта не е намерена.'},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+                
+                post = Post.objects.create(**post_data)
                 
                 # Check if image was successfully uploaded (if provided)
                 if image and not post.image:

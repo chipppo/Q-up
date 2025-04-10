@@ -45,7 +45,7 @@ const MessageInput = ({ selectedChat, replyTo, setReplyTo, addMessage, scrollToB
     if (!selectedChat) return;
   };
   
-  // Handle file selection - convert to image field for compatibility
+  // Handle file selection
   const handleFileSelect = (e) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
@@ -58,7 +58,7 @@ const MessageInput = ({ selectedChat, replyTo, setReplyTo, addMessage, scrollToB
       }
       
       // Block potentially dangerous file types
-      const dangerousExtensions = [".exe", ".bat", ".cmd", ".msi", ".sh", ".vbs", ".ps1", ".js", ".php", ".dll"];
+      const dangerousExtensions = [".exe", ".bat", ".cmd", ".msi", ".sh", ".vbs", ".ps1", ".php", ".dll"];
       const fileName = file.name.toLowerCase();
       const hasDangerousExtension = dangerousExtensions.some(ext => fileName.endsWith(ext));
       
@@ -69,17 +69,12 @@ const MessageInput = ({ selectedChat, replyTo, setReplyTo, addMessage, scrollToB
       }
       
       try {
-        // IMPORTANT: Since backend only accepts 'image' field, use the same field for all file types
-        // The backend will reject non-image files, so we warn users about this limitation
-        toast.info("Note: The backend currently only supports image uploads. Non-image files may not upload correctly.");
-        
-        // Set file for upload - treat it as an image since that's what the backend expects
-        setSelectedImage(file);
-        
-        // Create preview display
+        // Set file for upload
+        setSelectedFile(file);
         setFilePreview(file);
         
-        // Keep image field clear since we're using it for the file
+        // Clear image selection
+        setSelectedImage(null);
         setImagePreview(null);
         if (fileInputRef.current) fileInputRef.current.value = "";
         
@@ -116,17 +111,15 @@ const MessageInput = ({ selectedChat, replyTo, setReplyTo, addMessage, scrollToB
         formData.append("content", message.trim());
       }
       
-      // Add image if any (use correct field name for backend)
+      // Add image if any
       if (selectedImage) {
         console.debug("Attaching image:", selectedImage.name, selectedImage.type, selectedImage.size);
-        // Backend only accepts 'image' field
         formData.append("image", selectedImage, selectedImage.name);
       }
       
-      // Add file if any (use correct field name for backend)
+      // Add file if any
       if (selectedFile) {
         console.debug("Attaching file:", selectedFile.name, selectedFile.type, selectedFile.size);
-        // Backend only accepts 'image' field - renamed from 'file'
         formData.append("image", selectedFile, selectedFile.name);
       }
       
@@ -175,18 +168,21 @@ const MessageInput = ({ selectedChat, replyTo, setReplyTo, addMessage, scrollToB
     } catch (error) {
       console.error("Error sending message:", error);
       
-      // Image type validation issue
-      if (error.response && error.response.status === 400 && 
-          (error.response.data?.detail?.includes("file type") || 
-           error.response.data?.detail?.includes("тип файл"))) {
-        toast.error("Only image files are currently supported by the server.");
-      } 
-      // General error handling
-      else if (error.response) {
-        const errorMessage = error.response.data?.detail || error.response.statusText;
-        toast.error(`Failed to send: ${errorMessage}`);
+      if (error.response && error.response.status === 400) {
+        if (error.response.data?.detail) {
+          // Translate Bulgarian error messages
+          let errorMessage = error.response.data.detail;
+          if (errorMessage.includes("Невалиден тип файл")) {
+            errorMessage = "Invalid file type. Please try another format.";
+          } else if (errorMessage.includes("Размерът")) {
+            errorMessage = "File size is too large. Please try a smaller file.";
+          }
+          toast.error(`Failed to send: ${errorMessage}`);
+        } else {
+          toast.error(`Failed to send message: ${error.response.statusText}`);
+        }
       } else {
-        toast.error("Failed to send message. Please try again.");
+        toast.error("Failed to send message. Please try again later.");
       }
     } finally {
       setSending(false);

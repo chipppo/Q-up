@@ -325,18 +325,20 @@ class MessageListView(APIView):
                 # Validate file size
                 if image.size > 10 * 1024 * 1024:  # 10MB
                     return Response(
-                        {'detail': 'Размерът на изображението не може да надвишава 10MB'},
+                        {'detail': 'File size cannot exceed 10MB'},
                         status=status.HTTP_400_BAD_REQUEST
                     )
                 
-                # Validate file type
+                # Check content type - allow any file type but log it
                 content_type = getattr(image, 'content_type', None)
-                if content_type and not content_type.startswith('image/'):
-                    return Response(
-                        {'detail': 'Невалиден тип файл. Моля, качете само изображения.'},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
-            
+                logger.info(f"Uploading file with content type: {content_type}")
+                
+                # Allow all file types but warn about potentially dangerous ones
+                dangerous_types = ['application/x-msdownload', 'application/x-executable', 
+                                  'application/x-dosexec', 'application/java-archive']
+                if content_type and any(dtype in content_type.lower() for dtype in dangerous_types):
+                    logger.warning(f"Potentially dangerous file type uploaded: {content_type}")
+                    
             # Create message in two steps to prevent S3 errors from failing the entire request
             try:
                 # First create message without image
@@ -349,16 +351,23 @@ class MessageListView(APIView):
                     is_delivered=True
                 )
                 
-                # Then try to save the image separately
+                # Then try to save the file/image separately
                 if image:
                     try:
-                        logger.info(f"Saving image for message {message.id}")
+                        logger.info(f"Saving file for message {message.id}")
+                        
+                        # Store original filename and content type
+                        message.file_name = getattr(image, 'name', '')
+                        message.file_type = getattr(image, 'content_type', '')
                         message.image = image
                         message.save()
-                        logger.info(f"Image saved successfully")
-                    except Exception as img_error:
-                        logger.error(f"Error saving image: {str(img_error)}")
-                        # Continue without image - message was created successfully
+                        
+                        logger.info(f"File saved successfully: {message.file_name} ({message.file_type})")
+                    except Exception as file_error:
+                        logger.error(f"Error saving file: {str(file_error)}")
+                        import traceback
+                        logger.error(traceback.format_exc())
+                        # Continue without file - message was created successfully
                 
                 # Update chat last activity timestamp
                 chat.save()
