@@ -21,14 +21,35 @@ class ChatListView(APIView):
     def get(self, request):
         try:
             # Get all chats where the user is a participant
-            chats = Chat.objects.filter(participants=request.user).prefetch_related(
-                'participants',
-                'messages'
-            ).order_by('-updated_at')
+            if not request.user.is_authenticated:
+                return Response(
+                    {'detail': 'Authentication credentials were not provided.'},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
+                
+            try:
+                # Try to fetch chats with prefetch_related
+                chats = Chat.objects.filter(participants=request.user).prefetch_related(
+                    'participants',
+                    'messages'
+                ).order_by('-updated_at')
+            except Exception as db_error:
+                # If prefetch_related fails, try a simpler query
+                print(f"Error with prefetch_related: {str(db_error)}")
+                chats = Chat.objects.filter(participants=request.user).order_by('-updated_at')
 
             # Serialize the chats
-            serializer = ChatSerializer(chats, many=True, context={'request': request})
-            return Response(serializer.data)
+            try:
+                serializer = ChatSerializer(chats, many=True, context={'request': request})
+                return Response(serializer.data)
+            except Exception as serializer_error:
+                print(f"Error serializing chats: {str(serializer_error)}")
+                import traceback
+                traceback.print_exc()
+                return Response(
+                    {'detail': f'Error serializing chat data: {str(serializer_error)}'},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
         except Exception as e:
             print(f"Error in ChatListView.get: {str(e)}")
             import traceback

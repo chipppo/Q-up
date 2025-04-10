@@ -493,7 +493,14 @@ class Message(models.Model):
     # Изтрива картинката при изтриване
     def delete(self, *args, **kwargs):
         # Изтрива снимката при изтриване
-        if self.image:
-            # S3 compatible file deletion
-            self.image.delete(save=False)
+        if hasattr(self, 'image') and self.image:
+            try:
+                # S3 compatible file deletion
+                self.image.delete(save=False)
+            except Exception as e:
+                # Log error but continue with deletion
+                print(f"Error deleting image file for message {self.id}: {str(e)}")
+                import traceback
+                traceback.print_exc()
+        
         super().delete(*args, **kwargs)

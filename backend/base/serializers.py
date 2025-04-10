@@ -454,55 +454,99 @@ class MessageSerializer(serializers.ModelSerializer):
         ]
     
     def get_replies_count(self, obj):
-        return obj.replies.count()
+        try:
+            return obj.replies.count()
+        except Exception as e:
+            print(f"Error in get_replies_count: {str(e)}")
+            return 0
     
     def get_parent_sender(self, obj):
-        if obj.parent and obj.parent.sender:
-            return obj.parent.sender.username
-        return None
+        try:
+            if obj.parent and hasattr(obj.parent, 'sender') and obj.parent.sender:
+                return getattr(obj.parent.sender, 'username', None)
+            return None
+        except Exception as e:
+            print(f"Error in get_parent_sender: {str(e)}")
+            return None
     
     def get_image(self, obj):
-        if obj.image:
-            try:
-                request = self.context.get('request')
-                if request:
-                    return request.build_absolute_uri(obj.image.url)
-                return obj.image.url
-            except Exception as e:
-                return None
-        return None
+        try:
+            if hasattr(obj, 'image') and obj.image:
+                try:
+                    request = self.context.get('request')
+                    if request:
+                        return request.build_absolute_uri(obj.image.url)
+                    return obj.image.url
+                except Exception as e:
+                    print(f"Error getting image URL: {str(e)}")
+                    return None
+            return None
+        except Exception as e:
+            print(f"Error in get_image: {str(e)}")
+            return None
     
     def get_file_info(self, obj):
         """Get file metadata like name, type, and if it's an image"""
-        if not obj.image:
+        try:
+            if not hasattr(obj, 'image') or not obj.image:
+                return None
+                
+            is_image = False
+            
+            # Get file type safely
+            file_type = getattr(obj, 'file_type', None)
+            if file_type and file_type.startswith('image/'):
+                is_image = True
+            elif not file_type and obj.image:
+                # Try to guess from file extension
+                file_name = obj.image.name if hasattr(obj.image, 'name') else ''
+                file_ext = file_name.lower().split('.')[-1] if '.' in file_name else ''
+                image_extensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp']
+                is_image = file_ext in image_extensions
+            
+            # Get file name safely
+            file_name = getattr(obj, 'file_name', None)
+            if not file_name and hasattr(obj.image, 'name'):
+                file_name = obj.image.name.split('/')[-1]
+                
+            # Get file size safely
+            file_size = None
+            if hasattr(obj.image, 'size'):
+                file_size = obj.image.size
+                
+            return {
+                'name': file_name or 'file',
+                'type': file_type or 'application/octet-stream',
+                'is_image': is_image,
+                'size': file_size
+            }
+        except Exception as e:
+            print(f"Error in get_file_info: {str(e)}")
             return None
-            
-        is_image = False
-        if obj.file_type and obj.file_type.startswith('image/'):
-            is_image = True
-        elif not obj.file_type and obj.image:
-            # Try to guess from file extension
-            file_ext = obj.image.name.lower().split('.')[-1] if '.' in obj.image.name else ''
-            image_extensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp']
-            is_image = file_ext in image_extensions
-            
-        return {
-            'name': obj.file_name or obj.image.name.split('/')[-1],
-            'type': obj.file_type or 'application/octet-stream',
-            'is_image': is_image,
-            'size': obj.image.size if hasattr(obj.image, 'size') else None
-        }
 
     # Return information about the parent message
     def get_parent_message(self, obj):
-        if obj.parent:
+        try:
+            if not obj.parent:
+                return None
+                
+            # Safety checks for parent message fields
+            parent_content = getattr(obj.parent, 'content', '')
+            
+            # Safely get sender username
+            sender_username = None
+            if hasattr(obj.parent, 'sender') and obj.parent.sender:
+                sender_username = getattr(obj.parent.sender, 'username', None)
+                
             return {
                 'id': obj.parent.id,
-                'content': obj.parent.content,
-                'sender': obj.parent.sender.username,
-                'created_at': obj.parent.created_at
+                'content': parent_content,
+                'sender': sender_username or 'Unknown',
+                'created_at': getattr(obj.parent, 'created_at', None)
             }
-        return None
+        except Exception as e:
+            print(f"Error in get_parent_message: {str(e)}")
+            return None
     
     # Validation - must have text or file
     def validate(self, data):
@@ -534,26 +578,49 @@ class ChatSerializer(serializers.ModelSerializer):
         try:
             last_message = obj.messages.order_by('-created_at').first()
             if last_message:
+                # Safely get sender's username with fallback
+                sender_username = ""
+                if hasattr(last_message, 'sender') and last_message.sender:
+                    sender_username = getattr(last_message.sender, 'username', "")
+                
+                # Safely get content with empty fallback
+                content = getattr(last_message, 'content', "")
+                truncated_content = content[:50] + '...' if content and len(content) > 50 else content
+                
+                # Safely check for image/file
+                has_image = False
+                has_file = False
+                
+                if hasattr(last_message, 'image') and last_message.image:
+                    has_image = bool(last_message.image)
+                    
+                if hasattr(last_message, 'file') and last_message.file:
+                    has_file = True
+                
                 return {
                     'id': last_message.id,
-                    'content': last_message.content[:50] + '...' if len(last_message.content) > 50 else last_message.content,
-                    'sender': last_message.sender.username,
+                    'content': truncated_content,
+                    'sender': sender_username,
                     'created_at': last_message.created_at,
-                    'has_image': bool(last_message.image),
-                    'has_file': bool(hasattr(last_message, 'file') and last_message.file)
+                    'has_image': has_image,
+                    'has_file': has_file
                 }
             return None
         except Exception as e:
             print(f"Error in get_last_message: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return None
     
     # Връща брой непрочетени съобщения за текущия потребител
     def get_unread_count(self, obj):
         try:
-            user = self.context.get('request').user
-            if not user or not user.is_authenticated:
+            request = self.context.get('request')
+            if not request or not request.user or not request.user.is_authenticated:
                 return 0
                 
+            user = request.user
+            
             # Count unread messages sent by others
             unread_count = obj.messages.filter(
                 is_read=False
@@ -564,4 +631,7 @@ class ChatSerializer(serializers.ModelSerializer):
             return unread_count
             
         except Exception as e:
+            print(f"Error in get_unread_count: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return 0
