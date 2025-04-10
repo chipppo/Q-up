@@ -39,6 +39,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import PersonRemoveIcon from "@mui/icons-material/PersonRemove";
 import MessageIcon from "@mui/icons-material/Message";
+import { formatImageUrl, stringToColor } from '../../utils/formatters';
 
 /**
  * Modal that displays followers and following lists with interactive buttons
@@ -341,7 +342,7 @@ const FollowersModal = ({ open, onClose, username, initialTab = "followers" }) =
                     >
                       <ListItemAvatar>
                         <Avatar 
-                          src={user.avatar ? `${API.defaults.baseURL}${user.avatar}` : '/images/profile-placeholder.svg'}
+                          src={formatImageUrl(user.avatar)}
                           component={Link}
                           to={`/profile/${user.username}`}
                           onClick={onClose}
@@ -349,6 +350,7 @@ const FollowersModal = ({ open, onClose, username, initialTab = "followers" }) =
                             width: 50, 
                             height: 50,
                             cursor: 'pointer',
+                            bgcolor: !user.avatar ? stringToColor(user.username) : 'transparent',
                             transition: 'transform 0.2s',
                             '&:hover': {
                               transform: 'scale(1.05)'
@@ -434,7 +436,7 @@ const FollowersModal = ({ open, onClose, username, initialTab = "followers" }) =
                   >
                     <ListItemAvatar>
                       <Avatar 
-                        src={user.avatar ? `${API.defaults.baseURL}${user.avatar}` : '/images/profile-placeholder.svg'}
+                        src={formatImageUrl(user.avatar)}
                         component={Link}
                         to={`/profile/${user.username}`}
                         onClick={onClose}
@@ -442,6 +444,7 @@ const FollowersModal = ({ open, onClose, username, initialTab = "followers" }) =
                           width: 50, 
                           height: 50,
                           cursor: 'pointer',
+                          bgcolor: !user.avatar ? stringToColor(user.username) : 'transparent',
                           transition: 'transform 0.2s',
                           '&:hover': {
                             transform: 'scale(1.05)'

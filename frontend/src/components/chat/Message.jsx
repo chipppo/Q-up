@@ -18,6 +18,7 @@ import {
   Menu,
   MenuItem,
   ListItemIcon,
+  ListItemText,
 } from '@mui/material';
 import {
   MoreVert as MoreVertIcon,
@@ -63,14 +64,6 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
   const currentUser = auth?.auth?.user || {};
   const currentUsername = currentUser?.username;
   
-  // Debug logs - remove these after fixing the issue
-  console.debug('Message sender data:', { 
-    messageId: message.id,
-    sender: message.sender,
-    sender_username: message.sender_username,
-    currentUsername: currentUsername
-  });
-  
   // More robust check for own messages
   const isOwnMessage = Boolean(
     currentUsername && (
@@ -82,9 +75,6 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
       ))
     )
   );
-  
-  // Debug log the result
-  console.debug(`Message ${message.id} isOwnMessage: ${isOwnMessage}`);
   
   // Get sender name from various possible properties
   const senderName = 
@@ -269,18 +259,6 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
         <div 
           className={`message-bubble ${isOwnMessage ? 'sent' : 'received'} ${isHighlighted ? 'highlighted-message' : ''}`}
           id={`message-${message.id}`}
-          style={{ 
-            backgroundColor: isHighlighted 
-              ? 'rgba(255, 214, 0, 0.2)' 
-              : (isOwnMessage 
-                  ? 'var(--color-primary)' 
-                  : 'var(--color-bg-tertiary)'),
-            color: isOwnMessage ? 'white' : 'var(--color-text-primary)',
-            maxWidth: isOwnMessage ? 'calc(100% - 40px)' : 'calc(100% - 40px)',
-            borderTopRightRadius: isOwnMessage ? '4px' : '16px',
-            borderTopLeftRadius: isOwnMessage ? '16px' : '4px',
-            position: 'relative'
-          }}
         >
           {message.parent && (
             <Box 
@@ -309,7 +287,7 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
           )}
         
           {message.content && (
-            <div className="message-content" style={{ overflowWrap: 'anywhere', wordBreak: 'break-all', maxWidth: '100%', marginBottom: '16px' }}>
+            <div className="message-content">
               {message.content}
             </div>
           )}
@@ -390,42 +368,42 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
             <MoreVertIcon fontSize="small" />
           </IconButton>
         )}
+      </Box>
+      
+      <Menu
+        anchorEl={anchorEl}
+        id={`message-menu-${message.id}`}
+        open={open}
+        onClose={handleMenuClose}
+        onClick={(e) => e.stopPropagation()}
+        transformOrigin={{ horizontal: isOwnMessage ? 'right' : 'left', vertical: 'top' }}
+        anchorOrigin={{ horizontal: isOwnMessage ? 'right' : 'left', vertical: 'bottom' }}
+      >
+        <MenuItem onClick={() => handleMenuAction('reply')}>
+          <ListItemIcon>
+            <ReplyIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Reply</ListItemText>
+        </MenuItem>
         
-        <Menu
-          anchorEl={anchorEl}
-          open={open}
-          onClose={handleMenuClose}
-          MenuListProps={{
-            'aria-labelledby': 'message-options',
-          }}
-        >
-          <MenuItem onClick={() => handleMenuAction('reply')}>
-            <ListItemIcon>
-              <ReplyIcon fontSize="small" />
-            </ListItemIcon>
-            Reply
-          </MenuItem>
-          {isOwnMessage && (
+        {isOwnMessage && (
+          <>
             <MenuItem onClick={() => handleMenuAction('edit')}>
               <ListItemIcon>
                 <EditIcon fontSize="small" />
               </ListItemIcon>
-              Edit
+              <ListItemText>Edit</ListItemText>
             </MenuItem>
-          )}
-          {isOwnMessage && (
-            <MenuItem 
-              onClick={() => handleMenuAction('delete')}
-              disabled={isDeleting}
-            >
+            
+            <MenuItem onClick={() => handleMenuAction('delete')}>
               <ListItemIcon>
-                <DeleteIcon fontSize="small" />
+                <DeleteIcon fontSize="small" sx={{ color: 'error.light' }} />
               </ListItemIcon>
-              {isDeleting ? 'Deleting...' : 'Delete'}
+              <ListItemText sx={{ color: 'error.main' }}>Delete</ListItemText>
             </MenuItem>
-          )}
-        </Menu>
-      </Box>
+          </>
+        )}
+      </Menu>
     </Box>
   );
 };

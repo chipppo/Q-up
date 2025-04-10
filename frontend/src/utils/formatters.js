@@ -9,7 +9,10 @@ import API from '../api/axios';
  * @returns {string|null} The formatted URL or null if no URL provided
  */
 export const formatImageUrl = (url) => {
-  if (!url) return null;
+  if (!url) {
+    // Return null instead of a default avatar path that doesn't exist
+    return null;
+  }
   
   // Handle already fully-qualified URLs
   if (url.startsWith('http')) {
@@ -18,6 +21,11 @@ export const formatImageUrl = (url) => {
       return url.replace('eu-north-1b', 'eu-north-1');
     }
     return url;
+  }
+  
+  // Skip paths that reference non-existent default avatars
+  if (url.includes('default-avatar.svg') || url.includes('default/default-avatar')) {
+    return null;
   }
   
   // Handle relative URLs by adding the API base URL
