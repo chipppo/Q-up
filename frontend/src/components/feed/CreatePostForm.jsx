@@ -115,13 +115,32 @@ const CreatePostForm = ({ onPostCreated }) => {
       setSubmitting(true);
       
       const formData = new FormData();
-      formData.append('caption', caption);
-      if (image) {
-        formData.append('image', image);
+      
+      // Log submission data for debugging
+      console.debug('Creating post with:', {
+        caption: caption.trim() || 'None',
+        hasImage: !!image,
+        imageInfo: image ? `${image.name} (${image.type}, ${image.size} bytes)` : 'None',
+        gameId: game || 'None'
+      });
+      
+      // Always append caption if available 
+      if (caption.trim()) {
+        formData.append('caption', caption.trim());
       }
+      
+      // Append image if available
+      if (image) {
+        formData.append('image', image, image.name);
+      }
+      
+      // Append game if selected
       if (game) {
         formData.append('game', game);
       }
+      
+      // Log FormData keys for debugging
+      console.debug('FormData entries:', [...formData.entries()].map(e => e[0]));
       
       const response = await API.post('/posts/', formData, {
         headers: {
@@ -129,13 +148,16 @@ const CreatePostForm = ({ onPostCreated }) => {
         },
       });
       
-      // Нулиране на формуляра
+      // Log the response
+      console.debug('Post created successfully, response:', response.data);
+      
+      // Reset form
       setCaption('');
       setImage(null);
       setImagePreview(null);
       setGame('');
       
-      // Известяване на родителския компонент
+      // Notify parent component
       if (onPostCreated) {
         onPostCreated(response.data);
       }
@@ -143,7 +165,12 @@ const CreatePostForm = ({ onPostCreated }) => {
       toast.success('Post created successfully!');
     } catch (error) {
       console.error('Error creating post:', error);
-      toast.error('Failed to create post');
+      if (error.response) {
+        console.error('Server response:', error.response.data);
+        toast.error(`Failed to create post: ${error.response.data?.detail || error.response.statusText}`);
+      } else {
+        toast.error('Failed to create post - Network error');
+      }
     } finally {
       setSubmitting(false);
     }

@@ -161,6 +161,7 @@ function SearchProfiles() {
   const [recommendedUsers, setRecommendedUsers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [searchPerformed, setSearchPerformed] = useState(false);
   
   // Filter states
   const [filters, setFilters] = useState({
@@ -269,6 +270,7 @@ function SearchProfiles() {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setSearchPerformed(true);
     
     try {
       // Build query parameters

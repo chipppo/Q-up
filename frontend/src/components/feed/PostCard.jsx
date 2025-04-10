@@ -796,6 +796,7 @@ const PostCard = ({ post, onPostUpdate, onPostDelete }) => {
                                     component="span"
                                     variant="body2"
                                     color="text.primary"
+                                    sx={{ display: 'block', mb: 1 }}
                                   >
                                     {reply.text}
                                   </Typography>
@@ -803,6 +804,7 @@ const PostCard = ({ post, onPostUpdate, onPostDelete }) => {
                                     component="span"
                                     variant="caption"
                                     color="text.secondary"
+                                    sx={{ display: 'block', mt: 0.5 }}
                                   >
                                     {new Date(reply.created_at).toLocaleString()}
                                   </Typography>

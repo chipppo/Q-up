@@ -45,7 +45,7 @@ const MessageInput = ({ selectedChat, replyTo, setReplyTo, addMessage, scrollToB
     if (!selectedChat) return;
   };
   
-  // Send message
+  // Send message with better file handling
   const handleSendMessage = async (e) => {
     if (e) e.preventDefault();
     
@@ -67,14 +67,19 @@ const MessageInput = ({ selectedChat, replyTo, setReplyTo, addMessage, scrollToB
       // Add image if any (use correct field name for backend)
       if (selectedImage) {
         console.debug("Attaching image:", selectedImage.name, selectedImage.type, selectedImage.size);
+        // Try with multiple potential field names
         formData.append("image", selectedImage, selectedImage.name);
+        // Add potential alternative field names the backend might use
+        formData.append("attachment", selectedImage, selectedImage.name);
       }
       
       // Add file if any (use correct field name for backend)
       if (selectedFile) {
         console.debug("Attaching file:", selectedFile.name, selectedFile.type, selectedFile.size);
-        // Try with 'file' field name as it's commonly used in Django
+        // Try with multiple potential field names
         formData.append("file", selectedFile, selectedFile.name);
+        // Add potential alternative field names the backend might use
+        formData.append("attachment", selectedFile, selectedFile.name);
       }
       
       // Add reply_to if replying to a message
@@ -83,24 +88,26 @@ const MessageInput = ({ selectedChat, replyTo, setReplyTo, addMessage, scrollToB
       }
       
       // Log form data for debugging (can't directly log FormData content)
-      console.debug("FormData keys:", [...formData.entries()].map(entry => `${entry[0]}: ${entry[1].name || entry[1]}`));
+      console.debug("FormData keys:", [...formData.entries()].map(entry => `${entry[0]}: ${typeof entry[1] === 'object' ? entry[1].name : entry[1]}`));
       
       toast.info("Sending message...");
       
-      const response = await API.post(`/chats/${selectedChat.id}/messages/`, formData, {
+      // Request config with proper headers
+      const requestConfig = {
         headers: {
           "Content-Type": "multipart/form-data",
-          // Additional header to prevent transformation of FormData
+          // Prevent content-type from being overridden
           "X-Content-Type-Options": "nosniff"
         },
-        // Add explicit content transformation options
-        transformRequest: [
-          function(data) {
-            // Do not transform the FormData
-            return data;
-          }
-        ]
-      });
+        // Prevent axios from modifying FormData
+        transformRequest: [(data) => data]
+      };
+      
+      console.log("Sending request with config:", requestConfig);
+      
+      const response = await API.post(`/chats/${selectedChat.id}/messages/`, formData, requestConfig);
+      
+      console.debug("Message sent successfully, response:", response.data);
       
       // Add the new message to the message array
       addMessage(response.data);
@@ -127,19 +134,36 @@ const MessageInput = ({ selectedChat, replyTo, setReplyTo, addMessage, scrollToB
       
     } catch (error) {
       console.error("Error sending message:", error);
-      // More detailed error handling
+      
+      // More detailed error logging for debugging
       if (error.response) {
-        console.error("Response data:", error.response.data);
-        console.error("Response status:", error.response.status);
+        console.error("Response error details:", {
+          status: error.response.status,
+          statusText: error.response.statusText,
+          data: error.response.data,
+          headers: error.response.headers
+        });
         
         // Show more specific error message
         if (error.response.data && error.response.data.detail) {
-          toast.error(`Failed to send message: ${error.response.data.detail}`);
+          toast.error(`Error: ${error.response.data.detail}`);
+        } else if (error.response.data && typeof error.response.data === 'object') {
+          // Some APIs return field-specific errors
+          const errorMessages = Object.entries(error.response.data)
+            .map(([field, msgs]) => `${field}: ${Array.isArray(msgs) ? msgs.join(', ') : msgs}`)
+            .join('; ');
+          toast.error(`Upload failed: ${errorMessages}`);
         } else {
-          toast.error(`Failed to send message (${error.response.status})`);
+          toast.error(`Message failed (${error.response.status}): ${error.response.statusText}`);
         }
+      } else if (error.request) {
+        // Request was made but no response received
+        console.error("No response received:", error.request);
+        toast.error("Server didn't respond to message. Check your connection.");
       } else {
-        toast.error("Failed to send message");
+        // Error in setting up the request
+        console.error("Request setup error:", error.message);
+        toast.error(`Failed to send: ${error.message}`);
       }
     } finally {
       setSending(false);
