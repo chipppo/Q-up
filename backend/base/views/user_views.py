@@ -1,7 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
-from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from ..models import MyUser
 from ..serializers import (
     UserSerializer,
@@ -50,92 +50,79 @@ class UserDetailView(APIView):
 
 class UpdateProfileView(APIView):
     """
-    Updates a user's profile information.
-    Users can only update their own profiles.
+    Updates the user's profile with new information.
+    Only the authenticated user can update their own profile.
     """
     permission_classes = [permissions.IsAuthenticated]
-    parser_classes = [MultiPartParser, FormParser]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
-    def patch(self, request, username):
+    def put(self, request, username, format=None):
         """
-        PATCH method to update profile data.
-        Handles complex fields like JSON arrays and date formatting.
+        PUT method to update the user's profile.
         
         Args:
-            request: Contains all the updated profile data
-            username: Username of profile to update
+            request: The HTTP request
+            username: The username of the profile to update
             
         Returns:
-            Updated profile data or error messages
+            Updated profile data or 404 if user not found
         """
         try:
             user = MyUser.objects.get(username=username)
-            if user != request.user:
+            
+            # Only allow users to edit their own profile (unless they're staff)
+            if request.user != user and not request.user.is_staff:
                 return Response(
-                    {"detail": "Можете да редактирате само собствения си профил."},
+                    {"detail": "Не можете да редактирате чужд профил!"},
                     status=status.HTTP_403_FORBIDDEN
                 )
-
-            # Handle JSON fields
-            json_fields = ['active_hours', 'language_preference', 'platforms', 'social_links']
-            for field in json_fields:
-                if field in request.data:
+            
+            # Handle JSON or form data
+            data = None
+            if request.content_type == 'application/json':
+                data = request.data
+            else:
+                # Convert form data to dict
+                data = dict(request.data.items())
+            
+            # Special fields that need preprocessing
+            date_fields = ['date_of_birth']
+            list_fields = ['active_hours', 'language_preference', 'platforms', 'social_links']
+            
+            # Process date fields
+            for field in date_fields:
+                if field in data and data[field]:
                     try:
-                        if isinstance(request.data[field], str):
-                            setattr(user, field, json.loads(request.data[field]))
-                        else:
-                            setattr(user, field, request.data[field])
-                    except json.JSONDecodeError:
+                        # Parse date from frontend format (DD/MM/YYYY)
+                        date_value = datetime.strptime(data[field], '%d/%m/%Y').date()
+                        data[field] = date_value
+                    except ValueError:
                         return Response(
-                            {field: "Невалиден JSON формат"},
+                            {"detail": f"Невалиден формат на дата за {field}. Използвайте ДД/ММ/ГГГГ."},
                             status=status.HTTP_400_BAD_REQUEST
                         )
-
-            # Handle other fields
-            editable_fields = [
-                'display_name', 'bio', 'timezone', 'timezone_offset',
-                'date_of_birth', 'mic_available'
-            ]
-
-            for field in editable_fields:
-                if field in request.data:
-                    if field == 'date_of_birth':
+            
+            # Process JSON list fields
+            for field in list_fields:
+                if field in data:
+                    # If the field is a string representation of list
+                    if isinstance(data[field], str):
                         try:
-                            date_str = request.data[field]
-                            if date_str:
-                                date_obj = datetime.strptime(date_str, '%d/%m/%Y').date()
-                                setattr(user, field, date_obj)
-                        except ValueError:
-                            return Response(
-                                {"date_of_birth": "Невалиден формат на дата. Използвайте ДД/ММ/ГГГГ"},
-                                status=status.HTTP_400_BAD_REQUEST
-                            )
-                    elif field == 'mic_available':
-                        setattr(user, field, request.data[field].lower() == 'true')
-                    elif field == 'timezone_offset':
-                        try:
-                            offset = int(request.data[field])
-                            if -12 <= offset <= 14:
-                                setattr(user, field, offset)
+                            data[field] = json.loads(data[field])
+                        except json.JSONDecodeError:
+                            # If not valid JSON, treat as comma-separated values
+                            if data[field]:
+                                data[field] = [item.strip() for item in data[field].split(',')]
                             else:
-                                return Response(
-                                    {"timezone_offset": "Трябва да бъде между -12 и +14"},
-                                    status=status.HTTP_400_BAD_REQUEST
-                                )
-                        except ValueError:
-                            return Response(
-                                {"timezone_offset": "Трябва да бъде число"},
-                                status=status.HTTP_400_BAD_REQUEST
-                            )
-                    else:
-                        setattr(user, field, request.data[field])
+                                data[field] = []
+           
            #Debug avatar upload
             import logging
             logger = logging.getLogger(__name__)
             logger.error(f"Avatar upload - Request method: {request.method}")
             logger.error(f"Avatar upload - Content-Type: {request.content_type}")
             logger.error(f"Avatar upload - FILES keys: {list(request.FILES.keys())}")
-            logger.error(f"Avatar upload - POST keys: {list(request.POST.keys())}")
+            logger.error(f"Avatar upload - POST keys: {list(request.data.keys())}")
             logger.error(f"Avatar upload - Headers: {dict(request.headers)}")
 
             # Handle avatar upload
@@ -147,6 +134,19 @@ class UpdateProfileView(APIView):
                         user.avatar.delete(save=False)
                     user.avatar = request.FILES['avatar']
                     logger.error(f"Avatar assigned to user model: {user.avatar.name}")
+                    
+                    # Try accessing the file to verify it was uploaded to storage
+                    try:
+                        from django.core.files.storage import default_storage
+                        if default_storage.exists(user.avatar.name):
+                            logger.error(f"File exists in storage at: {user.avatar.name}")
+                            logger.error(f"File URL: {user.avatar.url}")
+                        else:
+                            logger.error(f"File doesn't exist in storage: {user.avatar.name}")
+                    except Exception as e:
+                        logger.error(f"Error checking file existence: {str(e)}")
+                        import traceback
+                        logger.error(traceback.format_exc())
                 except Exception as e:
                     logger.error(f"Error handling avatar: {str(e)}")
                     import traceback
