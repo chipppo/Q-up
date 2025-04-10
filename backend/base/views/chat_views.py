@@ -216,15 +216,17 @@ class MessageListView(APIView):
 
     def get(self, request, chat_id):
         try:
+            import logging
+            logger = logging.getLogger(__name__)
+            
             # Pagination parameters
             limit = int(request.query_params.get('limit', 20))  # Default 20 messages
             before_id = request.query_params.get('before_id')  # Message ID to load messages before
             after_timestamp = request.query_params.get('after_timestamp')  # Timestamp to load messages after
             
-            import logging
-            logger = logging.getLogger(__name__)
             logger.info(f"Fetching messages for chat {chat_id}, before_id={before_id}, after_timestamp={after_timestamp}")
             
+            # Get chat with basic error handling
             try:
                 chat = Chat.objects.get(id=chat_id, participants=request.user)
             except Chat.DoesNotExist:
@@ -234,7 +236,15 @@ class MessageListView(APIView):
                 )
             
             # Start with all messages in this chat
-            messages_query = chat.messages.all()
+            try:
+                messages_query = Message.objects.filter(chat=chat)
+                logger.info(f"Found {messages_query.count()} messages in chat {chat_id}")
+            except Exception as query_error:
+                logger.error(f"Error querying messages: {str(query_error)}")
+                return Response(
+                    {'detail': f'Грешка при извличане на съобщения: {str(query_error)}'},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
             
             # Filter messages before the given ID if specified
             if before_id:
@@ -244,11 +254,17 @@ class MessageListView(APIView):
                 except Message.DoesNotExist:
                     logger.warning(f"Message with ID {before_id} not found")
                     pass
+                except Exception as e:
+                    logger.warning(f"Error filtering by before_id {before_id}: {str(e)}")
+                    # Continue without this filter
             
             # Filter messages after the given timestamp if specified
             if after_timestamp:
                 try:
                     # Parse the timestamp and convert to timezone-aware datetime if needed
+                    from django.utils.dateparse import parse_datetime
+                    from django.utils import timezone
+                    
                     parsed_timestamp = parse_datetime(after_timestamp)
                     
                     # Make it timezone-aware if it's not
@@ -257,35 +273,48 @@ class MessageListView(APIView):
                     
                     if parsed_timestamp:
                         messages_query = messages_query.filter(created_at__gte=parsed_timestamp)
-                    else:
-                        logger.warning(f"Failed to parse timestamp: {after_timestamp}")
-                        # If parsing fails, try direct comparison (this works with some formats)
-                        messages_query = messages_query.filter(created_at__gt=after_timestamp)
+                        logger.info(f"Filtered by timestamp >= {parsed_timestamp}")
                 except Exception as e:
                     logger.error(f"Error parsing timestamp {after_timestamp}: {e}")
-                    # Skip timestamp filtering on error rather than attempting string comparison
-                    pass
+                    # Continue without timestamp filtering
             
             # Get messages in the appropriate order and limit the result
-            if after_timestamp:
-                # For newer messages, use ascending order (oldest to newest)
-                messages = messages_query.order_by('created_at')[:limit]
-            else:
-                # For older messages, use descending order (newest to oldest) and reverse for display
-                messages = messages_query.order_by('-created_at')[:limit]
-                messages = list(reversed(messages))
+            try:
+                if after_timestamp:
+                    # For newer messages, use ascending order (oldest to newest)
+                    messages = messages_query.order_by('created_at')[:limit]
+                else:
+                    # For older messages, use descending order (newest to oldest) and reverse for display
+                    messages = messages_query.order_by('-created_at')[:limit]
+                    messages = list(reversed(messages))
+                
+                logger.info(f"Returning {len(messages)} messages for chat {chat_id}")
+            except Exception as order_error:
+                logger.error(f"Error sorting messages: {str(order_error)}")
+                # Fall back to basic query
+                messages = messages_query.all()[:limit]
             
-            logger.info(f"Found {len(messages)} messages for chat {chat_id}")
-            
-            serializer = MessageSerializer(messages, many=True, context={'request': request})
-            return Response(serializer.data)
+            # Serialize messages with error handling
+            try:
+                serializer = MessageSerializer(messages, many=True, context={'request': request})
+                return Response(serializer.data)
+            except Exception as ser_error:
+                logger.error(f"Error serializing messages: {str(ser_error)}")
+                import traceback
+                logger.error(traceback.format_exc())
+                return Response(
+                    {'detail': f'Грешка при обработка на съобщения: {str(ser_error)}'},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+                
         except Exception as e:
-            import traceback
+            import logging
             logger = logging.getLogger(__name__)
-            logger.error(f"Error fetching messages for chat {chat_id}: {str(e)}")
+            logger.error(f"Unexpected error in MessageListView.get: {str(e)}")
+            import traceback
             logger.error(traceback.format_exc())
             return Response(
-                {'detail': f'Неуспешно извличане на съобщения: {str(e)}'},
+                {'detail': f'Неочаквана грешка: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 

@@ -64,12 +64,10 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
   
   // More robust check for own messages - compare with the logged in username
   const isOwnMessage = Boolean(
-    username && (
-      (message.sender_username && message.sender_username === username) ||
-      (message.sender && (
-        (typeof message.sender === 'string' && message.sender === username) || 
-        (message.sender?.username === username)
-      ))
+    username && message && (
+      (message.sender && typeof message.sender === 'object' && message.sender.username === username) ||
+      (message.sender && typeof message.sender === 'string' && message.sender === username) ||
+      (message.sender_username && message.sender_username === username)
     )
   );
   

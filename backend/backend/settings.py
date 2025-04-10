@@ -96,6 +96,9 @@ CORS_ALLOW_ALL_ORIGINS = True
 # Разрешава изпращане на credentials (cookies, auth headers) при CORS заявки
 CORS_ALLOW_CREDENTIALS = True
 
+# Base URL for the API (used for media files and links)
+BASE_URL = 'http://16.171.182.216'
+
 # Настройки за медийни файлове (качени от потребители)
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')

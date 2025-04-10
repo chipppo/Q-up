@@ -512,13 +512,20 @@ class MessageSerializer(serializers.ModelSerializer):
             import logging
             logger = logging.getLogger(__name__)
             
-            if not hasattr(obj, 'image') or not obj.image:
+            if not obj.image:
                 return None
                 
+            # Get the image URL safely
             try:
-                # Try to get the URL safely
                 if hasattr(obj.image, 'url'):
-                    return obj.image.url
+                    url = obj.image.url
+                    # Ensure the URL is properly formatted with domain
+                    if url.startswith('/media/'):
+                        from django.conf import settings
+                        if hasattr(settings, 'MEDIA_URL') and hasattr(settings, 'BASE_URL'):
+                            base = settings.BASE_URL.rstrip('/')
+                            url = f"{base}{url}"
+                    return url
                 return None
             except Exception as url_error:
                 logger.error(f"Error getting image URL: {str(url_error)}")
@@ -636,7 +643,7 @@ class ChatSerializer(serializers.ModelSerializer):
     # Връща последното съобщение в чата
     def get_last_message(self, obj):
         try:
-            # Basic default response if anything fails
+            # Simple default response if anything fails
             default_response = {
                 'id': None,
                 'content': "",
@@ -646,67 +653,30 @@ class ChatSerializer(serializers.ModelSerializer):
                 'has_file': False
             }
             
-            # Get the most recent message with error handling
+            # Use a safer query approach with error handling
+            last_message = None
             try:
-                last_message = obj.messages.order_by('-created_at').first()
+                messages = obj.messages.all().order_by('-created_at')
+                if messages.exists():
+                    last_message = messages.first()
+                
                 if not last_message:
                     return None
-            except Exception as query_error:
+            except Exception as e:
                 import logging
                 logger = logging.getLogger(__name__)
-                logger.error(f"Error querying last message: {str(query_error)}")
+                logger.error(f"Error querying last message: {str(e)}")
                 return default_response
-            
-            # Extract message data safely
-            try:
-                message_id = getattr(last_message, 'id', None)
-                if not message_id:
-                    return default_response
                 
-                # Get content safely
-                content = ""
-                try:
-                    if last_message.content:
-                        content = last_message.content[:50] + '...' if len(last_message.content) > 50 else last_message.content
-                except (AttributeError, TypeError):
-                    pass
-                
-                # Get sender safely
-                sender = ""
-                try:
-                    if hasattr(last_message, 'sender') and last_message.sender:
-                        sender = last_message.sender.username
-                except (AttributeError, TypeError):
-                    pass
-                
-                # Check for image safely
-                has_image = False
-                try:
-                    has_image = bool(last_message.image) if hasattr(last_message, 'image') else False
-                except (AttributeError, TypeError):
-                    pass
-                
-                # Get created_at safely
-                created_at = timezone.now()
-                try:
-                    if hasattr(last_message, 'created_at') and last_message.created_at:
-                        created_at = last_message.created_at
-                except (AttributeError, TypeError):
-                    pass
-                
-                return {
-                    'id': message_id,
-                    'content': content,
-                    'sender': sender,
-                    'created_at': created_at,
-                    'has_image': has_image,
-                    'has_file': has_image  # Use image field as indicator for file too
-                }
-            except Exception as format_error:
-                import logging
-                logger = logging.getLogger(__name__)
-                logger.error(f"Error formatting last message: {str(format_error)}")
-                return default_response
+            # Return simplified data to avoid potential errors
+            return {
+                'id': last_message.id,
+                'content': last_message.content[:50] + '...' if last_message.content and len(last_message.content) > 50 else last_message.content or "",
+                'sender': last_message.sender.username if hasattr(last_message, 'sender') and last_message.sender else "",
+                'created_at': last_message.created_at,
+                'has_image': bool(last_message.image) if hasattr(last_message, 'image') else False,
+                'has_file': bool(last_message.image) if hasattr(last_message, 'image') else False
+            }
                 
         except Exception as e:
             import logging
