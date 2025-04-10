@@ -138,6 +138,7 @@ const EditProfileForm = () => {
     social_links: [],
     active_hours: [],
     avatar: null,
+    avatar_url: '',
   });
 
   const [error, setError] = useState('');
@@ -212,6 +213,7 @@ const EditProfileForm = () => {
           social_links: parsedSocialLinks,
           active_hours: parsedActiveHours,
           avatar: userData.avatar || null,
+          avatar_url: userData.avatar_url || '',
         });
       } catch (error) {
         toast.error('Failed to load user data');
@@ -529,7 +531,9 @@ const EditProfileForm = () => {
           <Grid item xs={12}>
             <Box display="flex" alignItems="center" gap={2}>
               <Avatar
-                src={formData.avatar instanceof File ? URL.createObjectURL(formData.avatar) : formData.avatar ? `${API.defaults.baseURL}${formData.avatar}` : null}
+                src={formData.avatar instanceof File 
+                  ? URL.createObjectURL(formData.avatar) 
+                  : formData.avatar_url || null}
                 sx={{ width: 100, height: 100 }}
               />
               <Button variant="contained" component="label">

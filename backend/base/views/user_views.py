@@ -42,7 +42,7 @@ class UserDetailView(APIView):
         """
         try:
             user = MyUser.objects.get(username=username)
-            serializer = UserSerializer(user)
+            serializer = UserSerializer(user, context={'request': request})
             return Response(serializer.data)
         except MyUser.DoesNotExist:
             return Response({"detail": "Потребителят не е намерен."}, status=status.HTTP_404_NOT_FOUND)
@@ -166,7 +166,7 @@ class UpdateProfileView(APIView):
                 user.full_clean()
                 user.save()
                 logger.error(f"User saved successfully. Avatar URL: {user.avatar.url if user.avatar else 'None'}")
-                serializer = UserSerializer(user)
+                serializer = UserSerializer(user, context={'request': request})
                 return Response(serializer.data)
             except ValidationError as e:
                 logger.error(f"Validation error: {e.message_dict}")
