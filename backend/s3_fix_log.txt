@@ -1,0 +1,219 @@
+2025-04-10 17:30:16,748 - INFO - ====== COMPLETE S3 FIX AND MIGRATION TOOL ======
+2025-04-10 17:30:17,756 - ERROR - Missing required packages: pillow
+2025-04-10 17:30:17,756 - INFO - Installing missing packages...
+2025-04-10 17:30:21,602 - INFO - Successfully installed missing packages
+2025-04-10 17:30:21,602 - INFO - 
+==================== RUNNING: Registering S3 URL Redirect Middleware ====================
+
+2025-04-10 17:30:21,613 - INFO - 
+==================== COMPLETED: Registering S3 URL Redirect Middleware ====================
+
+2025-04-10 17:30:21,614 - INFO - 
+==================== RUNNING: Fixing Incorrect S3 URLs ====================
+
+2025-04-10 17:30:22,116 - ERROR - Error running improved_url_fixer: No module named 'dotenv'
+2025-04-10 17:30:22,158 - ERROR - Traceback (most recent call last):
+  File "C:\Users\krisp\OneDrive\Documents\qup_latest\Q-up\backend\fix_s3_complete.py", line 55, in run_script
+    module = importlib.import_module(script_name)
+  File "C:\Users\krisp\AppData\Local\Programs\Python\Python313\Lib\importlib\__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 1026, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "C:\Users\krisp\OneDrive\Documents\qup_latest\Q-up\backend\improved_url_fixer.py", line 17, in <module>
+    django.setup()
+    ~~~~~~~~~~~~^^
+  File "C:\Users\krisp\AppData\Local\Programs\Python\Python313\Lib\site-packages\django\__init__.py", line 19, in setup
+    configure_logging(settings.LOGGING_CONFIG, settings.LOGGING)
+                      ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\krisp\AppData\Local\Programs\Python\Python313\Lib\site-packages\django\conf\__init__.py", line 81, in __getattr__
+    self._setup(name)
+    ~~~~~~~~~~~^^^^^^
+  File "C:\Users\krisp\AppData\Local\Programs\Python\Python313\Lib\site-packages\django\conf\__init__.py", line 68, in _setup
+    self._wrapped = Settings(settings_module)
+                    ~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\krisp\AppData\Local\Programs\Python\Python313\Lib\site-packages\django\conf\__init__.py", line 166, in __init__
+    mod = importlib.import_module(self.SETTINGS_MODULE)
+  File "C:\Users\krisp\AppData\Local\Programs\Python\Python313\Lib\importlib\__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 1026, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "C:\Users\krisp\OneDrive\Documents\qup_latest\Q-up\backend\backend\settings.py", line 18, in <module>
+    from dotenv import load_dotenv
+ModuleNotFoundError: No module named 'dotenv'
+
+2025-04-10 17:30:22,164 - WARNING - URL fixing had some issues, but continuing with migration
+2025-04-10 17:30:22,164 - INFO - 
+==================== RUNNING: Migrating Local Media to S3 ====================
+
+2025-04-10 17:30:22,172 - ERROR - Error running improved_migration: No module named 'dotenv'
+2025-04-10 17:30:22,176 - ERROR - Traceback (most recent call last):
+  File "C:\Users\krisp\OneDrive\Documents\qup_latest\Q-up\backend\fix_s3_complete.py", line 55, in run_script
+    module = importlib.import_module(script_name)
+  File "C:\Users\krisp\AppData\Local\Programs\Python\Python313\Lib\importlib\__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 1026, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "C:\Users\krisp\OneDrive\Documents\qup_latest\Q-up\backend\improved_migration.py", line 16, in <module>
+    django.setup()
+    ~~~~~~~~~~~~^^
+  File "C:\Users\krisp\AppData\Local\Programs\Python\Python313\Lib\site-packages\django\__init__.py", line 19, in setup
+    configure_logging(settings.LOGGING_CONFIG, settings.LOGGING)
+                      ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\krisp\AppData\Local\Programs\Python\Python313\Lib\site-packages\django\conf\__init__.py", line 81, in __getattr__
+    self._setup(name)
+    ~~~~~~~~~~~^^^^^^
+  File "C:\Users\krisp\AppData\Local\Programs\Python\Python313\Lib\site-packages\django\conf\__init__.py", line 68, in _setup
+    self._wrapped = Settings(settings_module)
+                    ~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\krisp\AppData\Local\Programs\Python\Python313\Lib\site-packages\django\conf\__init__.py", line 166, in __init__
+    mod = importlib.import_module(self.SETTINGS_MODULE)
+  File "C:\Users\krisp\AppData\Local\Programs\Python\Python313\Lib\importlib\__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 1026, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "C:\Users\krisp\OneDrive\Documents\qup_latest\Q-up\backend\backend\settings.py", line 18, in <module>
+    from dotenv import load_dotenv
+ModuleNotFoundError: No module named 'dotenv'
+
+2025-04-10 17:30:22,182 - ERROR - Migration failed
+2025-04-10 17:30:22,183 - WARNING - 
+====== OPERATIONS COMPLETED WITH SOME ISSUES ======
+2025-04-10 17:30:22,183 - WARNING - Check the log file for details on what went wrong
+2025-04-10 17:32:39,111 - INFO - ====== COMPLETE S3 FIX AND MIGRATION TOOL ======
+2025-04-10 17:32:39,434 - ERROR - Missing required packages: pillow
+2025-04-10 17:32:39,435 - INFO - Installing missing packages...
+2025-04-10 17:32:42,061 - INFO - Successfully installed missing packages
+2025-04-10 17:32:42,062 - INFO - 
+==================== RUNNING: Registering S3 URL Redirect Middleware ====================
+
+2025-04-10 17:32:42,066 - INFO - 
+==================== COMPLETED: Registering S3 URL Redirect Middleware ====================
+
+2025-04-10 17:32:42,066 - INFO - 
+==================== RUNNING: Fixing Incorrect S3 URLs ====================
+
+2025-04-10 17:32:42,425 - ERROR - Error running improved_url_fixer: Unable to configure handler 'file'
+2025-04-10 17:32:42,459 - ERROR - Traceback (most recent call last):
+  File "C:\Users\krisp\AppData\Local\Programs\Python\Python313\Lib\logging\config.py", line 604, in configure
+    handler = self.configure_handler(handlers[name])
+  File "C:\Users\krisp\AppData\Local\Programs\Python\Python313\Lib\logging\config.py", line 869, in configure_handler
+    result = factory(**kwargs)
+  File "C:\Users\krisp\AppData\Local\Programs\Python\Python313\Lib\logging\__init__.py", line 1218, in __init__
+    StreamHandler.__init__(self, self._open())
+                                 ~~~~~~~~~~^^
+  File "C:\Users\krisp\AppData\Local\Programs\Python\Python313\Lib\logging\__init__.py", line 1247, in _open
+    return open_func(self.baseFilename, self.mode,
+                     encoding=self.encoding, errors=self.errors)
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\tmp\\django-debug.log'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\krisp\OneDrive\Documents\qup_latest\Q-up\backend\fix_s3_complete.py", line 55, in run_script
+    module = importlib.import_module(script_name)
+  File "C:\Users\krisp\AppData\Local\Programs\Python\Python313\Lib\importlib\__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 1026, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "C:\Users\krisp\OneDrive\Documents\qup_latest\Q-up\backend\improved_url_fixer.py", line 17, in <module>
+    django.setup()
+    ~~~~~~~~~~~~^^
+  File "C:\Users\krisp\AppData\Local\Programs\Python\Python313\Lib\site-packages\django\__init__.py", line 19, in setup
+    configure_logging(settings.LOGGING_CONFIG, settings.LOGGING)
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\krisp\AppData\Local\Programs\Python\Python313\Lib\site-packages\django\utils\log.py", line 76, in configure_logging
+    logging_config_func(logging_settings)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "C:\Users\krisp\AppData\Local\Programs\Python\Python313\Lib\logging\config.py", line 935, in dictConfig
+    dictConfigClass(config).configure()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\krisp\AppData\Local\Programs\Python\Python313\Lib\logging\config.py", line 611, in configure
+    raise ValueError('Unable to configure handler '
+                     '%r' % name) from e
+ValueError: Unable to configure handler 'file'
+
+2025-04-10 17:32:42,462 - WARNING - URL fixing had some issues, but continuing with migration
+2025-04-10 17:32:42,463 - INFO - 
+==================== RUNNING: Migrating Local Media to S3 ====================
+
+2025-04-10 17:32:42,465 - ERROR - Error running improved_migration: Unable to configure handler 'file'
+2025-04-10 17:32:42,468 - ERROR - Traceback (most recent call last):
+  File "C:\Users\krisp\AppData\Local\Programs\Python\Python313\Lib\logging\config.py", line 604, in configure
+    handler = self.configure_handler(handlers[name])
+  File "C:\Users\krisp\AppData\Local\Programs\Python\Python313\Lib\logging\config.py", line 869, in configure_handler
+    result = factory(**kwargs)
+  File "C:\Users\krisp\AppData\Local\Programs\Python\Python313\Lib\logging\__init__.py", line 1218, in __init__
+    StreamHandler.__init__(self, self._open())
+                                 ~~~~~~~~~~^^
+  File "C:\Users\krisp\AppData\Local\Programs\Python\Python313\Lib\logging\__init__.py", line 1247, in _open
+    return open_func(self.baseFilename, self.mode,
+                     encoding=self.encoding, errors=self.errors)
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\tmp\\django-debug.log'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\krisp\OneDrive\Documents\qup_latest\Q-up\backend\fix_s3_complete.py", line 55, in run_script
+    module = importlib.import_module(script_name)
+  File "C:\Users\krisp\AppData\Local\Programs\Python\Python313\Lib\importlib\__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 1026, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "C:\Users\krisp\OneDrive\Documents\qup_latest\Q-up\backend\improved_migration.py", line 16, in <module>
+    django.setup()
+    ~~~~~~~~~~~~^^
+  File "C:\Users\krisp\AppData\Local\Programs\Python\Python313\Lib\site-packages\django\__init__.py", line 19, in setup
+    configure_logging(settings.LOGGING_CONFIG, settings.LOGGING)
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\krisp\AppData\Local\Programs\Python\Python313\Lib\site-packages\django\utils\log.py", line 76, in configure_logging
+    logging_config_func(logging_settings)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "C:\Users\krisp\AppData\Local\Programs\Python\Python313\Lib\logging\config.py", line 935, in dictConfig
+    dictConfigClass(config).configure()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\krisp\AppData\Local\Programs\Python\Python313\Lib\logging\config.py", line 611, in configure
+    raise ValueError('Unable to configure handler '
+                     '%r' % name) from e
+ValueError: Unable to configure handler 'file'
+
+2025-04-10 17:32:42,472 - ERROR - Migration failed
+2025-04-10 17:32:42,473 - WARNING - 
+====== OPERATIONS COMPLETED WITH SOME ISSUES ======
+2025-04-10 17:32:42,473 - WARNING - Check the log file for details on what went wrong
+2025-04-10 17:35:43,948 - INFO - ====== COMPLETE S3 FIX AND MIGRATION TOOL ======
+2025-04-10 17:35:44,281 - ERROR - Missing required packages: pillow, python-dotenv
+2025-04-10 17:35:44,282 - INFO - Installing missing packages...
+2025-04-10 17:35:46,512 - INFO - Successfully installed missing packages
+2025-04-10 17:35:46,513 - INFO - 
+==================== RUNNING: Migrating Local Media to S3 ====================
+
