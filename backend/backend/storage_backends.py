@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 class StaticStorage(S3Boto3Storage):
     location = 'static'
-    default_acl = 'public-read'
+    default_acl = None  # Don't set ACL, rely on bucket policy
 
 class MediaStorage(S3Boto3Storage):
     location = 'media'

@@ -50,7 +50,7 @@ def test_s3_connection():
         return False
 
 def test_direct_upload():
-    """Test direct upload to S3 with ACL permissions"""
+    """Test direct upload to S3 without ACL permissions"""
     try:
         logger.info("Testing direct upload to S3...")
         s3 = boto3.client(
@@ -64,56 +64,32 @@ def test_direct_upload():
         test_content = b"This is a test upload to verify S3 permissions"
         file_obj = io.BytesIO(test_content)
         
-        # Upload with public-read ACL
+        # Test key for the upload
         test_key = f"media/test/test_upload_{os.urandom(4).hex()}.txt"
         
         logger.info(f"Uploading test file to {test_key}")
         
+        # Upload without ACL
         try:
-            # First attempt: with ACL
             s3.upload_fileobj(
                 file_obj,
                 settings.AWS_STORAGE_BUCKET_NAME,
                 test_key,
                 ExtraArgs={
-                    'ContentType': 'text/plain',
-                    'ACL': 'public-read'
+                    'ContentType': 'text/plain'
                 }
             )
-            logger.info(f"✅ Test upload with ACL successful!")
+            logger.info(f"✅ Test upload successful!")
             
-            # Generate the public URL
+            # Generate the URL
             url = f"https://{settings.AWS_STORAGE_BUCKET_NAME}.s3.{settings.AWS_S3_REGION_NAME}.amazonaws.com/{test_key}"
             logger.info(f"File should be accessible at: {url}")
             
             return True
-        except Exception as acl_error:
-            logger.error(f"❌ Upload with ACL failed: {str(acl_error)}")
-            
-            # Try without ACL as fallback
-            file_obj.seek(0)  # Reset file position
-            no_acl_key = f"{test_key}-no-acl"
-            
-            try:
-                logger.info("Attempting upload without ACL...")
-                s3.upload_fileobj(
-                    file_obj,
-                    settings.AWS_STORAGE_BUCKET_NAME,
-                    no_acl_key,
-                    ExtraArgs={
-                        'ContentType': 'text/plain',
-                    }
-                )
-                logger.info(f"✅ Test upload without ACL successful!")
-                
-                # Generate the URL
-                url = f"https://{settings.AWS_STORAGE_BUCKET_NAME}.s3.{settings.AWS_S3_REGION_NAME}.amazonaws.com/{no_acl_key}"
-                logger.info(f"File should be accessible at: {url}")
-                
-                return True
-            except Exception as no_acl_error:
-                logger.error(f"❌ Upload without ACL also failed: {str(no_acl_error)}")
-                return False
+        except Exception as upload_error:
+            logger.error(f"❌ Upload failed: {str(upload_error)}")
+            logger.error(traceback.format_exc())
+            return False
     except Exception as e:
         logger.error(f"❌ Test upload failed: {str(e)}")
         logger.error(traceback.format_exc())
@@ -125,7 +101,6 @@ def test_image_upload():
         logger.info("Testing image upload to S3...")
         
         # Create a simple 1x1 pixel black PNG
-        # This is a valid small PNG file
         png_data = b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82'
         
         image_file = io.BytesIO(png_data)
@@ -143,50 +118,26 @@ def test_image_upload():
         logger.info(f"Uploading test image to {test_key}")
         
         try:
-            # First attempt: with ACL
+            # Upload without ACL
             s3.upload_fileobj(
                 image_file,
                 settings.AWS_STORAGE_BUCKET_NAME,
                 test_key,
                 ExtraArgs={
-                    'ContentType': 'image/png',
-                    'ACL': 'public-read'
+                    'ContentType': 'image/png'
                 }
             )
-            logger.info(f"✅ Test image upload with ACL successful!")
+            logger.info(f"✅ Test image upload successful!")
             
-            # Generate the public URL
+            # Generate the URL
             url = f"https://{settings.AWS_STORAGE_BUCKET_NAME}.s3.{settings.AWS_S3_REGION_NAME}.amazonaws.com/{test_key}"
             logger.info(f"Image should be accessible at: {url}")
             
             return True
-        except Exception as acl_error:
-            logger.error(f"❌ Image upload with ACL failed: {str(acl_error)}")
-            
-            # Try without ACL as fallback
-            image_file.seek(0)  # Reset file position
-            no_acl_key = f"{test_key}-no-acl"
-            
-            try:
-                logger.info("Attempting image upload without ACL...")
-                s3.upload_fileobj(
-                    image_file,
-                    settings.AWS_STORAGE_BUCKET_NAME,
-                    no_acl_key,
-                    ExtraArgs={
-                        'ContentType': 'image/png',
-                    }
-                )
-                logger.info(f"✅ Test image upload without ACL successful!")
-                
-                # Generate the URL
-                url = f"https://{settings.AWS_STORAGE_BUCKET_NAME}.s3.{settings.AWS_S3_REGION_NAME}.amazonaws.com/{no_acl_key}"
-                logger.info(f"Image should be accessible at: {url}")
-                
-                return True
-            except Exception as no_acl_error:
-                logger.error(f"❌ Image upload without ACL also failed: {str(no_acl_error)}")
-                return False
+        except Exception as upload_error:
+            logger.error(f"❌ Image upload failed: {str(upload_error)}")
+            logger.error(traceback.format_exc())
+            return False
     except Exception as e:
         logger.error(f"❌ Test image upload failed: {str(e)}")
         logger.error(traceback.format_exc())
