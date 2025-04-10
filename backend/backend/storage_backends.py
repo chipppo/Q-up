@@ -45,11 +45,19 @@ class MediaStorage(S3Boto3Storage):
             if hasattr(content, 'seek') and callable(content.seek):
                 content.seek(0)
             
+            # Read all content bytes into memory to ensure we have the complete file
+            content_bytes = content.read()
+            # Reset the file pointer after reading
+            if hasattr(content, 'seek') and callable(content.seek):
+                content.seek(0)
+                
+            logger.error(f"S3 SAVE: Read {len(content_bytes)} bytes from file")
+            
             # Create parameters dictionary 
             params = {
                 'Bucket': self.bucket_name,
                 'Key': name,
-                'Body': content,
+                'Body': content_bytes,
             }
             
             # Add content type if available
