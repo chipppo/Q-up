@@ -17,6 +17,23 @@ class MediaStorage(S3Boto3Storage):
     def exists(self, name):
         # Skip the existence check to avoid permission issues
         return False
+    
+    def _save(self, name, content):
+        try:
+            return super()._save(name, content)
+        except Exception as e:
+            logger.error(f"S3 save error for file {name}: {str(e)}")
+            logger.error(traceback.format_exc())
+            raise
+            
+    def url(self, name, parameters=None, expire=None):
+        try:
+            return super().url(name, parameters, expire)
+        except Exception as e:
+            logger.error(f"S3 URL generation error for file {name}: {str(e)}")
+            logger.error(traceback.format_exc())
+            # Return a fallback URL or raise the exception
+            raise
 
 def debug_s3_connection():
     import boto3

@@ -17,16 +17,24 @@ import sys
 import logging
 from dotenv import load_dotenv
 
+# Път до коренната директория на проекта
+BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Load environment variables first - BEFORE any imports or settings that might use them
+dotenv_path = os.path.join(BASE_DIR, '.env')
+if os.path.exists(dotenv_path):
+    load_dotenv(dotenv_path)
+    print(f"Loaded environment variables from {dotenv_path}")
+else:
+    print(f"Warning: No .env file found at {dotenv_path}")
+
+# Set up logging
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s %(levelname)s %(message)s',
     filename='/var/log/gunicorn/django-debug.log',
     filemode='a'
 )
-# Път до коренната директория на проекта
-BASE_DIR = Path(__file__).resolve().parent.parent
-load_dotenv(os.path.join(BASE_DIR, '.env'))
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
@@ -88,6 +96,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'base.middleware.S3UploadMiddleware',
 ]
 
 # Разрешава CORS заявки от всички домейни - опасно 
@@ -183,10 +192,22 @@ AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
 AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
 AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME')
 AWS_S3_REGION_NAME = os.environ.get('AWS_S3_REGION_NAME')
-AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com'
-AWS_S3_ADDRESSING_STYLE = 'virtual'
-# S3 Configuration - only apply if the env variables exist
+
+# Debug logging for S3 settings
+logger = logging.getLogger(__name__)
+
+if not all([AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_STORAGE_BUCKET_NAME, AWS_S3_REGION_NAME]):
+    logger.error("AWS S3 credentials are incomplete. Check your .env file:")
+    logger.error(f"AWS_ACCESS_KEY_ID exists: {bool(AWS_ACCESS_KEY_ID)}")
+    logger.error(f"AWS_SECRET_ACCESS_KEY exists: {bool(AWS_SECRET_ACCESS_KEY)}")
+    logger.error(f"AWS_STORAGE_BUCKET_NAME exists: {bool(AWS_STORAGE_BUCKET_NAME)}")
+    logger.error(f"AWS_S3_REGION_NAME exists: {bool(AWS_S3_REGION_NAME)}")
+    logger.error(f"Checked .env file at: {os.path.join(BASE_DIR, '.env')}, exists: {os.path.exists(os.path.join(BASE_DIR, '.env'))}")
+
+# Full S3 configuration
 if AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY and AWS_STORAGE_BUCKET_NAME and AWS_S3_REGION_NAME:
+    AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com'
+    AWS_S3_ADDRESSING_STYLE = 'virtual'
     AWS_S3_FILE_OVERWRITE = False
     # Removed ACL settings since your bucket doesn't support them
     # AWS_DEFAULT_ACL = 'public-read' 
@@ -204,11 +225,20 @@ if AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY and AWS_STORAGE_BUCKET_NAME and A
     STATIC_URL = f'{S3_URL}/static/'
     MEDIA_URL = f'{S3_URL}/media/'
     MEDIA_ROOT = '' # Django shouldn't handle media root when using S3 storage
+    
+    # Enable boto3 debug logging
+    boto3_logger = logging.getLogger('boto3')
+    boto3_logger.setLevel(logging.DEBUG)
+    botocore_logger = logging.getLogger('botocore')
+    botocore_logger.setLevel(logging.DEBUG)
+    
+    logger.info("S3 storage configuration complete")
 else:
     # Fallback to local storage
     STATIC_URL = '/static/'
     MEDIA_URL = '/media/'
     MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+    logger.warning("Using local file storage because S3 environment variables are not properly configured")
 
 # Configure CORS to allow access to S3 resources
 CORS_ALLOWED_ORIGINS = [
