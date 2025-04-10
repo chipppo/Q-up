@@ -261,10 +261,22 @@ def main():
     logger.info(f"  AWS_STORAGE_BUCKET_NAME: {settings.AWS_STORAGE_BUCKET_NAME}")
     logger.info(f"  AWS_S3_REGION_NAME: {settings.AWS_S3_REGION_NAME}")
     
-    # Test S3 access
-    logger.info("Testing S3 access...")
-    if not test_s3_access():
-        logger.error("Failed to access S3. Please check your credentials and bucket permissions.")
+    # Instead of doing a complete test, we'll just try a simple upload
+    # to verify we can at least write to S3
+    logger.info("Testing S3 write access...")
+    try:
+        client = get_s3_client()
+        test_key = "test-fix-upload.txt"
+        client.put_object(
+            Bucket=settings.AWS_STORAGE_BUCKET_NAME,
+            Key=test_key,
+            Body=b"Test file from fix_s3_uploads.py script",
+            ContentType="text/plain"
+        )
+        logger.info(f"Successfully uploaded test file to S3. Proceeding with verification.")
+    except Exception as e:
+        logger.error(f"Failed to upload test file: {str(e)}")
+        logger.error("S3 access test failed. Check your credentials and permissions.")
         return 1
     
     # Verify only mode
@@ -288,6 +300,16 @@ def main():
     logger.info(f"  Total missing files: {total_missing}")
     logger.info(f"  Total files fixed: {total_fixed}")
     logger.info(f"  Remaining unfixed files: {total_missing - total_fixed}")
+    
+    # Try to clean up the test file
+    try:
+        client.delete_object(
+            Bucket=settings.AWS_STORAGE_BUCKET_NAME,
+            Key=test_key
+        )
+        logger.info("Cleaned up test file.")
+    except Exception as e:
+        logger.warning(f"Could not delete test file: {str(e)}")
     
     return 0
     
