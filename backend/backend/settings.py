@@ -236,7 +236,7 @@ if os.environ.get('AWS_ACCESS_KEY_ID'):
     AWS_S3_REGION_NAME = os.environ.get('AWS_S3_REGION_NAME', 'eu-central-1')
     
     # S3 behavior settings
-    AWS_DEFAULT_ACL = 'public-read'
+    # AWS_DEFAULT_ACL = 'public-read'  # Remove ACL setting since bucket doesn't support it
     AWS_S3_OBJECT_PARAMETERS = {'CacheControl': 'max-age=86400'}
     AWS_QUERYSTRING_AUTH = False
     AWS_S3_FILE_OVERWRITE = False

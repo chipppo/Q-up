@@ -77,8 +77,7 @@ def test_s3_access():
             Bucket=settings.AWS_STORAGE_BUCKET_NAME,
             Key=test_key,
             Body=b"This is a test upload from fix_s3_uploads.py",
-            ContentType="text/plain",
-            ACL="public-read"
+            ContentType="text/plain"
         )
         logger.info("Successfully uploaded test file to S3")
         
@@ -152,8 +151,7 @@ def upload_file_to_s3(local_path, s3_key):
                 settings.AWS_STORAGE_BUCKET_NAME,
                 s3_key,
                 ExtraArgs={
-                    'ContentType': content_type,
-                    'ACL': 'public-read'
+                    'ContentType': content_type
                 }
             )
         logger.info(f"Successfully uploaded {local_path} to S3 as {s3_key}")

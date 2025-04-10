@@ -14,7 +14,7 @@ class StaticStorage(S3Boto3Storage):
 
 class MediaStorage(S3Boto3Storage):
     location = 'media'
-    default_acl = 'public-read'
+    default_acl = None  # Remove ACL setting since bucket doesn't support it
     file_overwrite = False
     
     def exists(self, name):
@@ -90,7 +90,6 @@ class MediaStorage(S3Boto3Storage):
                 # Prepare for upload
                 extra_args = {
                     'ContentType': content_type,
-                    'ACL': self.default_acl or 'public-read'
                 }
                 
                 # Reset file position
@@ -194,8 +193,7 @@ def test_s3_direct_upload(file_path, s3_key=None):
                 settings.AWS_STORAGE_BUCKET_NAME, 
                 s3_key,
                 ExtraArgs={
-                    'ContentType': content_type,
-                    'ACL': 'public-read'
+                    'ContentType': content_type
                 }
             )
         
@@ -336,7 +334,6 @@ def test_direct_upload_to_s3(file_path, key_name):
                 settings.AWS_STORAGE_BUCKET_NAME,
                 f"media/{key_name}",
                 ExtraArgs={
-                    'ACL': 'public-read',
                     'ContentType': content_type
                 }
             )
