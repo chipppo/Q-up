@@ -15,6 +15,8 @@ from pathlib import Path
 import os
 import sys
 import logging
+from dotenv import load_dotenv
+
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -24,7 +26,7 @@ logging.basicConfig(
 )
 # Път до коренната директория на проекта
 BASE_DIR = Path(__file__).resolve().parent.parent
-
+load_dotenv(os.path.join(BASE_DIR, '.env'))
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
@@ -216,6 +218,45 @@ CORS_ALLOWED_ORIGINS = [
     "http://51.20.183.126",
 ]
 
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'file': {
+            'level': 'DEBUG',
+            'class': 'logging.FileHandler',
+            'filename': '/tmp/django-debug.log',
+            'formatter': 'verbose',
+        },
+        'console': {
+            'level': 'DEBUG',
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['file', 'console'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+        'backend': {
+            'handlers': ['file', 'console'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+    },
+    'root': {
+        'handlers': ['file', 'console'],
+        'level': 'DEBUG',
+    },
+}
 # Ensure any standalone definitions of MEDIA_URL, MEDIA_ROOT, STATIC_URL below are removed or commented out
 # For example:
 # MEDIA_URL = '/media/' # REMOVE or comment out

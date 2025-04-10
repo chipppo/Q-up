@@ -53,5 +53,4 @@ from .views.password_views import (
     PasswordResetRequestView,
     PasswordResetConfirmView
 )
-
-# For TokenRefreshView, it's already imported directly in urls.py
+#For TokenRefreshView, it's already imported directly in urls.py

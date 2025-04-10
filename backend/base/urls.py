@@ -78,7 +78,6 @@ urlpatterns = [
     path('messages/<int:message_id>/status/', MessageStatusView.as_view(), name='message-status'),
     path('users/<str:username>/mutual-followers/', MutualFollowersView.as_view(), name='mutual-followers'),
 ]
-
-# Добавя медийни файлове в режим на разработка
+#Добавя медийни файлове в режим на разработка
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

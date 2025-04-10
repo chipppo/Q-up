@@ -129,20 +129,48 @@ class UpdateProfileView(APIView):
                             )
                     else:
                         setattr(user, field, request.data[field])
+           #Debug avatar upload
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Avatar upload - Request method: {request.method}")
+            logger.error(f"Avatar upload - Content-Type: {request.content_type}")
+            logger.error(f"Avatar upload - FILES keys: {list(request.FILES.keys())}")
+            logger.error(f"Avatar upload - POST keys: {list(request.POST.keys())}")
+            logger.error(f"Avatar upload - Headers: {dict(request.headers)}")
 
             # Handle avatar upload
             if 'avatar' in request.FILES:
-                if user.avatar:
-                    user.avatar.delete(save=False)
-                user.avatar = request.FILES['avatar']
+                logger.error(f"Avatar found in request.FILES - Name: {request.FILES['avatar'].name}, Size: {request.FILES['avatar'].size}")
+                try:
+                    if user.avatar:
+                        logger.error(f"Deleting existing avatar: {user.avatar.name}")
+                        user.avatar.delete(save=False)
+                    user.avatar = request.FILES['avatar']
+                    logger.error(f"Avatar assigned to user model: {user.avatar.name}")
+                except Exception as e:
+                    logger.error(f"Error handling avatar: {str(e)}")
+                    import traceback
+                    logger.error(traceback.format_exc())
+            else:
+                logger.error("No avatar found in request.FILES")
 
             try:
                 user.full_clean()
                 user.save()
+                logger.error(f"User saved successfully. Avatar URL: {user.avatar.url if user.avatar else 'None'}")
                 serializer = UserSerializer(user)
                 return Response(serializer.data)
             except ValidationError as e:
+                logger.error(f"Validation error: {e.message_dict}")
                 return Response(e.message_dict, status=status.HTTP_400_BAD_REQUEST)
+            except Exception as e:
+                logger.error(f"Error saving user: {str(e)}")
+                import traceback
+                logger.error(traceback.format_exc())
+                return Response(
+                    {"detail": str(e)},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
         except MyUser.DoesNotExist:
             return Response(
@@ -150,11 +178,11 @@ class UpdateProfileView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
         except Exception as e:
+            logger.error(f"Unexpected error: {str(e)}")
             return Response(
                 {"detail": str(e)},
                 status=status.HTTP_400_BAD_REQUEST
             )
-
 
 class UploadAvatarView(APIView):
     """
