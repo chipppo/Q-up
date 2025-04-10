@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework import status, permissions
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.db.models import Q
-from ..models import Post, Like, Comment, MyUser, Game, Notification
+from ..models import Post, Like, Comment, MyUser, Game
 from ..serializers import (
     PostSerializer,
     PostDetailSerializer,
@@ -101,15 +101,7 @@ class PostListView(APIView):
                         logger.error(f"Error generating URL for post image: {str(e)}")
                         # Don't delete the post, but log the error
                 
-                # Create notification for users who follow this user
-                followers = request.user.followers.all()
-                for follower in followers:
-                    Notification.objects.create(
-                        user=follower.follower,
-                        notification_type='NEW_POST',
-                        from_user=request.user,
-                        post=post
-                    )
+                # Notification functionality removed - model doesn't exist
                 
                 serializer = PostSerializer(post, context={'request': request})
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
