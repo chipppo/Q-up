@@ -275,22 +275,6 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
         <div 
           className={`message-bubble ${isOwnMessage ? 'sent' : 'received'} ${isHighlighted ? 'highlighted-message' : ''}`}
           id={`message-${message.id}`}
-          style={{ 
-            backgroundColor: isHighlighted 
-              ? 'rgba(255, 214, 0, 0.2)' 
-              : (isOwnMessage 
-                  ? 'var(--color-primary)' 
-                  : 'var(--color-bg-tertiary)'),
-            color: isOwnMessage ? 'white' : 'var(--color-text-primary)',
-            borderTopRightRadius: isOwnMessage ? '4px' : '16px',
-            borderTopLeftRadius: isOwnMessage ? '16px' : '4px',
-            borderBottomRightRadius: isOwnMessage ? '16px' : '16px',
-            borderBottomLeftRadius: isOwnMessage ? '16px' : '16px',
-            boxShadow: isOwnMessage 
-              ? '0 1px 3px rgba(0, 0, 0, 0.2)' 
-              : '0 1px 2px rgba(0, 0, 0, 0.1)',
-            position: 'relative'
-          }}
         >
           {message.parent && (
             <Box 
@@ -369,6 +353,7 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
           {/* Message timestamp inside the bubble */}
           <Typography 
             variant="caption" 
+            className="message-timestamp-inline"
             sx={{ 
               position: 'absolute',
               bottom: '2px',
@@ -379,7 +364,6 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
               display: 'flex',
               alignItems: 'center'
             }} 
-            className="message-timestamp-inline"
           >
             {isOwnMessage && message.is_read !== undefined && (
               <span className="message-status" style={{ marginRight: '5px' }}>

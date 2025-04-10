@@ -296,8 +296,25 @@ class MessageListView(APIView):
             
             # Serialize messages with error handling
             try:
-                serializer = MessageSerializer(messages, many=True, context={'request': request})
-                return Response(serializer.data)
+                import traceback
+                logger.info(f"Serializing {len(messages)} messages")
+                # Try to serialize messages one by one to identify problematic messages
+                serialized_messages = []
+                problem_message_ids = []
+                
+                for msg in messages:
+                    try:
+                        msg_serializer = MessageSerializer(msg, context={'request': request})
+                        serialized_messages.append(msg_serializer.data)
+                    except Exception as msg_error:
+                        logger.error(f"Error serializing message {msg.id}: {str(msg_error)}")
+                        logger.error(traceback.format_exc())
+                        problem_message_ids.append(msg.id)
+                
+                if problem_message_ids:
+                    logger.warning(f"Skipped problematic messages: {problem_message_ids}")
+                
+                return Response(serialized_messages)
             except Exception as ser_error:
                 logger.error(f"Error serializing messages: {str(ser_error)}")
                 import traceback
@@ -421,15 +438,15 @@ class MessageListView(APIView):
                     try:
                         logger.info(f"Saving file for message {message.id}")
                         
-                        # Store original filename and content type
-                        message.file_name = getattr(image, 'name', '')
-                        message.file_type = getattr(image, 'content_type', '')
+                        # Store original filename and content type - DISABLED, fields don't exist in DB
+                        # message.file_name = getattr(image, 'name', '')
+                        # message.file_type = getattr(image, 'content_type', '')
                         
                         # Try to save the image with error handling
                         try:
                             message.image = image
                             message.save()
-                            logger.info(f"File saved successfully: {message.file_name} ({message.file_type})")
+                            logger.info(f"File saved successfully: {getattr(image, 'name', 'unnamed')} ({getattr(image, 'content_type', 'unknown')})")
                         except IOError as io_error:
                             logger.error(f"IOError saving file: {str(io_error)}")
                             # If there's a permission error or I/O error, return a specific message

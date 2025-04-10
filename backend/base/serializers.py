@@ -547,16 +547,15 @@ class MessageSerializer(serializers.ModelSerializer):
                 return {}
                 
             try:
-                # Get file details with fallbacks
-                file_name = obj.file_name if hasattr(obj, 'file_name') and obj.file_name else ''
-                if not file_name and obj.image and hasattr(obj.image, 'name'):
+                # Get file details from image name only, avoid trying to access file_name/file_type columns
+                file_name = ''
+                if obj.image and hasattr(obj.image, 'name'):
                     file_name = obj.image.name.split('/')[-1]
                 
-                file_type = obj.file_type if hasattr(obj, 'file_type') and obj.file_type else ''
-                if not file_type and obj.image:
+                file_type = ''
+                if obj.image and hasattr(obj.image, 'name'):
                     import mimetypes
-                    if hasattr(obj.image, 'name'):
-                        file_type = mimetypes.guess_type(obj.image.name)[0] or ''
+                    file_type = mimetypes.guess_type(obj.image.name)[0] or ''
                 
                 file_size = 0
                 if obj.image and hasattr(obj.image, 'size'):
