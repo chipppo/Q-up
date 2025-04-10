@@ -269,21 +269,24 @@ class MessageListView(APIView):
             logger = logging.getLogger(__name__)
             
             logger.info(f"Creating message in chat {chat_id}")
+            logger.info(f"Content-Type: {request.content_type}")
+            logger.info(f"FILES: {list(request.FILES.keys()) if request.FILES else 'None'}")
+            logger.info(f"DATA: {list(request.data.keys()) if request.data else 'None'}")
             
             # Get the chat object
             try:
                 chat = Chat.objects.get(id=chat_id)
+                
+                # Check if user is a participant
+                if not chat.participants.filter(id=request.user.id).exists():
+                    return Response(
+                        {'detail': 'Нямате достъп до този чат.'},
+                        status=status.HTTP_403_FORBIDDEN
+                    )
             except Chat.DoesNotExist:
                 return Response(
                     {'detail': 'Този чат не съществува.'},
                     status=status.HTTP_404_NOT_FOUND
-                )
-            
-            # Check if the user is a member of the chat
-            if not chat.members.filter(id=request.user.id).exists():
-                return Response(
-                    {'detail': 'Нямате достъп до този чат.'},
-                    status=status.HTTP_403_FORBIDDEN
                 )
             
             # Get message content and image
@@ -291,6 +294,7 @@ class MessageListView(APIView):
             image = None 
             if 'image' in request.FILES:
                 image = request.FILES['image']
+                logger.info(f"Image found - Name: {image.name}, Size: {image.size}, Type: {image.content_type}")
             
             # Get parent message if replying
             parent = None
@@ -316,11 +320,9 @@ class MessageListView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
-            # Log information about the file
+            # Validate image if present
             if image:
-                logger.info(f"Processing image upload for chat {chat_id}: name={image.name}, size={image.size}, content_type={image.content_type}")
-                
-                # Validate file size - prevent extremely large files
+                # Validate file size
                 if image.size > 10 * 1024 * 1024:  # 10MB
                     return Response(
                         {'detail': 'Размерът на изображението не може да надвишава 10MB'},
@@ -328,7 +330,6 @@ class MessageListView(APIView):
                     )
                 
                 # Validate file type
-                import mimetypes
                 content_type = getattr(image, 'content_type', None)
                 if content_type and not content_type.startswith('image/'):
                     return Response(
@@ -336,9 +337,9 @@ class MessageListView(APIView):
                         status=status.HTTP_400_BAD_REQUEST
                     )
             
-            # Create message - we'll handle S3 upload errors gracefully
+            # Create message in two steps to prevent S3 errors from failing the entire request
             try:
-                # First create the message object
+                # First create message without image
                 message = Message.objects.create(
                     chat=chat,
                     sender=request.user,
@@ -348,45 +349,30 @@ class MessageListView(APIView):
                     is_delivered=True
                 )
                 
-                # Then handle the image upload separately
+                # Then try to save the image separately
                 if image:
                     try:
-                        logger.info(f"Attempting to save image for message {message.id}")
+                        logger.info(f"Saving image for message {message.id}")
                         message.image = image
                         message.save()
-                        
-                        # Get the image URL for validation
-                        try:
-                            image_url = message.image.url
-                            logger.info(f"Image saved successfully. URL: {image_url}")
-                        except Exception as url_error:
-                            logger.error(f"Error getting image URL: {str(url_error)}")
-                            
-                            # Try to create a direct URL as fallback
-                            try:
-                                from django.conf import settings
-                                image_url = f"https://{settings.AWS_STORAGE_BUCKET_NAME}.s3.{settings.AWS_S3_REGION_NAME}.amazonaws.com/media/{message.image.name}"
-                                logger.info(f"Direct image URL: {image_url}")
-                            except Exception as direct_url_err:
-                                logger.error(f"Error creating direct URL: {str(direct_url_err)}")
-                        
+                        logger.info(f"Image saved successfully")
                     except Exception as img_error:
-                        logger.error(f"Failed to save image for message {message.id}: {str(img_error)}")
-                        logger.error(f"The message itself was created successfully and will be returned without the image")
+                        logger.error(f"Error saving image: {str(img_error)}")
+                        # Continue without image - message was created successfully
                 
-                # Update chat timestamp
-                chat.save()  # This will update the updated_at field
+                # Update chat last activity timestamp
+                chat.save()
                 
                 # Return the message with serializer
                 serializer = MessageSerializer(message, context={'request': request})
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
                 
-            except Exception as e:
-                logger.error(f"Error creating message: {str(e)}")
+            except Exception as msg_error:
+                logger.error(f"Error creating message: {str(msg_error)}")
                 import traceback
                 logger.error(traceback.format_exc())
                 return Response(
-                    {'detail': f'Error creating message: {str(e)}'},
+                    {'detail': f'Неуспешно изпращане на съобщение: {str(msg_error)}'},
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
                 

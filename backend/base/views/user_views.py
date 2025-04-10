@@ -50,51 +50,53 @@ class UserDetailView(APIView):
 
 class UpdateProfileView(APIView):
     """
-    Allows users to update their own profile.
-    This includes personal info, preferences, and avatar.
+    Updates a user's profile information.
+    Users can only update their own profiles.
     """
     permission_classes = [permissions.IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
-    
+
     def patch(self, request, username):
         """
-        PATCH method to update a user's profile.
+        PATCH method to update profile data.
+        Handles complex fields like JSON arrays and date formatting.
         
         Args:
-            request: Contains profile data to update
-            username: User to update
+            request: Contains all the updated profile data
+            username: Username of profile to update
             
         Returns:
-            Updated user data or error
+            Updated profile data or error messages
         """
-        # Set up logging for debugging
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.info(f"UpdateProfileView PATCH request - username: {username}, auth user: {request.user.username}")
-        
-        # Only allow users to update their own profile
-        if request.user.username != username:
-            return Response(
-                {"detail": "You can only update your own profile."},
-                status=status.HTTP_403_FORBIDDEN
-            )
-            
         try:
             user = MyUser.objects.get(username=username)
-            
-            # Debug the request data
-            logger.info(f"Content-Type: {request.content_type}")
-            logger.info(f"FILES keys: {list(request.FILES.keys())}")
-            logger.info(f"POST/DATA keys: {list(request.data.keys())}")
-            
-            # Fields that can be updated
+            if user != request.user:
+                return Response(
+                    {"detail": "Можете да редактирате само собствения си профил."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+            # Handle JSON fields
+            json_fields = ['active_hours', 'language_preference', 'platforms', 'social_links']
+            for field in json_fields:
+                if field in request.data:
+                    try:
+                        if isinstance(request.data[field], str):
+                            setattr(user, field, json.loads(request.data[field]))
+                        else:
+                            setattr(user, field, request.data[field])
+                    except json.JSONDecodeError:
+                        return Response(
+                            {field: "Невалиден JSON формат"},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+
+            # Handle other fields
             editable_fields = [
-                'display_name', 'bio', 'active_hours', 'language_preference',
-                'platforms', 'mic_available', 'social_links', 'timezone',
-                'timezone_offset', 'date_of_birth'
+                'display_name', 'bio', 'timezone', 'timezone_offset',
+                'date_of_birth', 'mic_available'
             ]
-            
-            # Handle the fields
+
             for field in editable_fields:
                 if field in request.data:
                     if field == 'date_of_birth':
@@ -127,65 +129,35 @@ class UpdateProfileView(APIView):
                             )
                     else:
                         setattr(user, field, request.data[field])
-                        
-            # Advanced debug for avatar upload
-            logger.info(f"Avatar upload - Content-Type: {request.content_type}")
-            logger.info(f"Avatar upload - FILES keys: {list(request.FILES.keys())}")
-            logger.info(f"Avatar upload - DATA keys: {list(request.data.keys())}")
-            
+           #Debug avatar upload
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Avatar upload - Request method: {request.method}")
+            logger.error(f"Avatar upload - Content-Type: {request.content_type}")
+            logger.error(f"Avatar upload - FILES keys: {list(request.FILES.keys())}")
+            logger.error(f"Avatar upload - POST keys: {list(request.POST.keys())}")
+            logger.error(f"Avatar upload - Headers: {dict(request.headers)}")
+
+            # Handle avatar upload
             if 'avatar' in request.FILES:
-                avatar_file = request.FILES['avatar']
-                logger.info(f"Avatar found - Name: {avatar_file.name}, Size: {avatar_file.size}, Type: {avatar_file.content_type}")
-                
+                logger.error(f"Avatar found in request.FILES - Name: {request.FILES['avatar'].name}, Size: {request.FILES['avatar'].size}")
                 try:
-                    # Additional file validation
-                    if not avatar_file.content_type.startswith('image/'):
-                        return Response(
-                            {"avatar": "File must be an image"},
-                            status=status.HTTP_400_BAD_REQUEST
-                        )
-                    
-                    # Delete existing avatar first
                     if user.avatar:
-                        logger.info(f"Deleting existing avatar: {user.avatar.name}")
+                        logger.error(f"Deleting existing avatar: {user.avatar.name}")
                         user.avatar.delete(save=False)
-                    
-                    # Save new avatar
-                    user.avatar = avatar_file
-                    logger.info(f"Avatar assigned to user model: {user.avatar.name}")
-                    
+                    user.avatar = request.FILES['avatar']
+                    logger.error(f"Avatar assigned to user model: {user.avatar.name}")
                 except Exception as e:
                     logger.error(f"Error handling avatar: {str(e)}")
                     import traceback
                     logger.error(traceback.format_exc())
-                    return Response(
-                        {"avatar": str(e)},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
             else:
-                logger.info("No avatar found in request.FILES")
+                logger.error("No avatar found in request.FILES")
 
             try:
-                # Validate and save
                 user.full_clean()
                 user.save()
-                
-                # Get the url
-                avatar_url = None
-                if user.avatar:
-                    try:
-                        avatar_url = user.avatar.url
-                        logger.info(f"Avatar URL after save: {avatar_url}")
-                    except Exception as e:
-                        logger.error(f"Error getting avatar URL: {str(e)}")
-                        # Try to generate direct URL
-                        try:
-                            from django.conf import settings
-                            avatar_url = f"https://{settings.AWS_STORAGE_BUCKET_NAME}.s3.{settings.AWS_S3_REGION_NAME}.amazonaws.com/media/{user.avatar.name}"
-                            logger.info(f"Direct avatar URL: {avatar_url}")
-                        except Exception as direct_e:
-                            logger.error(f"Error generating direct URL: {str(direct_e)}")
-                
+                logger.error(f"User saved successfully. Avatar URL: {user.avatar.url if user.avatar else 'None'}")
                 serializer = UserSerializer(user)
                 return Response(serializer.data)
             except ValidationError as e:
@@ -207,8 +179,6 @@ class UpdateProfileView(APIView):
             )
         except Exception as e:
             logger.error(f"Unexpected error: {str(e)}")
-            import traceback
-            logger.error(traceback.format_exc())
             return Response(
                 {"detail": str(e)},
                 status=status.HTTP_400_BAD_REQUEST
@@ -234,77 +204,28 @@ class UploadAvatarView(APIView):
         Returns:
             Success message with the avatar URL or error
         """
-        import logging
-        logger = logging.getLogger(__name__)
-        
-        logger.info(f"UploadAvatarView - Request from user: {request.user.username}, for username: {username}")
-        logger.info(f"UploadAvatarView - Content-Type: {request.content_type}")
-        logger.info(f"UploadAvatarView - FILES keys: {list(request.FILES.keys())}")
-        
-        # Check permissions
         if request.user.username != username:
-            logger.warning(f"Permission denied: {request.user.username} attempted to update avatar for {username}")
             return Response(
                 {"detail": "Можете да качвате само своя аватар."},
                 status=status.HTTP_403_FORBIDDEN
             )
 
-        # Validate there's an avatar file
-        if 'avatar' not in request.FILES:
-            logger.error("No avatar file found in request")
-            return Response(
-                {"detail": "No avatar file provided"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-            
-        # Get the file
-        avatar_file = request.FILES['avatar']
-        logger.info(f"Avatar file received - Name: {avatar_file.name}, Size: {avatar_file.size}, Type: {avatar_file.content_type}")
-        
-        # Validate with serializer
         serializer = AvatarUploadSerializer(data=request.FILES)
         if not serializer.is_valid():
-            logger.error(f"Avatar validation failed: {serializer.errors}")
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        try:
-            # Delete old avatar if it exists
-            if request.user.avatar:
-                logger.info(f"Deleting old avatar: {request.user.avatar.name}")
-                request.user.avatar.delete(save=False)
+        # Delete old avatar if it exists
+        if request.user.avatar:
+            request.user.avatar.delete(save=False)
 
-            # Save new avatar
-            request.user.avatar = serializer.validated_data['avatar']
-            request.user.save()
-            
-            # Get the URL
-            avatar_url = None
-            try:
-                avatar_url = request.build_absolute_uri(request.user.avatar.url)
-                logger.info(f"Avatar URL: {avatar_url}")
-            except Exception as e:
-                logger.error(f"Error getting avatar URL: {str(e)}")
-                # Try to build direct URL
-                try:
-                    from django.conf import settings
-                    avatar_url = f"https://{settings.AWS_STORAGE_BUCKET_NAME}.s3.{settings.AWS_S3_REGION_NAME}.amazonaws.com/media/{request.user.avatar.name}"
-                    logger.info(f"Direct avatar URL: {avatar_url}")
-                except Exception as url_e:
-                    logger.error(f"Error building direct URL: {str(url_e)}")
-                    avatar_url = f"/media/{request.user.avatar.name}"
+        # Save new avatar
+        request.user.avatar = serializer.validated_data['avatar']
+        request.user.save()
 
-            return Response({
-                "detail": "Аватарът е актуализиран успешно",
-                "avatar_url": avatar_url
-            })
-        except Exception as e:
-            logger.error(f"Avatar upload failed: {str(e)}")
-            import traceback
-            logger.error(traceback.format_exc())
-            return Response(
-                {"detail": f"Avatar upload failed: {str(e)}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+        return Response({
+            "detail": "Аватарът е актуализиран успешно",
+            "avatar_url": request.build_absolute_uri(request.user.avatar.url)
+        })
 
 
 class FollowUserView(APIView):

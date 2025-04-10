@@ -236,7 +236,7 @@ if os.environ.get('AWS_ACCESS_KEY_ID'):
     AWS_S3_REGION_NAME = os.environ.get('AWS_S3_REGION_NAME', 'eu-north-1')
     
     # S3 behavior settings
-    AWS_DEFAULT_ACL = 'public-read'  # Enable ACL for all uploads
+    AWS_DEFAULT_ACL = None  # Don't set ACL, rely on bucket policy
     AWS_S3_OBJECT_PARAMETERS = {'CacheControl': 'max-age=86400'}
     AWS_QUERYSTRING_AUTH = False  # Don't add query auth parameters to URLs
     AWS_S3_FILE_OVERWRITE = False # Don't overwrite files with the same name
@@ -252,12 +252,7 @@ if os.environ.get('AWS_ACCESS_KEY_ID'):
     AWS_S3_ADDRESSING_STYLE = 'virtual'
     AWS_S3_VERIFY = True
     
-    # Logging for S3 operations
-    LOGGING['loggers']['django.request'] = {
-        'handlers': ['console'],
-        'level': 'DEBUG',
-        'propagate': True,
-    }
+    # Ensure clear logging for S3 operations
     LOGGING['loggers']['storages'] = {
         'handlers': ['console'],
         'level': 'DEBUG',
@@ -268,7 +263,7 @@ if os.environ.get('AWS_ACCESS_KEY_ID'):
     }
     LOGGING['loggers']['botocore'] = {
         'handlers': ['console'],
-        'level': 'DEBUG',
+        'level': 'WARNING',
     }
     LOGGING['loggers']['s3transfer'] = {
         'handlers': ['console'],

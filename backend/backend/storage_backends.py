@@ -14,7 +14,7 @@ class StaticStorage(S3Boto3Storage):
 
 class MediaStorage(S3Boto3Storage):
     location = 'media'
-    default_acl = 'public-read'  # Make sure files are publicly readable
+    default_acl = None  # Don't set ACL, rely on bucket policy
     file_overwrite = False
     
     def _clean_name(self, name):
@@ -137,10 +137,9 @@ class MediaStorage(S3Boto3Storage):
                 # Log content type
                 logger.info(f"Content type for {name}: {content_type}")
                 
-                # Prepare for upload with ACL
+                # Prepare for upload without ACL
                 extra_args = {
-                    'ContentType': content_type,
-                    'ACL': 'public-read'  # Explicitly set ACL on object
+                    'ContentType': content_type
                 }
                 
                 # Reset file position
