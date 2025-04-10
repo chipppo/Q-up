@@ -94,7 +94,7 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
    * @returns {boolean} True if the attachment appears to be an image
    */
   const isImageAttachment = (url) => {
-    // First check if we have file metadata from the server
+    // First check if we have file info from the server
     if (message.file_info && message.file_info.is_image !== undefined) {
       return message.file_info.is_image;
     }

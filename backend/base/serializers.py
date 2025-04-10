@@ -4,6 +4,8 @@ from .models import MyUser, Game, GameStats, RankSystem, RankTier, PlayerGoal, G
 import json
 import logging
 from django.utils import timezone
+import os
+import mimetypes
 
 """
 Serializers for the Q-up platform.
@@ -440,192 +442,77 @@ class PostDetailSerializer(PostSerializer):
 # Сериализатор за съобщения в чат
 class MessageSerializer(serializers.ModelSerializer):
     sender = UserSerializer(read_only=True)
+    sender_username = serializers.CharField(source='sender.username', read_only=True)
+    sender_avatar = serializers.SerializerMethodField()
     replies_count = serializers.SerializerMethodField()
     parent_sender = serializers.SerializerMethodField()
-    image = serializers.SerializerMethodField()
-    parent_message = serializers.SerializerMethodField()
     file_info = serializers.SerializerMethodField()
 
     class Meta:
         model = Message
         fields = [
-            'id', 'chat', 'sender', 'content', 'image',
-            'parent', 'is_read', 'is_delivered',
-            'created_at', 'updated_at', 'replies_count', 
-            'parent_sender', 'parent_message', 'file_info'
+            'id', 'chat', 'sender', 'sender_username', 'sender_avatar', 
+            'content', 'image', 'parent', 'is_read', 'is_delivered',
+            'created_at', 'updated_at', 'replies_count', 'parent_sender', 'file_info'
         ]
         read_only_fields = [
-            'id', 'chat', 'sender', 'created_at', 
-            'updated_at', 'replies_count', 'parent_sender'
+            'id', 'chat', 'sender', 'sender_username', 'sender_avatar',
+            'created_at', 'updated_at', 'replies_count'
         ]
     
+    def get_sender_avatar(self, obj):
+        try:
+            if obj.sender and obj.sender.avatar:
+                return obj.sender.avatar.url
+            return None
+        except Exception:
+            return None
+
     def get_replies_count(self, obj):
-        return obj.replies.count()
+        try:
+            return obj.replies.count()
+        except Exception:
+            return 0
     
     def get_parent_sender(self, obj):
         try:
-            import logging
-            logger = logging.getLogger(__name__)
-            
-            if not hasattr(obj, 'parent') or not obj.parent:
-                return None
-                
-            try:
-                parent = obj.parent
-                
-                if not hasattr(parent, 'sender') or not parent.sender:
-                    return None
-                    
-                sender = parent.sender
-                
-                # Safely get sender attributes with fallbacks
-                display_name = ""
-                if hasattr(sender, 'display_name') and sender.display_name:
-                    display_name = sender.display_name
-                
-                username = ""
-                if hasattr(sender, 'username'):
-                    username = sender.username
-                
-                avatar = None
-                if hasattr(sender, 'avatar') and sender.avatar and hasattr(sender.avatar, 'url'):
-                    avatar = sender.avatar.url
-                
+            if obj.parent and obj.parent.sender:
                 return {
-                    'id': sender.id,
-                    'display_name': display_name,
-                    'username': username,
-                    'avatar': avatar
+                    'id': obj.parent.sender.id,
+                    'username': obj.parent.sender.username,
+                    'display_name': getattr(obj.parent.sender, 'display_name', obj.parent.sender.username)
                 }
-            except Exception as sender_error:
-                logger.error(f"Error getting parent sender: {str(sender_error)}")
-                return None
-                
-        except Exception as e:
-            print(f"Error in get_parent_sender: {str(e)}")
-            import traceback
-            traceback.print_exc()
             return None
-
-    def get_image(self, obj):
-        try:
-            import logging
-            logger = logging.getLogger(__name__)
-            
-            if not obj.image:
-                return None
-                
-            # Get the image URL safely
-            try:
-                if hasattr(obj.image, 'url'):
-                    url = obj.image.url
-                    # Ensure the URL is properly formatted with domain
-                    if url.startswith('/media/'):
-                        from django.conf import settings
-                        if hasattr(settings, 'MEDIA_URL') and hasattr(settings, 'BASE_URL'):
-                            base = settings.BASE_URL.rstrip('/')
-                            url = f"{base}{url}"
-                    return url
-                return None
-            except Exception as url_error:
-                logger.error(f"Error getting image URL: {str(url_error)}")
-                return None
-                
-        except Exception as e:
-            print(f"Error in get_image_url: {str(e)}")
-            import traceback
-            traceback.print_exc()
+        except Exception:
             return None
 
     def get_file_info(self, obj):
         try:
-            import logging
-            logger = logging.getLogger(__name__)
-            
-            # If no image, return empty dict
-            if not hasattr(obj, 'image') or not obj.image:
-                return {}
+            if obj.image:
+                import os
+                import mimetypes
                 
-            try:
-                # Get file details from image name only, avoid trying to access file_name/file_type columns
-                file_name = ''
-                if obj.image and hasattr(obj.image, 'name'):
-                    file_name = obj.image.name.split('/')[-1]
+                # Get filename and type from the image field name
+                filename = os.path.basename(obj.image.name)
+                file_type = mimetypes.guess_type(obj.image.name)[0] or 'application/octet-stream'
                 
-                file_type = ''
-                if obj.image and hasattr(obj.image, 'name'):
-                    import mimetypes
-                    file_type = mimetypes.guess_type(obj.image.name)[0] or ''
-                
-                file_size = 0
-                if obj.image and hasattr(obj.image, 'size'):
-                    file_size = obj.image.size
+                # Get size if available
+                file_size = getattr(obj.image, 'size', 0)
                 
                 return {
-                    'name': file_name,
+                    'name': filename,
                     'type': file_type,
-                    'size': file_size
+                    'size': file_size,
+                    'is_image': file_type.startswith('image/')
                 }
-            except Exception as detail_error:
-                logger.error(f"Error getting file details: {str(detail_error)}")
-                import traceback
-                logger.error(traceback.format_exc())
-                
-                # Return minimal info that won't break frontend
-                return {
-                    'name': 'file',
-                    'type': '',
-                    'size': 0
-                }
-                
-        except Exception as e:
-            print(f"Error in get_file_info: {str(e)}")
-            import traceback
-            traceback.print_exc()
-            return {}
-
-    def get_parent_message(self, obj):
-        try:
-            import logging
-            logger = logging.getLogger(__name__)
-            
-            if not hasattr(obj, 'parent') or not obj.parent:
-                return None
-                
-            try:
-                parent = obj.parent
-                
-                # Safely get content with fallbacks
-                content = ""
-                if hasattr(parent, 'content') and parent.content:
-                    content = parent.content[:50] + '...' if len(parent.content) > 50 else parent.content
-                
-                return {
-                    'id': parent.id,
-                    'content': content
-                }
-            except Exception as parent_error:
-                logger.error(f"Error getting parent message: {str(parent_error)}")
-                return None
-                
-        except Exception as e:
-            print(f"Error in get_parent_message: {str(e)}")
-            import traceback
-            traceback.print_exc()
+            return None
+        except Exception:
             return None
 
-    # Validation - must have text or file
     def validate(self, data):
-        # Make chat field optional since we'll set it in the view
-        if 'chat' not in data:
-            data.pop('chat', None)
-            
-        # Allow empty content if image is provided
+        # Ensure that either content or image is provided
         if not data.get('content') and not data.get('image'):
-            if self.context.get('request') and self.context['request'].FILES.get('image'):
-                # Image is being uploaded but not in data yet
-                return data
-            raise serializers.ValidationError("Either content or image must be provided")
+            raise serializers.ValidationError("Either content or image must be provided.")
         return data
 
 # Сериализатор за чатове

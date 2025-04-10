@@ -235,9 +235,13 @@ class MessageListView(APIView):
                     status=status.HTTP_404_NOT_FOUND
                 )
             
-            # Start with all messages in this chat
+            # Start with all messages in this chat - use only_fields to specify exactly which fields we need
             try:
-                messages_query = Message.objects.filter(chat=chat)
+                # Only select fields that actually exist in the database
+                messages_query = Message.objects.filter(chat=chat).only(
+                    'id', 'chat', 'sender', 'content', 'image', 'parent', 
+                    'is_edited', 'is_read', 'is_delivered', 'created_at', 'updated_at'
+                )
                 logger.info(f"Found {messages_query.count()} messages in chat {chat_id}")
             except Exception as query_error:
                 logger.error(f"Error querying messages: {str(query_error)}")
@@ -291,8 +295,26 @@ class MessageListView(APIView):
                 logger.info(f"Returning {len(messages)} messages for chat {chat_id}")
             except Exception as order_error:
                 logger.error(f"Error sorting messages: {str(order_error)}")
-                # Fall back to basic query
-                messages = messages_query.all()[:limit]
+                # Fall back to basic query with safe SQL
+                from django.db import connection
+                cursor = connection.cursor()
+                try:
+                    # Use raw SQL that doesn't reference the problematic columns
+                    cursor.execute(
+                        "SELECT id, chat_id, sender_id, content, image, parent_id, is_edited, is_read, is_delivered, created_at, updated_at "
+                        "FROM base_message WHERE chat_id = %s ORDER BY created_at DESC LIMIT %s",
+                        [chat_id, limit]
+                    )
+                    message_ids = [row[0] for row in cursor.fetchall()]
+                    messages = Message.objects.filter(id__in=message_ids).order_by('-created_at')[:limit]
+                    messages = list(reversed(messages))
+                    logger.info(f"Used fallback query to get {len(messages)} messages")
+                except Exception as sql_error:
+                    logger.error(f"SQL error in fallback query: {str(sql_error)}")
+                    return Response(
+                        {'detail': f'Critical database error: {str(sql_error)}'},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                    )
             
             # Serialize messages with error handling
             try:
