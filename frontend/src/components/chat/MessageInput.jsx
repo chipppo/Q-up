@@ -120,7 +120,8 @@ const MessageInput = ({ selectedChat, replyTo, setReplyTo, addMessage, scrollToB
       }
 
       // Get the authentication token
-      const token = API.defaults.headers.Authorization.split(' ')[1];
+      const authHeader = API.defaults.headers.Authorization;
+      const token = authHeader ? authHeader.split(' ')[1] : localStorage.getItem('access');
       
       if (!token) {
         toast.error("Authentication error. Please login again.");
@@ -128,10 +129,10 @@ const MessageInput = ({ selectedChat, replyTo, setReplyTo, addMessage, scrollToB
         return;
       }
 
-      const response = await fetch(`${API.defaults.baseURL}/api/chat/${selectedChat.id}/messages/`, {
+      const response = await fetch(`/api/chats/${selectedChat.id}/messages/`, {
         method: 'POST',
         headers: {
-          'Authorization': `Token ${token}`
+          'Authorization': `Bearer ${token}`
         },
         body: formData
       });

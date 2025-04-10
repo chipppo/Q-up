@@ -31,10 +31,10 @@ import {
   Games as GamesIcon,
   Menu as MenuIcon
 } from '@mui/icons-material';
-import API from "../../api/axios";
+import API, { formatAvatarUrl } from "../../api/axios";
 import "../../styles/components/layout/Header.css";
 import logo from "../../assets/qup-logo.svg";
-import { formatImageUrl, stringToColor } from '../../utils/formatters';
+import { stringToColor } from '../../utils/formatters';
 
 /**
  * The main header component with navigation, user menu, and notification indicators
@@ -207,7 +207,7 @@ const Header = () => {
               className="avatar-button"
             >
               <img 
-                src={formatImageUrl(userData?.avatar_url)}
+                src={formatAvatarUrl(userData?.avatar_url, username)}
                 alt={username}
                 className="user-avatar"
                 style={{
@@ -318,7 +318,7 @@ const Header = () => {
             onClick={handleMenu}
           >
             <img 
-              src={formatImageUrl(userData?.avatar_url)}
+              src={formatAvatarUrl(userData?.avatar_url, username)}
               alt={username}
               className="user-avatar-mobile"
               style={{

@@ -28,6 +28,7 @@ import {
 } from '@mui/material';
 import { useAuth } from '../../context/AuthContext';
 import API from '../../api/axios';
+import axios from 'axios';
 import { toast } from 'react-toastify';
 
 // Import decomposed components
@@ -83,11 +84,164 @@ const Chat = () => {
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
   const messagesStartRef = useRef(null);
+  const isPolling = useRef(false);
   const pollingIntervalRef = useRef(null);
   const messageRefs = useRef({});
 
   // Add a state to track which messages are being deleted
   const [deletingMessages, setDeletingMessages] = useState({});
+  
+  // Refs for tracking scroll and polling state
+  const lastScrollTop = useRef(0);
+  const isLoadingMore = useRef(false);
+  const [lastMessageTimestamp, setLastMessageTimestamp] = useState(null);
+  const [userActive, setUserActive] = useState(true);
+  const userActivityTimeoutRef = useRef(null);
+  
+  // Track user activity to optimize polling
+  const resetUserActivityTimeout = useCallback(() => {
+    if (userActivityTimeoutRef.current) {
+      clearTimeout(userActivityTimeoutRef.current);
+    }
+    
+    setUserActive(true);
+    
+    // Set user as inactive after 5 minutes of no activity
+    userActivityTimeoutRef.current = setTimeout(() => {
+      setUserActive(false);
+    }, 5 * 60 * 1000);
+  }, []);
+  
+  // Set up user activity tracking
+  useEffect(() => {
+    // Track mouse and keyboard activity
+    const handleUserActivity = () => {
+      resetUserActivityTimeout();
+    };
+    
+    // Add event listeners for user activity
+    window.addEventListener('mousemove', handleUserActivity);
+    window.addEventListener('keydown', handleUserActivity);
+    window.addEventListener('click', handleUserActivity);
+    window.addEventListener('scroll', handleUserActivity);
+    
+    // Initialize activity timeout
+    resetUserActivityTimeout();
+    
+    // Clean up
+    return () => {
+      if (userActivityTimeoutRef.current) {
+        clearTimeout(userActivityTimeoutRef.current);
+      }
+      window.removeEventListener('mousemove', handleUserActivity);
+      window.removeEventListener('keydown', handleUserActivity);
+      window.removeEventListener('click', handleUserActivity);
+      window.removeEventListener('scroll', handleUserActivity);
+    };
+  }, [resetUserActivityTimeout]);
+
+  /**
+   * Optimized function to check for new messages only
+   * Uses a timestamp-based approach to only fetch new messages
+   */
+  const checkForNewMessages = useCallback(async () => {
+    if (!selectedChat || isPolling.current) return;
+    
+    isPolling.current = true;
+    
+    try {
+      // Build query URL with timestamp filter to only get new messages
+      const latestMessage = messages.length > 0 ? messages[messages.length - 1] : null;
+      const latestTimestamp = latestMessage ? latestMessage.created_at : null;
+      
+      if (latestTimestamp !== lastMessageTimestamp) {
+        setLastMessageTimestamp(latestTimestamp);
+      }
+      
+      // Only fetch if we have a timestamp to filter by
+      if (latestTimestamp) {
+        let url = `/chats/${selectedChat.id}/messages/`;
+        const params = new URLSearchParams();
+        params.append('limit', 10);
+        params.append('after', latestTimestamp);
+        url = `${url}?${params.toString()}`;
+        
+        const response = await API.get(url);
+        const newMessages = response.data;
+        
+        if (newMessages && newMessages.length > 0) {
+          // Check for duplicates and add only new messages
+          const existingMessageIds = new Set(messages.map(m => m.id));
+          const messagesToAdd = newMessages.filter(m => !existingMessageIds.has(m.id));
+          
+          if (messagesToAdd.length > 0) {
+            // Sort messages by timestamp (oldest first)
+            const sortedMessages = [...messagesToAdd].sort((a, b) => {
+              return new Date(a.created_at) - new Date(b.created_at);
+            });
+            
+            // Update the messages state
+            setMessages(prevMessages => {
+              const updatedMessages = [...prevMessages, ...sortedMessages];
+              return updatedMessages.sort((a, b) => 
+                new Date(a.created_at) - new Date(b.created_at)
+              );
+            });
+            
+            // Scroll to bottom if user was already at bottom
+            if (isUserAtBottom()) {
+              setTimeout(() => {
+                scrollToBottom({ smooth: true });
+              }, 50);
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error checking for new messages:', error);
+    } finally {
+      isPolling.current = false;
+    }
+  }, [selectedChat, messages, isUserAtBottom, scrollToBottom, lastMessageTimestamp]);
+
+  // Set up polling for new messages
+  useEffect(() => {
+    // Clear any existing polling interval when chat changes
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
+    
+    if (selectedChat) {
+      // Initial check for new messages
+      checkForNewMessages();
+      
+      // Set up new polling interval with adaptive frequency based on user activity
+      const setupPolling = () => {
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+        }
+        
+        // Use shorter polling interval when user is active, longer when inactive
+        const pollingInterval = userActive ? 8000 : 30000; // 8 seconds vs 30 seconds
+        
+        pollingIntervalRef.current = setInterval(() => {
+          checkForNewMessages();
+        }, pollingInterval);
+      };
+      
+      // Set up initial polling
+      setupPolling();
+      
+      // Update polling interval when user activity changes
+      return () => {
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = null;
+        }
+      };
+    }
+  }, [selectedChat, checkForNewMessages, userActive]);
 
   /**
    * Updates isMobile state when window is resized
@@ -310,8 +464,15 @@ const Chat = () => {
         setMessages(sortedMessages);
         setHasMoreMessages(newMessages.length === 20); // If fewer than requested, no more messages
         
+        // Update latest message timestamp
+        if (sortedMessages.length > 0) {
+          const latestMsg = sortedMessages[sortedMessages.length - 1];
+          if (latestMsg && latestMsg.created_at) {
+            setLastMessageTimestamp(latestMsg.created_at);
+          }
+        }
+        
         // Use a longer timeout to ensure DOM is updated before scrolling
-        // This is crucial for proper positioning
         setTimeout(() => {
           // First try to use scrollToBottom
           scrollToBottom({ smooth: false });
@@ -554,55 +715,6 @@ const Chat = () => {
       console.error('Error marking chat as read:', error);
     }
   };
-
-  /**
-   * Checks for new messages in the currently selected chat
-   * 
-   * @async
-   * @function checkForNewMessages
-   */
-  const checkForNewMessages = useCallback(async () => {
-    if (!selectedChat) return;
-    
-    try {
-      // Get the latest message we have
-      const latestMessage = messages.length > 0 ? messages[messages.length - 1] : null;
-      const params = new URLSearchParams();
-      
-      if (latestMessage) {
-        // Use timestamp-based fetching
-        params.append('after_timestamp', latestMessage.created_at);
-      }
-      
-      const url = `/chats/${selectedChat.id}/messages/?${params.toString()}`;
-      
-      const response = await API.get(url);
-      const newMessages = response.data;
-      
-      if (newMessages.length > 0) {
-        // Add the new messages to the existing ones
-        setMessages(prevMessages => {
-          // Combine with existing messages
-          const combined = [...prevMessages, ...newMessages];
-          
-          // Sort messages by timestamp
-          return combined.sort((a, b) => {
-            return new Date(a.created_at) - new Date(b.created_at);
-          });
-        });
-        
-        // Mark messages as read if user is at the bottom
-        if (isUserAtBottom()) {
-          markChatAsRead(selectedChat.id);
-          // Scroll to bottom to show new messages
-          scrollToBottom({ smooth: true });
-        }
-      }
-    } catch (error) {
-      console.error('Error checking for new messages:', error);
-      // Don't show error toast for background polling to avoid spamming the user
-    }
-  }, [selectedChat, messages, isUserAtBottom, markChatAsRead, scrollToBottom]);
 
   /**
    * Handles selecting a chat from the chat list
@@ -850,8 +962,21 @@ const Chat = () => {
       
       // Add new message and sort by timestamp
       const updatedMessages = [...prevMessages, newMessage];
-      return updatedMessages.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+      const sortedMessages = updatedMessages.sort((a, b) => 
+        new Date(a.created_at) - new Date(b.created_at)
+      );
+      
+      // Update the last message timestamp
+      const lastMessage = sortedMessages[sortedMessages.length - 1];
+      if (lastMessage && lastMessage.created_at) {
+        setLastMessageTimestamp(lastMessage.created_at);
+      }
+      
+      return sortedMessages;
     });
+    
+    // Force reset user activity when sending a message
+    resetUserActivityTimeout();
   };
 
   // Initial load
@@ -882,67 +1007,6 @@ const Chat = () => {
       }
     }
   }, [location.state, chats]);
-
-  // Set up polling for new messages when chat is selected
-  useEffect(() => {
-    // Only set up polling when a chat is selected
-    if (selectedChat) {
-      // Clear any existing polling interval
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
-      }
-      
-      // Check for new messages immediately when chat is selected
-      checkForNewMessages();
-      
-      // Set up polling for new messages every 5 seconds
-      pollingIntervalRef.current = setInterval(() => {
-        // Skip polling if user is actively typing in the message field
-        const activeElement = document.activeElement;
-        const isTypingMessage = activeElement && 
-          (activeElement.classList.contains('message-input') || 
-           activeElement.tagName === 'TEXTAREA');
-        
-        if (!isTypingMessage) {
-          checkForNewMessages();
-        }
-      }, 5000); // Less frequent polling to reduce typing disruption
-    }
-    
-    // Clean up on chat change or component unmount
-    return () => {
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
-        pollingIntervalRef.current = null;
-      }
-    };
-  }, [selectedChat, checkForNewMessages]);
-
-  // Set up polling for all chats
-  useEffect(() => {
-    // Initial setup of polling when component mounts
-    const allChatsPollingInterval = setInterval(() => {
-      if (isLoggedIn) {
-        // Skip polling if user is actively typing in the message field
-        const activeElement = document.activeElement;
-        const isTypingMessage = activeElement && 
-          (activeElement.classList.contains('message-input') || 
-           activeElement.tagName === 'TEXTAREA');
-        
-        if (!isTypingMessage) {
-          checkAllChatsForNewMessages();
-        }
-      }
-    }, 10000); // Check all chats every 10 seconds
-    
-    // Clean up on unmount
-    return () => {
-      clearInterval(allChatsPollingInterval);
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
-      }
-    };
-  }, [isLoggedIn]);
 
   // Handle scrolling behavior for messages
   useEffect(() => {
@@ -1077,6 +1141,13 @@ const Chat = () => {
               }}
               className="messages-container"
               ref={messagesContainerRef}
+              onClick={() => {
+                resetUserActivityTimeout();
+                // Force check for new messages when user interacts with chat
+                if (selectedChat && !isPolling.current) {
+                  checkForNewMessages();
+                }
+              }}
             >
               {/* Load more messages button */}
               {hasMoreMessages && (
