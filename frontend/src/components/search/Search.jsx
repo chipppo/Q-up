@@ -13,19 +13,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import API from "../../api/axios";
 import "../../styles/components/search/SearchBar.css";
-
-/**
- * Formats image URLs by ensuring they have the correct base URL
- * 
- * @function formatImageUrl
- * @param {string|null} url - The image URL to format
- * @returns {string|null} The formatted URL or null if no URL provided
- */
-const formatImageUrl = (url) => {
-  if (!url) return null;
-  if (url.startsWith('http')) return url;
-  return `${API.defaults.baseURL}${url}`;
-};
+import { formatImageUrl } from "../../utils/formatters";
 
 /**
  * Search component with form and results display

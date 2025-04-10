@@ -34,42 +34,7 @@ import {
 import API from "../../api/axios";
 import "../../styles/components/layout/Header.css";
 import logo from "../../assets/qup-logo.svg";
-
-/**
- * Generates a consistent color from a string (like a username)
- * 
- * This is used for avatar backgrounds when a user doesn't have
- * a profile picture. It creates a unique color based on their username
- * so they always get the same color.
- * 
- * @param {string} string - The input string (usually username)
- * @returns {string} A hex color code
- */
-const stringToColor = (string) => {
-  if (!string) return '#000000';
-  let hash = 0;
-  for (let i = 0; i < string.length; i++) {
-    hash = string.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  let color = '#';
-  for (let i = 0; i < 3; i++) {
-    const value = (hash >> (i * 8)) & 0xFF;
-    color += ('00' + value.toString(16)).substr(-2);
-  }
-  return color;
-};
-
-/**
- * Makes sure image URLs are properly formatted with the base URL if needed
- * 
- * @param {string} url - The image URL to format
- * @returns {string|null} The properly formatted URL or null if no URL provided
- */
-const formatImageUrl = (url) => {
-  if (!url) return null;
-  if (url.startsWith('http')) return url;
-  return `${API.defaults.baseURL}${url}`;
-};
+import { formatImageUrl, stringToColor } from '../../utils/formatters';
 
 /**
  * The main header component with navigation, user menu, and notification indicators
