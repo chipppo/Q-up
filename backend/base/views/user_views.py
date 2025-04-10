@@ -1,7 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
-from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+from rest_framework.parsers import MultiPartParser, FormParser
 from ..models import MyUser
 from ..serializers import (
     UserSerializer,
@@ -42,7 +42,7 @@ class UserDetailView(APIView):
         """
         try:
             user = MyUser.objects.get(username=username)
-            serializer = UserSerializer(user, context={'request': request})
+            serializer = UserSerializer(user)
             return Response(serializer.data)
         except MyUser.DoesNotExist:
             return Response({"detail": "Потребителят не е намерен."}, status=status.HTTP_404_NOT_FOUND)
@@ -50,87 +50,92 @@ class UserDetailView(APIView):
 
 class UpdateProfileView(APIView):
     """
-    Updates the user's profile with new information.
-    Only the authenticated user can update their own profile.
+    Updates a user's profile information.
+    Users can only update their own profiles.
     """
     permission_classes = [permissions.IsAuthenticated]
-    parser_classes = [MultiPartParser, FormParser, JSONParser]
+    parser_classes = [MultiPartParser, FormParser]
 
-    def patch(self, request, username, format=None):
-        """Handle PATCH requests for backward compatibility with frontend"""
-        return self.update_profile(request, username)
-        
-    def put(self, request, username, format=None):
-        """Handle PUT requests"""
-        return self.update_profile(request, username)
-        
-    def update_profile(self, request, username):
+    def patch(self, request, username):
         """
-        Common method to update a user's profile that works with both PATCH and PUT requests.
+        PATCH method to update profile data.
+        Handles complex fields like JSON arrays and date formatting.
         
         Args:
-            request: The HTTP request
-            username: The username of the profile to update
+            request: Contains all the updated profile data
+            username: Username of profile to update
             
         Returns:
-            Updated profile data or error response
+            Updated profile data or error messages
         """
         try:
             user = MyUser.objects.get(username=username)
-            
-            # Only allow users to edit their own profile (unless they're staff)
-            if request.user != user and not request.user.is_staff:
+            if user != request.user:
                 return Response(
-                    {"detail": "Не можете да редактирате чужд профил!"},
+                    {"detail": "Можете да редактирате само собствения си профил."},
                     status=status.HTTP_403_FORBIDDEN
                 )
-            
-            # Handle JSON or form data
-            data = None
-            if request.content_type == 'application/json':
-                data = request.data
-            else:
-                # Convert form data to dict
-                data = dict(request.data.items())
-            
-            # Special fields that need preprocessing
-            date_fields = ['date_of_birth']
-            list_fields = ['active_hours', 'language_preference', 'platforms', 'social_links']
-            
-            # Process date fields
-            for field in date_fields:
-                if field in data and data[field]:
+
+            # Handle JSON fields
+            json_fields = ['active_hours', 'language_preference', 'platforms', 'social_links']
+            for field in json_fields:
+                if field in request.data:
                     try:
-                        # Parse date from frontend format (DD/MM/YYYY)
-                        date_value = datetime.strptime(data[field], '%d/%m/%Y').date()
-                        data[field] = date_value
-                    except ValueError:
+                        if isinstance(request.data[field], str):
+                            setattr(user, field, json.loads(request.data[field]))
+                        else:
+                            setattr(user, field, request.data[field])
+                    except json.JSONDecodeError:
                         return Response(
-                            {"detail": f"Невалиден формат на дата за {field}. Използвайте ДД/ММ/ГГГГ."},
+                            {field: "Невалиден JSON формат"},
                             status=status.HTTP_400_BAD_REQUEST
                         )
-            
-            # Process JSON list fields
-            for field in list_fields:
-                if field in data:
-                    # If the field is a string representation of list
-                    if isinstance(data[field], str):
+
+            # Handle other fields
+            editable_fields = [
+                'display_name', 'bio', 'timezone', 'timezone_offset',
+                'date_of_birth', 'mic_available'
+            ]
+
+            for field in editable_fields:
+                if field in request.data:
+                    if field == 'date_of_birth':
                         try:
-                            data[field] = json.loads(data[field])
-                        except json.JSONDecodeError:
-                            # If not valid JSON, treat as comma-separated values
-                            if data[field]:
-                                data[field] = [item.strip() for item in data[field].split(',')]
+                            date_str = request.data[field]
+                            if date_str:
+                                date_obj = datetime.strptime(date_str, '%d/%m/%Y').date()
+                                setattr(user, field, date_obj)
+                        except ValueError:
+                            return Response(
+                                {"date_of_birth": "Невалиден формат на дата. Използвайте ДД/ММ/ГГГГ"},
+                                status=status.HTTP_400_BAD_REQUEST
+                            )
+                    elif field == 'mic_available':
+                        setattr(user, field, request.data[field].lower() == 'true')
+                    elif field == 'timezone_offset':
+                        try:
+                            offset = int(request.data[field])
+                            if -12 <= offset <= 14:
+                                setattr(user, field, offset)
                             else:
-                                data[field] = []
-           
+                                return Response(
+                                    {"timezone_offset": "Трябва да бъде между -12 и +14"},
+                                    status=status.HTTP_400_BAD_REQUEST
+                                )
+                        except ValueError:
+                            return Response(
+                                {"timezone_offset": "Трябва да бъде число"},
+                                status=status.HTTP_400_BAD_REQUEST
+                            )
+                    else:
+                        setattr(user, field, request.data[field])
            #Debug avatar upload
             import logging
             logger = logging.getLogger(__name__)
             logger.error(f"Avatar upload - Request method: {request.method}")
             logger.error(f"Avatar upload - Content-Type: {request.content_type}")
             logger.error(f"Avatar upload - FILES keys: {list(request.FILES.keys())}")
-            logger.error(f"Avatar upload - POST keys: {list(request.data.keys())}")
+            logger.error(f"Avatar upload - POST keys: {list(request.POST.keys())}")
             logger.error(f"Avatar upload - Headers: {dict(request.headers)}")
 
             # Handle avatar upload
@@ -142,19 +147,6 @@ class UpdateProfileView(APIView):
                         user.avatar.delete(save=False)
                     user.avatar = request.FILES['avatar']
                     logger.error(f"Avatar assigned to user model: {user.avatar.name}")
-                    
-                    # Try accessing the file to verify it was uploaded to storage
-                    try:
-                        from django.core.files.storage import default_storage
-                        if default_storage.exists(user.avatar.name):
-                            logger.error(f"File exists in storage at: {user.avatar.name}")
-                            logger.error(f"File URL: {user.avatar.url}")
-                        else:
-                            logger.error(f"File doesn't exist in storage: {user.avatar.name}")
-                    except Exception as e:
-                        logger.error(f"Error checking file existence: {str(e)}")
-                        import traceback
-                        logger.error(traceback.format_exc())
                 except Exception as e:
                     logger.error(f"Error handling avatar: {str(e)}")
                     import traceback
@@ -166,7 +158,7 @@ class UpdateProfileView(APIView):
                 user.full_clean()
                 user.save()
                 logger.error(f"User saved successfully. Avatar URL: {user.avatar.url if user.avatar else 'None'}")
-                serializer = UserSerializer(user, context={'request': request})
+                serializer = UserSerializer(user)
                 return Response(serializer.data)
             except ValidationError as e:
                 logger.error(f"Validation error: {e.message_dict}")

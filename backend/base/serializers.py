@@ -55,16 +55,6 @@ class UserSerializer(serializers.ModelSerializer):
         if they haven't uploaded one
         """
         if obj.avatar:
-            # Check if avatar URL is already absolute (starts with http/https)
-            if obj.avatar.url.startswith(('http://', 'https://')):
-                return obj.avatar.url
-            
-            # Use request context to build absolute URL if available
-            request = self.context.get('request')
-            if request:
-                return request.build_absolute_uri(obj.avatar.url)
-            
-            # Fallback to just the URL if no request context
             return obj.avatar.url
         return '/media/default/default-avatar.svg'
 

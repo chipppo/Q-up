@@ -12,6 +12,7 @@ from ..serializers import (
     LikeSerializer,
     UserSerializer
 )
+import logging
 
 class PostListView(APIView):
     """
@@ -40,27 +41,58 @@ class PostListView(APIView):
         return Response(serializer.data)
     
     def post(self, request):
-        """Създаване на нова публикация"""
-        serializer = PostSerializer(data=request.data, context={'request': request})
-        if serializer.is_valid():
-            # Handle game reference if provided
-            game_id = request.data.get('game')
-            game = None
-            if game_id:
-                try:
-                    game = Game.objects.get(id=game_id)
-                except Game.DoesNotExist:
-                    return Response(
-                        {"detail": "Играта не е намерена."},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
+        """Създаване на нова публикация с проверка за правилно качване на снимки"""
+        logger = logging.getLogger(__name__)
+        
+        try:
+            # Log received data for debugging
+            logger.info(f"Creating post for user {request.user.username}")
+            if 'image' in request.FILES:
+                logger.info(f"Post image received: {request.FILES['image'].name}, size: {request.FILES['image'].size}")
             
-            post = serializer.save(user=request.user, game=game)
+            serializer = PostSerializer(data=request.data, context={'request': request})
+            if serializer.is_valid():
+                # Handle game reference if provided
+                game_id = request.data.get('game')
+                game = None
+                if game_id:
+                    try:
+                        game = Game.objects.get(id=game_id)
+                    except Game.DoesNotExist:
+                        return Response(
+                            {"detail": "Играта не е намерена."},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+                
+                # Create post instance but don't save yet
+                post = serializer.save(user=request.user, game=game)
+                
+                # Verify image was properly uploaded to S3
+                if 'image' in request.FILES and not post.image:
+                    logger.error(f"Post image upload failed for user {request.user.username}")
+                    post.delete()
+                    return Response(
+                        {"detail": "Неуспешно качване на изображението."},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                    )
+                
+                # Log success
+                if post.image:
+                    logger.info(f"Post image successfully uploaded to: {post.image.url}")
+                
+                return Response(
+                    PostSerializer(post, context={'request': request}).data,
+                    status=status.HTTP_201_CREATED
+                )
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.error(f"Error creating post: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
             return Response(
-                PostSerializer(post, context={'request': request}).data,
-                status=status.HTTP_201_CREATED
+                {"detail": f"Неуспешно създаване на публикация: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class UserPostsView(APIView):

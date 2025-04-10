@@ -382,8 +382,8 @@ class Post(models.Model):
     def delete(self, *args, **kwargs):
         # Изтрива снимка при изтриване на пост
         if self.image:
-            if os.path.isfile(self.image.path):
-                os.remove(self.image.path)
+            # S3 compatible file deletion
+            self.image.delete(save=False)
         super().delete(*args, **kwargs)
     
     # Брой харесвания
@@ -492,6 +492,6 @@ class Message(models.Model):
     def delete(self, *args, **kwargs):
         # Изтрива снимката при изтриване
         if self.image:
-            if os.path.isfile(self.image.path):
-                os.remove(self.image.path)
+            # S3 compatible file deletion
+            self.image.delete(save=False)
         super().delete(*args, **kwargs)

@@ -1,7 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
-from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+from rest_framework.parsers import MultiPartParser, FormParser
 from django.http import Http404
 from ..models import Chat, Message, MyUser
 from ..serializers import (
@@ -181,131 +181,156 @@ class ChatReadView(APIView):
 
 class MessageListView(APIView):
     """
-    Lists and creates messages in a chat.
-    Users must be participants in the chat to view or send messages.
+    Списък на всички съобщения в чат или създаване на ново съобщение.
     """
     permission_classes = [permissions.IsAuthenticated]
-    parser_classes = [MultiPartParser, FormParser, JSONParser]
+    parser_classes = [MultiPartParser, FormParser]
 
     def get(self, request, chat_id):
         try:
-            # Check if the user is a participant in the chat
+            # Pagination parameters
+            limit = int(request.query_params.get('limit', 20))  # Default 20 messages
+            before_id = request.query_params.get('before_id')  # Message ID to load messages before
+            after_timestamp = request.query_params.get('after_timestamp')  # Timestamp to load messages after
+            
             chat = Chat.objects.get(id=chat_id, participants=request.user)
             
-            # Get messages with pagination
-            page = int(request.query_params.get('page', 1))
-            page_size = int(request.query_params.get('page_size', 30))
+            # Start with all messages in this chat
+            messages_query = chat.messages.all()
             
-            messages = Message.objects.filter(chat=chat).order_by('-created_at')
+            # Filter messages before the given ID if specified
+            if before_id:
+                try:
+                    before_message = Message.objects.get(id=before_id)
+                    messages_query = messages_query.filter(created_at__lt=before_message.created_at)
+                except Message.DoesNotExist:
+                    pass
             
-            # Apply pagination (simple implementation)
-            start = (page - 1) * page_size
-            end = start + page_size
-            messages = messages[start:end]
+            # Filter messages after the given timestamp if specified
+            if after_timestamp:
+                try:
+                    # Parse the timestamp and convert to timezone-aware datetime if needed
+                    
+                    # Try to parse the timestamp
+                    parsed_timestamp = parse_datetime(after_timestamp)
+                    
+                    # Make it timezone-aware if it's not
+                    if parsed_timestamp and timezone.is_naive(parsed_timestamp):
+                        parsed_timestamp = timezone.make_aware(parsed_timestamp)
+                    
+                    if parsed_timestamp:
+                        # Add slight buffer to avoid missing messages created at the exact same timestamp
+                        # This provides a 0.1 second buffer
+                        messages_query = messages_query.filter(created_at__gte=parsed_timestamp)
+                    else:
+                        # If parsing fails, try direct comparison (this works with some formats)
+                        messages_query = messages_query.filter(created_at__gt=after_timestamp)
+                except Exception as e:
+                    print(f"Error parsing timestamp: {e}")
+                    # Attempt a direct string comparison as a fallback
+                    messages_query = messages_query.filter(created_at__gt=after_timestamp)
             
-            # Mark messages as read
-            for message in messages:
-                if message.sender != request.user and not message.is_read:
-                    message.is_read = True
-                    message.save(update_fields=['is_read'])
+            # Get messages in the appropriate order and limit the result
+            if after_timestamp:
+                # For newer messages, use ascending order (oldest to newest)
+                messages = messages_query.order_by('created_at')[:limit]
+            else:
+                # For older messages, use descending order (newest to oldest) and reverse for display
+                messages = messages_query.order_by('-created_at')[:limit]
+                messages = list(reversed(messages))
             
             serializer = MessageSerializer(messages, many=True, context={'request': request})
             return Response(serializer.data)
         except Chat.DoesNotExist:
             return Response(
-                {'detail': 'Chat not found or you are not a participant'},
+                {'detail': 'Чатът не е намерен или не сте участник'},
                 status=status.HTTP_404_NOT_FOUND
             )
         except Exception as e:
             return Response(
-                {'detail': f'Error retrieving messages: {str(e)}'},
+                {'detail': f'Неуспешно извличане на съобщения: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
     def post(self, request, chat_id):
         try:
-            # Set up logging
-            import logging
-            import traceback
-            logger = logging.getLogger(__name__)
-            
-            # Debug logging for message creation
-            logger.error(f"Message creation - Request method: {request.method}")
-            logger.error(f"Message creation - Content-Type: {request.content_type}")
-            logger.error(f"Message creation - FILES keys: {list(request.FILES.keys())}")
-            logger.error(f"Message creation - Data keys: {list(request.data.keys())}")
-            
-            # Check if the user is a participant in the chat
             chat = Chat.objects.get(id=chat_id, participants=request.user)
             
-            # Create the message directly
-            message = Message(
-                chat=chat,
-                sender=request.user
-            )
+            # Get message data
+            content = request.data.get('content', '').strip()
+            parent_id = request.data.get('parent_id')
             
-            # Handle content
-            if 'content' in request.data:
-                message.content = request.data['content']
-                logger.error(f"Message content: {message.content[:50]}...")
-                
-            # Handle image
-            if 'image' in request.FILES:
-                image_file = request.FILES['image']
-                logger.error(f"Message image found - Name: {image_file.name}, Size: {image_file.size}, Type: {image_file.content_type}")
-                message.image = image_file
+            # Get image if provided
+            image = request.FILES.get('image', None)
             
-            # Handle file (use the same image field for files)
-            if 'file' in request.FILES:
-                file = request.FILES['file']
-                logger.error(f"Message file found - Name: {file.name}, Size: {file.size}, Type: {file.content_type}")
-                message.image = file
-                
-            # Handle parent message (for replies)
-            if 'parent' in request.data:
+            # Validate that at least one of content or image is provided
+            if not content and not image:
+                return Response(
+                    {'detail': 'Съобщението трябва да съдържа текст или снимка'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Set up parent message if replying
+            parent = None
+            if parent_id:
                 try:
-                    parent_id = request.data['parent']
-                    parent_message = Message.objects.get(id=parent_id, chat=chat)
-                    message.parent = parent_message
-                    logger.error(f"Parent message set: {parent_id}")
-                except Exception as e:
-                    # Continue without setting parent if it fails
-                    logger.error(f"Error setting parent message: {str(e)}")
-                    pass
+                    parent = Message.objects.get(id=parent_id, chat=chat)
+                except Message.DoesNotExist:
+                    return Response(
+                        {'detail': 'Оригиналното съобщение не е намерено'},
+                        status=status.HTTP_404_NOT_FOUND
+                    )
             
-            # Save the message
+            # Log information about the file
+            if image:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.info(f"Processing image upload for chat {chat_id}: name={image.name}, size={image.size}, content_type={image.content_type}")
+            
+            # Create message
             try:
-                message.save()
-                logger.error(f"Message saved successfully with id: {message.id}")
+                message = Message.objects.create(
+                    chat=chat,
+                    sender=request.user,
+                    content=content,
+                    image=image,
+                    parent=parent,
+                    is_read=False,
+                    is_delivered=True
+                )
                 
-                # Verify image was saved correctly
-                if message.image:
-                    from django.core.files.storage import default_storage
-                    if default_storage.exists(message.image.name):
-                        logger.error(f"Message image saved to storage at: {message.image.name}")
-                        logger.error(f"Message image URL: {message.image.url}")
-                    else:
-                        logger.error(f"Message image not found in storage after save: {message.image.name}")
+                # Check if image was successfully uploaded (if provided)
+                if image and not message.image:
+                    logger.error(f"Image upload failed for message {message.id} in chat {chat_id}")
+                    message.delete()  # Remove the message if image upload failed
+                    return Response(
+                        {'detail': 'Качването на изображението не бе успешно'},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                    )
+                
+                # Update chat timestamp
+                chat.save()  # This will update the updated_at field
                 
                 serializer = MessageSerializer(message, context={'request': request})
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
             except Exception as e:
-                logger.error(f"Error saving message: {str(e)}")
+                logger.error(f"Error creating message in chat {chat_id}: {str(e)}")
+                # Try to provide more specific error message
+                import traceback
                 logger.error(traceback.format_exc())
                 return Response(
-                    {'detail': f'Error saving message: {str(e)}'},
+                    {'detail': f'Неуспешно изпращане на съобщение: {str(e)}'},
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
+                
         except Chat.DoesNotExist:
             return Response(
-                {'detail': 'Chat not found or you are not a participant'},
+                {'detail': 'Чатът не е намерен или не сте участник'},
                 status=status.HTTP_404_NOT_FOUND
             )
         except Exception as e:
-            logger.error(f"Unexpected error in message creation: {str(e)}")
-            logger.error(traceback.format_exc())
             return Response(
-                {'detail': f'Error creating message: {str(e)}'},
+                {'detail': f'Неуспешно изпращане на съобщение: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
