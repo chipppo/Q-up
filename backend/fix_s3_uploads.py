@@ -53,9 +53,18 @@ def test_s3_access():
     try:
         client = get_s3_client()
         
-        # Skip listing buckets since we don't have permission
-        # Instead just check if we can use the specific bucket we have access to
-        logger.info(f"Testing access to bucket {settings.AWS_STORAGE_BUCKET_NAME}")
+        # Test listing buckets
+        try:
+            buckets = client.list_buckets()
+            bucket_names = [b['Name'] for b in buckets['Buckets']]
+            logger.info(f"Successfully listed buckets: {bucket_names}")
+            
+            if settings.AWS_STORAGE_BUCKET_NAME not in bucket_names:
+                logger.error(f"ERROR: Bucket {settings.AWS_STORAGE_BUCKET_NAME} not found in your account")
+                return False
+        except Exception as e:
+            logger.error(f"ERROR: Failed to list buckets: {str(e)}")
+            return False
         
         # Test uploading a file
         test_key = "test-fix-upload.txt"
