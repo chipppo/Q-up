@@ -57,41 +57,59 @@ const FollowersModal = ({ open, onClose, username, initialTab = "followers" }) =
   const [followers, setFollowers] = useState([]);
   const [following, setFollowing] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [followersLoading, setFollowersLoading] = useState(true);
+  const [followingLoading, setFollowingLoading] = useState(true);
   const [followingStatus, setFollowingStatus] = useState({});
 
   useEffect(() => {
     if (open) {
-      fetchFollowData();
+      fetchBothFollowData();
     }
-  }, [open, username, tab]);
+  }, [open, username]);
 
   /**
-   * Fetches followers or following data based on current tab
+   * Fetches both followers and following data at once
    * 
    * @async
-   * @function fetchFollowData
+   * @function fetchBothFollowData
    */
-  const fetchFollowData = async () => {
+  const fetchBothFollowData = async () => {
     setLoading(true);
+    setFollowersLoading(true);
+    setFollowingLoading(true);
+    
     try {
-      if (tab === 0) {
-        const response = await API.get(`/users/${username}/followers/`);
-        setFollowers(response.data);
-        if (isLoggedIn) {
-          updateFollowingStatus(response.data);
-        }
-      } else {
-        const response = await API.get(`/users/${username}/following/`);
-        setFollowing(response.data);
-        if (isLoggedIn) {
-          updateFollowingStatus(response.data);
-        }
+      // Fetch followers data
+      const followersPromise = API.get(`/users/${username}/followers/`);
+      
+      // Fetch following data
+      const followingPromise = API.get(`/users/${username}/following/`);
+      
+      // Wait for both requests to complete
+      const [followersResponse, followingResponse] = await Promise.all([
+        followersPromise,
+        followingPromise
+      ]);
+      
+      // Update state with the results
+      setFollowers(followersResponse.data);
+      setFollowing(followingResponse.data);
+      
+      // Update following status if logged in
+      if (isLoggedIn) {
+        // Update for both lists at once
+        const allUsers = [...followersResponse.data, ...followingResponse.data];
+        // Remove duplicates based on username
+        const uniqueUsers = Array.from(new Map(allUsers.map(user => [user.username, user])).values());
+        updateFollowingStatus(uniqueUsers);
       }
     } catch (error) {
       console.error("Error fetching follow data:", error);
       toast.error("Failed to load followers data");
     } finally {
       setLoading(false);
+      setFollowersLoading(false);
+      setFollowingLoading(false);
     }
   };
 
@@ -157,7 +175,7 @@ const FollowersModal = ({ open, onClose, username, initialTab = "followers" }) =
       
       // Refresh lists if we're toggling follow on the profile we're viewing
       if (targetUsername === username) {
-        fetchFollowData();
+        fetchBothFollowData();
       }
     } catch (error) {
       // Revert on error
@@ -209,6 +227,45 @@ const FollowersModal = ({ open, onClose, username, initialTab = "followers" }) =
     setTab(newValue);
   };
 
+  /**
+   * Fetches followers or following data based on current tab
+   * Use this when switching tabs and data already exists
+   * 
+   * @async
+   * @function fetchFollowData
+   */
+  const fetchFollowData = async () => {
+    if (tab === 0) {
+      if (!followersLoading) return; // Skip if already loaded
+      setFollowersLoading(true);
+      try {
+        const response = await API.get(`/users/${username}/followers/`);
+        setFollowers(response.data);
+        if (isLoggedIn) {
+          updateFollowingStatus(response.data);
+        }
+      } catch (error) {
+        console.error("Error fetching followers:", error);
+      } finally {
+        setFollowersLoading(false);
+      }
+    } else {
+      if (!followingLoading) return; // Skip if already loaded  
+      setFollowingLoading(true);
+      try {
+        const response = await API.get(`/users/${username}/following/`);
+        setFollowing(response.data);
+        if (isLoggedIn) {
+          updateFollowingStatus(response.data);
+        }
+      } catch (error) {
+        console.error("Error fetching following:", error);
+      } finally {
+        setFollowingLoading(false);
+      }
+    }
+  };
+
   return (
     <Dialog 
       open={open} 
@@ -239,13 +296,29 @@ const FollowersModal = ({ open, onClose, username, initialTab = "followers" }) =
           sx={{ px: 2 }}
           variant="fullWidth"
         >
-          <Tab label={`Followers (${followers.length || 0})`} />
-          <Tab label={`Following (${following.length || 0})`} />
+          <Tab label={
+            followersLoading 
+              ? <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  Followers <CircularProgress size={16} sx={{ ml: 1 }} />
+                </Box>
+              : `Followers (${followers.length || 0})`
+          } />
+          <Tab label={
+            followingLoading 
+              ? <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  Following <CircularProgress size={16} sx={{ ml: 1 }} />
+                </Box>
+              : `Following (${following.length || 0})`
+          } />
         </Tabs>
       </Box>
       
       <DialogContent sx={{ p: 0 }}>
-        {loading ? (
+        {tab === 0 && followersLoading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+            <CircularProgress />
+          </Box>
+        ) : tab === 1 && followingLoading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
             <CircularProgress />
           </Box>
@@ -268,7 +341,7 @@ const FollowersModal = ({ open, onClose, username, initialTab = "followers" }) =
                     >
                       <ListItemAvatar>
                         <Avatar 
-                          src={user.avatar ? `${API.defaults.baseURL}${user.avatar}` : null}
+                          src={user.avatar ? `${API.defaults.baseURL}${user.avatar}` : '/images/profile-placeholder.svg'}
                           component={Link}
                           to={`/profile/${user.username}`}
                           onClick={onClose}
@@ -361,7 +434,7 @@ const FollowersModal = ({ open, onClose, username, initialTab = "followers" }) =
                   >
                     <ListItemAvatar>
                       <Avatar 
-                        src={user.avatar ? `${API.defaults.baseURL}${user.avatar}` : null}
+                        src={user.avatar ? `${API.defaults.baseURL}${user.avatar}` : '/images/profile-placeholder.svg'}
                         component={Link}
                         to={`/profile/${user.username}`}
                         onClick={onClose}

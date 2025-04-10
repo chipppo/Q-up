@@ -64,14 +64,17 @@ const MessageInput = ({ selectedChat, replyTo, setReplyTo, addMessage, scrollToB
         formData.append("content", message.trim());
       }
       
-      // Add image if any
+      // Add image if any (use correct field name for backend)
       if (selectedImage) {
-        formData.append("image", selectedImage);
+        console.debug("Attaching image:", selectedImage.name, selectedImage.type, selectedImage.size);
+        formData.append("image", selectedImage, selectedImage.name);
       }
       
-      // Add file if any
+      // Add file if any (use correct field name for backend)
       if (selectedFile) {
-        formData.append("file", selectedFile);
+        console.debug("Attaching file:", selectedFile.name, selectedFile.type, selectedFile.size);
+        // Try with 'file' field name as it's commonly used in Django
+        formData.append("file", selectedFile, selectedFile.name);
       }
       
       // Add reply_to if replying to a message
@@ -79,12 +82,24 @@ const MessageInput = ({ selectedChat, replyTo, setReplyTo, addMessage, scrollToB
         formData.append("parent", replyTo.id);
       }
       
+      // Log form data for debugging (can't directly log FormData content)
+      console.debug("FormData keys:", [...formData.entries()].map(entry => `${entry[0]}: ${entry[1].name || entry[1]}`));
+      
       toast.info("Sending message...");
       
       const response = await API.post(`/chats/${selectedChat.id}/messages/`, formData, {
         headers: {
           "Content-Type": "multipart/form-data",
+          // Additional header to prevent transformation of FormData
+          "X-Content-Type-Options": "nosniff"
         },
+        // Add explicit content transformation options
+        transformRequest: [
+          function(data) {
+            // Do not transform the FormData
+            return data;
+          }
+        ]
       });
       
       // Add the new message to the message array
@@ -112,7 +127,20 @@ const MessageInput = ({ selectedChat, replyTo, setReplyTo, addMessage, scrollToB
       
     } catch (error) {
       console.error("Error sending message:", error);
-      toast.error("Failed to send message");
+      // More detailed error handling
+      if (error.response) {
+        console.error("Response data:", error.response.data);
+        console.error("Response status:", error.response.status);
+        
+        // Show more specific error message
+        if (error.response.data && error.response.data.detail) {
+          toast.error(`Failed to send message: ${error.response.data.detail}`);
+        } else {
+          toast.error(`Failed to send message (${error.response.status})`);
+        }
+      } else {
+        toast.error("Failed to send message");
+      }
     } finally {
       setSending(false);
     }

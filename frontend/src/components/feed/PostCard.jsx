@@ -564,7 +564,13 @@ const PostCard = ({ post, onPostUpdate, onPostDelete }) => {
 
       {/* Post Content */}
       <CardContent>
-        <Typography variant="body1">{post.caption}</Typography>
+        {post.caption ? (
+          <Typography variant="body1">{post.caption}</Typography>
+        ) : post.content ? (
+          <Typography variant="body1">{post.content}</Typography>
+        ) : (
+          <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>No caption</Typography>
+        )}
         
         {post.game && (
           <Box sx={{ mt: 1, display: 'flex', alignItems: 'center' }}>

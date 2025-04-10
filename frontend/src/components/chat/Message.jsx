@@ -58,9 +58,41 @@ const formatImageUrl = (url) => {
  * @returns {JSX.Element} The message component
  */
 const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) => {
-  const { username } = useAuth().auth?.user || {};
-  const isOwnMessage = message.sender_username === username || message.sender === username;
-  const senderName = message.sender_username || message.sender_display_name || message.sender;
+  // Get authentication context correctly
+  const auth = useAuth();
+  const currentUser = auth?.auth?.user || {};
+  const currentUsername = currentUser?.username;
+  
+  // Debug logs - remove these after fixing the issue
+  console.debug('Message sender data:', { 
+    messageId: message.id,
+    sender: message.sender,
+    sender_username: message.sender_username,
+    currentUsername: currentUsername
+  });
+  
+  // More robust check for own messages
+  const isOwnMessage = Boolean(
+    currentUsername && (
+      (message.sender_username && message.sender_username === currentUsername) ||
+      (message.sender && (
+        // Handle both string and object sender formats
+        (typeof message.sender === 'string' && message.sender === currentUsername) || 
+        (message.sender?.username === currentUsername)
+      ))
+    )
+  );
+  
+  // Debug log the result
+  console.debug(`Message ${message.id} isOwnMessage: ${isOwnMessage}`);
+  
+  // Get sender name from various possible properties
+  const senderName = 
+    (typeof message.sender === 'object' ? message.sender?.display_name || message.sender?.username : null) || 
+    message.sender_display_name || 
+    message.sender_username || 
+    (typeof message.sender === 'string' ? message.sender : 'Unknown');
+  
   const isHighlighted = highlightedId === message.id;
   
   const [anchorEl, setAnchorEl] = useState(null);
@@ -203,7 +235,7 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
       className={`message-wrapper ${isOwnMessage ? 'sent' : 'received'}`}
     >
       {!isOwnMessage && (
-        <Typography variant="caption" color="text.secondary" sx={{ ml: 1, mb: 0.5 }}>
+        <Typography variant="caption" color="text.secondary" sx={{ ml: 1, mb: 0.5, fontWeight: 'bold' }}>
           {senderName}
         </Typography>
       )}
@@ -238,8 +270,16 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
           className={`message-bubble ${isOwnMessage ? 'sent' : 'received'} ${isHighlighted ? 'highlighted-message' : ''}`}
           id={`message-${message.id}`}
           style={{ 
-            backgroundColor: isHighlighted ? 'rgba(255, 214, 0, 0.2)' : undefined,
-            maxWidth: isOwnMessage ? 'calc(100% - 40px)' : 'calc(100% - 40px)'
+            backgroundColor: isHighlighted 
+              ? 'rgba(255, 214, 0, 0.2)' 
+              : (isOwnMessage 
+                  ? 'var(--color-primary)' 
+                  : 'var(--color-bg-tertiary)'),
+            color: isOwnMessage ? 'white' : 'var(--color-text-primary)',
+            maxWidth: isOwnMessage ? 'calc(100% - 40px)' : 'calc(100% - 40px)',
+            borderTopRightRadius: isOwnMessage ? '4px' : '16px',
+            borderTopLeftRadius: isOwnMessage ? '16px' : '4px',
+            position: 'relative'
           }}
         >
           {message.parent && (
@@ -269,13 +309,13 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
           )}
         
           {message.content && (
-            <div className="message-content" style={{ overflowWrap: 'anywhere', wordBreak: 'break-all', maxWidth: '100%' }}>
+            <div className="message-content" style={{ overflowWrap: 'anywhere', wordBreak: 'break-all', maxWidth: '100%', marginBottom: '16px' }}>
               {message.content}
             </div>
           )}
         
           {(message.image || message.has_image) && (
-            <Box mt={message.content ? 1 : 0} sx={{ width: '100%', boxSizing: 'border-box' }}>
+            <Box mt={message.content ? 1 : 0} sx={{ width: '100%', boxSizing: 'border-box', marginBottom: '16px' }}>
               {isImageAttachment(formatImageUrl(message.image)) ? (
                 <img 
                   src={formatImageUrl(message.image)}
@@ -302,6 +342,37 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
               )}
             </Box>
           )}
+          
+          {/* Message timestamp inside the bubble */}
+          <Typography 
+            variant="caption" 
+            sx={{ 
+              position: 'absolute',
+              bottom: '2px',
+              right: '8px',
+              fontSize: '0.7rem', 
+              opacity: 0.8,
+              color: isOwnMessage ? 'rgba(255, 255, 255, 0.8)' : 'text.secondary',
+              display: 'flex',
+              alignItems: 'center'
+            }} 
+            className="message-timestamp-inline"
+          >
+            {isOwnMessage && message.is_read !== undefined && (
+              <span className="message-status" style={{ marginRight: '5px' }}>
+                {message.is_read ? 
+                  <span style={{ display: 'inline-flex', alignItems: 'center', color: isOwnMessage ? 'rgba(255, 255, 255, 0.9)' : 'var(--color-primary)' }}>
+                    <DoneAllIcon fontSize="inherit" style={{ marginRight: '2px', fontSize: '0.8rem' }} />
+                  </span> 
+                  : 
+                  <span style={{ display: 'inline-flex', alignItems: 'center', color: isOwnMessage ? 'rgba(255, 255, 255, 0.7)' : 'var(--color-text-tertiary)' }}>
+                    <CheckIcon fontSize="inherit" style={{ marginRight: '2px', fontSize: '0.8rem' }} />
+                  </span>
+                }
+              </span>
+            )}
+            {formatMessageTime(messageTime)}
+          </Typography>
         </div>
         
         {isOwnMessage && (
@@ -355,23 +426,6 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
           )}
         </Menu>
       </Box>
-
-      <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, ml: isOwnMessage ? 'auto' : 1, mr: isOwnMessage ? 1 : 'auto' }} className="message-timestamp">
-        {formatMessageTime(messageTime)}
-        {isOwnMessage && message.is_read !== undefined && (
-          <span className="message-status">
-            {message.is_read ? 
-              <span style={{ marginLeft: '5px', color: 'var(--color-primary)', display: 'inline-flex', alignItems: 'center' }}>
-                <DoneAllIcon fontSize="inherit" style={{ marginRight: '2px' }} /> Seen
-              </span> 
-              : 
-              <span style={{ marginLeft: '5px', color: 'var(--color-text-tertiary)', display: 'inline-flex', alignItems: 'center' }}>
-                <CheckIcon fontSize="inherit" style={{ marginRight: '2px' }} /> Sent
-              </span>
-            }
-          </span>
-        )}
-      </Typography>
     </Box>
   );
 };

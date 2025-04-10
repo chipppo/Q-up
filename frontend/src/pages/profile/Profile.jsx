@@ -184,7 +184,7 @@ function ViewProfile({ user, gameStats, isFollowing, onFollowToggle, isLoggedIn,
         <Grid item xs={12} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <Avatar
-              src={user?.avatar || '/images/profile-placeholder.png'}
+              src={user?.avatar || '/images/profile-placeholder.svg'}
               sx={{ width: 100, height: 100 }}
             >
               {user?.username?.[0]?.toUpperCase()}
@@ -419,7 +419,7 @@ function ViewProfile({ user, gameStats, isFollowing, onFollowToggle, isLoggedIn,
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                 {ranking.rank.icon && (
                                   <img 
-                                    src={`${API.defaults.baseURL}${ranking.rank.icon}`}
+                                    src={ranking.rank.icon.startsWith('http') ? ranking.rank.icon : ranking.rank.icon.startsWith('/') ? `${window.location.origin}${ranking.rank.icon}` : `${window.location.origin}/${ranking.rank.icon}`}
                                     alt={ranking.rank.name}
                                     style={{ width: 60, height: 60, objectFit: 'contain' }}
                                   />

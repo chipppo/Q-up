@@ -37,7 +37,7 @@ const TIME_PERIODS = [
  * @returns {string|null} The formatted URL or null if no URL provided
  */
 const formatImageUrl = (url) => {
-  if (!url) return '/images/profile-placeholder.png'; // Use a file that actually exists
+  if (!url) return '/images/profile-placeholder.svg'; // Use the new SVG placeholder
   if (url.startsWith('http')) return url;
   return `${API.defaults.baseURL}${url}`;
 };
@@ -507,16 +507,21 @@ function SearchProfiles() {
     );
   };
   
-  // Check if a search has been performed
+  // Check if a search has been performed AND if any filters are active
   const hasSearchFilters = () => {
-    return query.trim() !== '' || 
-           filters.platforms.length > 0 || 
-           filters.languages.length > 0 || 
-           filters.activeHours.length > 0 || 
-           filters.games.length > 0 || 
-           filters.hasMic !== null || 
-           Object.values(filters.gameHoursPlayed).some(hours => hours && Number(hours) > 0) ||
-           Object.values(filters.gameGoals).some(goals => goals && goals.length > 0);
+    // Check if any filter or query is active
+    const filtersActive = 
+      query.trim() !== '' || 
+      filters.platforms.length > 0 || 
+      filters.languages.length > 0 || 
+      filters.activeHours.length > 0 || 
+      filters.games.length > 0 || 
+      filters.hasMic !== null || 
+      Object.values(filters.gameHoursPlayed).some(hours => hours && Number(hours) > 0) ||
+      Object.values(filters.gameGoals).some(goals => goals && goals.length > 0);
+      
+    // Only return true if search has been explicitly performed AND filters/query are active
+    return searchPerformed && filtersActive;
   };
 
   // Search results or recommended users

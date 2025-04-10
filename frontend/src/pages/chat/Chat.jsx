@@ -600,27 +600,48 @@ const Chat = () => {
     // If already deleting this message, prevent duplicate requests
     if (deletingMessages[messageId]) return;
     
+    // Store the message being deleted in case we need to restore it
+    const messageToDelete = messages.find(msg => msg.id === messageId);
+    if (!messageToDelete) return; // Message not found
+    
+    // Optimistically remove the message from the UI
+    setMessages(prevMessages => 
+      prevMessages.filter(message => message.id !== messageId)
+    );
+    
+    // Mark this message as being deleted (for potential UI feedback, though it's removed now)
+    setDeletingMessages(prev => ({ ...prev, [messageId]: true }));
+    
+    // Close menu immediately
+    setMessageMenuAnchorEl(null);
+    
     try {
-      // Mark this message as being deleted
-      setDeletingMessages(prev => ({ ...prev, [messageId]: true }));
-      
-      // Close menu immediately to prevent further clicks
-      setMessageMenuAnchorEl(null);
-      
       // Make the API call to delete the message
       await API.delete(`/messages/${messageId}/`);
       
-      // Remove the message from local state
-      setMessages(prevMessages => 
-        prevMessages.filter(message => message.id !== messageId)
-      );
+      // If successful, no need to update state further, just maybe a success toast
+      // toast.success('Message deleted successfully'); // Optional: Re-enable if desired
       
-      toast.success('Message deleted successfully');
     } catch (error) {
       console.error('Error deleting message:', error);
-      toast.error('Failed to delete message');
+      toast.error('Failed to delete message. Restoring...');
+      
+      // If deletion failed, add the message back to the state in its original position
+      setMessages(prevMessages => {
+        // Find the index where the message should be reinserted
+        const originalIndex = messages.findIndex(msg => msg.id === messageId);
+        // Create a new array with the message reinserted
+        const restoredMessages = [
+          ...prevMessages.slice(0, originalIndex),
+          messageToDelete, // Reinsert the original message data
+          ...prevMessages.slice(originalIndex)
+        ];
+        // Ensure correct sorting after reinsertion
+        return restoredMessages.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+      });
+      
     } finally {
-      // Remove the deleting flag for this message
+      // Remove the deleting flag regardless of success or failure
       setDeletingMessages(prev => {
         const updated = { ...prev };
         delete updated[messageId];

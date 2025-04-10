@@ -49,7 +49,7 @@ const formatMessageTime = (timestamp) => {
 
 // Helper function to safely format image URLs
 const formatImageUrl = (url) => {
-  if (!url) return null;
+  if (!url) return '/images/profile-placeholder.svg';
   if (url.startsWith('http')) return url;
   return `${API.defaults.baseURL}${url}`;
 };
