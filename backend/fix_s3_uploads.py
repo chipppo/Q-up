@@ -53,18 +53,9 @@ def test_s3_access():
     try:
         client = get_s3_client()
         
-        # Test listing buckets
-        try:
-            buckets = client.list_buckets()
-            bucket_names = [b['Name'] for b in buckets['Buckets']]
-            logger.info(f"Successfully listed buckets: {bucket_names}")
-            
-            if settings.AWS_STORAGE_BUCKET_NAME not in bucket_names:
-                logger.error(f"ERROR: Bucket {settings.AWS_STORAGE_BUCKET_NAME} not found in your account")
-                return False
-        except Exception as e:
-            logger.error(f"ERROR: Failed to list buckets: {str(e)}")
-            return False
+        # Skip listing buckets since we don't have permission for ListAllMyBuckets
+        # Instead, we'll test operations directly on our target bucket
+        logger.info(f"Testing access to bucket {settings.AWS_STORAGE_BUCKET_NAME}")
         
         # Test uploading a file
         test_key = "test-fix-upload.txt"
@@ -91,6 +82,17 @@ def test_s3_access():
         except Exception as e:
             logger.error(f"ERROR: Failed to read test file: {str(e)}")
             return False
+        
+        # Try to delete the test file
+        try:
+            client.delete_object(
+                Bucket=settings.AWS_STORAGE_BUCKET_NAME,
+                Key=test_key
+            )
+            logger.info(f"Successfully deleted test file from S3")
+        except Exception as e:
+            logger.error(f"ERROR: Failed to delete test file: {str(e)}")
+            # Don't return False here, as we may still be able to proceed
             
         return True
     except Exception as e:
