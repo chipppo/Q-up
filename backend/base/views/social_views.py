@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework import status, permissions
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.db.models import Q
-from ..models import Post, Like, Comment, MyUser, Game
+from ..models import Post, Like, Comment, MyUser, Game, Notification
 from ..serializers import (
     PostSerializer,
     PostDetailSerializer,
@@ -41,56 +41,94 @@ class PostListView(APIView):
         return Response(serializer.data)
     
     def post(self, request):
-        """Създаване на нова публикация с проверка за правилно качване на снимки"""
+        import logging
         logger = logging.getLogger(__name__)
         
         try:
-            # Log received data for debugging
-            logger.info(f"Creating post for user {request.user.username}")
-            if 'image' in request.FILES:
-                logger.info(f"Post image received: {request.FILES['image'].name}, size: {request.FILES['image'].size}")
+            # Get data from request
+            content = request.data.get('content', '').strip()
+            image = request.FILES.get('image', None)
             
-            serializer = PostSerializer(data=request.data, context={'request': request})
-            if serializer.is_valid():
-                # Handle game reference if provided
-                game_id = request.data.get('game')
-                game = None
-                if game_id:
-                    try:
-                        game = Game.objects.get(id=game_id)
-                    except Game.DoesNotExist:
-                        return Response(
-                            {"detail": "Играта не е намерена."},
-                            status=status.HTTP_400_BAD_REQUEST
-                        )
+            # Check that at least one of content or image is provided
+            if not content and not image:
+                return Response(
+                    {'detail': 'Публикацията трябва да съдържа текст или снимка'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Log information about the file
+            if image:
+                logger.info(f"Processing post image upload: name={image.name}, size={image.size}, content_type={image.content_type}")
                 
-                # Create post instance but don't save yet
-                post = serializer.save(user=request.user, game=game)
-                
-                # Verify image was properly uploaded to S3
-                if 'image' in request.FILES and not post.image:
-                    logger.error(f"Post image upload failed for user {request.user.username}")
-                    post.delete()
+                # Validate file size - prevent extremely large files
+                if image.size > 15 * 1024 * 1024:  # 15MB
                     return Response(
-                        {"detail": "Неуспешно качване на изображението."},
+                        {'detail': 'Размерът на изображението не може да надвишава 15MB'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                # Validate file type
+                content_type = getattr(image, 'content_type', None)
+                if content_type and not content_type.startswith('image/'):
+                    return Response(
+                        {'detail': 'Невалиден тип файл. Моля, качете само изображения.'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            
+            # Create post
+            try:
+                post = Post.objects.create(
+                    user=request.user,
+                    content=content,
+                    image=image
+                )
+                
+                # Check if image was successfully uploaded (if provided)
+                if image and not post.image:
+                    logger.error(f"Image upload failed for post {post.id}")
+                    post.delete()  # Remove the post if image upload failed
+                    return Response(
+                        {'detail': 'Качването на изображението не бе успешно'},
                         status=status.HTTP_500_INTERNAL_SERVER_ERROR
                     )
                 
-                # Log success
+                # Verify S3 URL is accessible for uploaded image
                 if post.image:
-                    logger.info(f"Post image successfully uploaded to: {post.image.url}")
+                    try:
+                        url = post.image.url
+                        logger.info(f"Post image successfully uploaded to: {url}")
+                    except Exception as e:
+                        logger.error(f"Error generating URL for post image: {str(e)}")
+                        # Don't delete the post, but log the error
                 
+                # Create notification for users who follow this user
+                followers = request.user.followers.all()
+                for follower in followers:
+                    Notification.objects.create(
+                        user=follower.follower,
+                        notification_type='NEW_POST',
+                        from_user=request.user,
+                        post=post
+                    )
+                
+                serializer = PostSerializer(post, context={'request': request})
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+                
+            except Exception as e:
+                logger.error(f"Error creating post: {str(e)}")
+                import traceback
+                logger.error(traceback.format_exc())
                 return Response(
-                    PostSerializer(post, context={'request': request}).data,
-                    status=status.HTTP_201_CREATED
+                    {'detail': f'Неуспешно създаване на публикация: {str(e)}'},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                
         except Exception as e:
-            logger.error(f"Error creating post: {str(e)}")
+            logger.error(f"Unexpected error in PostsView.post: {str(e)}")
             import traceback
             logger.error(traceback.format_exc())
             return Response(
-                {"detail": f"Неуспешно създаване на публикация: {str(e)}"},
+                {'detail': f'Неуспешно създаване на публикация: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 

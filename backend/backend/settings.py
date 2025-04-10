@@ -178,50 +178,7 @@ DEFAULT_FROM_EMAIL = 'Q-up Support qupbot@gmail.com'
 # Време за валидност на линка за възстановяване на парола (в секунди)
 PASSWORD_RESET_TIMEOUT = 3600
 
-# AWS S3 Settings (using environment variables only - no hardcoded values)
-AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
-AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
-AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME')
-AWS_S3_REGION_NAME = os.environ.get('AWS_S3_REGION_NAME')
-
-# S3 Configuration - only apply if the env variables exist
-if AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY and AWS_STORAGE_BUCKET_NAME and AWS_S3_REGION_NAME:
-    # Full S3 configuration - force usage of environment variables directly
-    AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com'
-    AWS_S3_ADDRESSING_STYLE = 'virtual'
-    AWS_S3_FILE_OVERWRITE = False
-    AWS_S3_SIGNATURE_VERSION = 's3v4'
-    AWS_S3_OBJECT_PARAMETERS = {
-        'CacheControl': 'max-age=86400',
-    }
-    
-    # Additional S3 settings for better reliability
-    AWS_S3_VERIFY = True  # Verify SSL connections
-    AWS_S3_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB - max file size to hold in memory
-    
-    # Storage backends
-    DEFAULT_FILE_STORAGE = 'backend.storage_backends.MediaStorage'
-    STATICFILES_STORAGE = 'backend.storage_backends.StaticStorage'
-    
-    # URL patterns
-    S3_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com'
-    STATIC_URL = f'{S3_URL}/static/'
-    MEDIA_URL = f'{S3_URL}/media/'
-    MEDIA_ROOT = '' # Django shouldn't handle media root when using S3 storage
-else:
-    # Fallback to local storage
-    STATIC_URL = '/static/'
-    MEDIA_URL = '/media/'
-    MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
-
-# Configure CORS to allow access to S3 resources
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "http://localhost:8000",
-    "http://51.20.183.126",
-]
-
+# Define LOGGING before using it in S3 configuration
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -261,8 +218,67 @@ LOGGING = {
         'level': 'DEBUG',
     },
 }
-# Ensure any standalone definitions of MEDIA_URL, MEDIA_ROOT, STATIC_URL below are removed or commented out
-# For example:
-# MEDIA_URL = '/media/' # REMOVE or comment out
-# MEDIA_ROOT = os.path.join(BASE_DIR, 'media') # REMOVE or comment out
-# STATIC_URL = 'static/' # REMOVE or comment out
+
+# AWS S3 Settings (using environment variables only - no hardcoded values)
+AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
+AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
+AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME')
+AWS_S3_REGION_NAME = os.environ.get('AWS_S3_REGION_NAME')
+
+# S3 Configuration
+if os.environ.get('AWS_ACCESS_KEY_ID'):
+    DEFAULT_FILE_STORAGE = 'backend.storage_backends.MediaStorage'
+    
+    # Basic S3 settings
+    AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
+    AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
+    AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME', 'qup-media')
+    AWS_S3_REGION_NAME = os.environ.get('AWS_S3_REGION_NAME', 'eu-central-1')
+    
+    # S3 behavior settings
+    AWS_DEFAULT_ACL = 'public-read'
+    AWS_S3_OBJECT_PARAMETERS = {'CacheControl': 'max-age=86400'}
+    AWS_QUERYSTRING_AUTH = False
+    AWS_S3_FILE_OVERWRITE = False
+    AWS_LOCATION = 'media'
+    
+    # Additional S3 configuration for improved uploads
+    AWS_S3_VERIFY = os.environ.get('AWS_S3_VERIFY', 'True').lower() != 'false'
+    AWS_S3_MAX_MEMORY_SIZE = int(os.environ.get('AWS_S3_MAX_MEMORY_SIZE', 10 * 1024 * 1024))  # 10MB default
+    AWS_S3_SIGNATURE_VERSION = os.environ.get('AWS_S3_SIGNATURE_VERSION', 's3v4')
+    AWS_S3_ADDRESSING_STYLE = os.environ.get('AWS_S3_ADDRESSING_STYLE', 'virtual')
+    
+    # Ensure clear logging for S3 operations
+    LOGGING['loggers']['storages'] = {
+        'handlers': ['console'],
+        'level': 'DEBUG',
+    }
+    LOGGING['loggers']['boto3'] = {
+        'handlers': ['console'],
+        'level': 'DEBUG',
+    }
+    LOGGING['loggers']['botocore'] = {
+        'handlers': ['console'],
+        'level': 'WARNING',
+    }
+    LOGGING['loggers']['s3transfer'] = {
+        'handlers': ['console'],
+        'level': 'DEBUG',
+    }
+    LOGGING['loggers']['backend.storage_backends'] = {
+        'handlers': ['console'],
+        'level': 'DEBUG',
+    }
+else:
+    # Fallback to local storage
+    STATIC_URL = '/static/'
+    MEDIA_URL = '/media/'
+    MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+# Configure CORS to allow access to S3 resources
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:8000",
+    "http://51.20.183.126",
+]

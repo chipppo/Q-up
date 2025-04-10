@@ -10,6 +10,7 @@ from ..serializers import (
 )
 from django.utils.dateparse import parse_datetime
 from django.utils import timezone
+import logging
 
 class ChatListView(APIView):
     """
@@ -253,6 +254,8 @@ class MessageListView(APIView):
             )
 
     def post(self, request, chat_id):
+        logger = logging.getLogger(__name__)
+        
         try:
             chat = Chat.objects.get(id=chat_id, participants=request.user)
             
@@ -283,9 +286,23 @@ class MessageListView(APIView):
             
             # Log information about the file
             if image:
-                import logging
-                logger = logging.getLogger(__name__)
                 logger.info(f"Processing image upload for chat {chat_id}: name={image.name}, size={image.size}, content_type={image.content_type}")
+                
+                # Validate file size - prevent extremely large files
+                if image.size > 10 * 1024 * 1024:  # 10MB
+                    return Response(
+                        {'detail': 'Размерът на изображението не може да надвишава 10MB'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                # Validate file type
+                import mimetypes
+                content_type = getattr(image, 'content_type', None)
+                if content_type and not content_type.startswith('image/'):
+                    return Response(
+                        {'detail': 'Невалиден тип файл. Моля, качете само изображения.'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
             
             # Create message
             try:
@@ -308,11 +325,21 @@ class MessageListView(APIView):
                         status=status.HTTP_500_INTERNAL_SERVER_ERROR
                     )
                 
+                # Verify S3 URL is accessible for uploaded image
+                if message.image:
+                    try:
+                        url = message.image.url
+                        logger.info(f"Message image successfully uploaded to: {url}")
+                    except Exception as e:
+                        logger.error(f"Error generating URL for message image: {str(e)}")
+                        # Don't delete the message, but log the error
+                
                 # Update chat timestamp
                 chat.save()  # This will update the updated_at field
                 
                 serializer = MessageSerializer(message, context={'request': request})
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
+                
             except Exception as e:
                 logger.error(f"Error creating message in chat {chat_id}: {str(e)}")
                 # Try to provide more specific error message
@@ -329,6 +356,9 @@ class MessageListView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
         except Exception as e:
+            logger.error(f"Unexpected error in MessageListView.post: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
             return Response(
                 {'detail': f'Неуспешно изпращане на съобщение: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
