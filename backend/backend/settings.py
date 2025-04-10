@@ -232,23 +232,32 @@ if os.environ.get('AWS_ACCESS_KEY_ID'):
     # Basic S3 settings
     AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
     AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
-    AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME', 'qup-media')
-    AWS_S3_REGION_NAME = os.environ.get('AWS_S3_REGION_NAME', 'eu-central-1')
+    AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME', 'qup-media-files-0')
+    AWS_S3_REGION_NAME = os.environ.get('AWS_S3_REGION_NAME', 'eu-north-1')
     
     # S3 behavior settings
-    # AWS_DEFAULT_ACL = 'public-read'  # Remove ACL setting since bucket doesn't support it
+    AWS_DEFAULT_ACL = 'public-read'  # Enable ACL for all uploads
     AWS_S3_OBJECT_PARAMETERS = {'CacheControl': 'max-age=86400'}
-    AWS_QUERYSTRING_AUTH = False
-    AWS_S3_FILE_OVERWRITE = False
-    AWS_LOCATION = 'media'
+    AWS_QUERYSTRING_AUTH = False  # Don't add query auth parameters to URLs
+    AWS_S3_FILE_OVERWRITE = False # Don't overwrite files with the same name
+    AWS_LOCATION = 'media'  # Subfolder where media files will be stored
     
-    # Additional S3 configuration for improved uploads
-    AWS_S3_VERIFY = os.environ.get('AWS_S3_VERIFY', 'True').lower() != 'false'
+    # S3 URL settings
+    AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com"
+    MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_LOCATION}/"
+    
+    # Additional S3 configuration
     AWS_S3_MAX_MEMORY_SIZE = int(os.environ.get('AWS_S3_MAX_MEMORY_SIZE', 10 * 1024 * 1024))  # 10MB default
-    AWS_S3_SIGNATURE_VERSION = os.environ.get('AWS_S3_SIGNATURE_VERSION', 's3v4')
-    AWS_S3_ADDRESSING_STYLE = os.environ.get('AWS_S3_ADDRESSING_STYLE', 'virtual')
+    AWS_S3_SIGNATURE_VERSION = 's3v4'
+    AWS_S3_ADDRESSING_STYLE = 'virtual'
+    AWS_S3_VERIFY = True
     
-    # Ensure clear logging for S3 operations
+    # Logging for S3 operations
+    LOGGING['loggers']['django.request'] = {
+        'handlers': ['console'],
+        'level': 'DEBUG',
+        'propagate': True,
+    }
     LOGGING['loggers']['storages'] = {
         'handlers': ['console'],
         'level': 'DEBUG',
@@ -259,7 +268,7 @@ if os.environ.get('AWS_ACCESS_KEY_ID'):
     }
     LOGGING['loggers']['botocore'] = {
         'handlers': ['console'],
-        'level': 'WARNING',
+        'level': 'DEBUG',
     }
     LOGGING['loggers']['s3transfer'] = {
         'handlers': ['console'],

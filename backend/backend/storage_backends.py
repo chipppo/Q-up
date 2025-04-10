@@ -14,8 +14,34 @@ class StaticStorage(S3Boto3Storage):
 
 class MediaStorage(S3Boto3Storage):
     location = 'media'
-    default_acl = None  # Remove ACL setting since bucket doesn't support it
+    default_acl = 'public-read'  # Make sure files are publicly readable
     file_overwrite = False
+    
+    def _clean_name(self, name):
+        """
+        Clean the file name to ensure it follows AWS S3 naming conventions.
+        """
+        # First pass the name through the parent's _clean_name if it exists
+        try:
+            name = super()._clean_name(name)
+        except AttributeError:
+            # If parent doesn't have _clean_name, do basic cleaning
+            pass
+            
+        # Clean the name for S3
+        import os
+        name = os.path.normpath(name).replace('\\', '/')
+        
+        # Remove any leading slashes or drive letters (Windows)
+        name = name.lstrip('/').lstrip('\\')
+        if ':' in name:
+            name = name.split(':', 1)[1]
+            
+        # Handle any double slashes
+        while '//' in name:
+            name = name.replace('//', '/')
+            
+        return name
     
     def exists(self, name):
         """
@@ -23,8 +49,10 @@ class MediaStorage(S3Boto3Storage):
         Uses proper error handling to check if a file exists in S3.
         """
         try:
+            name = self._clean_name(name)
+            s3_key = self._normalize_name(name)
             # Actually check if file exists by attempting a HEAD request
-            self.connection.meta.client.head_object(Bucket=self.bucket_name, Key=self._normalize_name(self._clean_name(name)))
+            self.connection.meta.client.head_object(Bucket=self.bucket_name, Key=s3_key)
             logger.info(f"S3 exists check: File {name} exists in bucket {self.bucket_name}")
             return True
         except Exception as e:
@@ -32,12 +60,29 @@ class MediaStorage(S3Boto3Storage):
             logger.info(f"S3 exists check: File {name} does not exist in bucket {self.bucket_name} or error: {str(e)}")
             return False
     
+    def _normalize_name(self, name):
+        """
+        Normalize the file name to S3 key format
+        """
+        name = self._clean_name(name)
+        
+        # If there's a location (subdirectory), prepend it
+        if self.location:
+            return f"{self.location.rstrip('/')}/{name}"
+        return name
+    
     def _save(self, name, content):
         """
         Save the file to S3 with improved error handling and proper byte content management
         """
         logger.info(f"Attempting to save file to S3: {name}")
         try:
+            # Clean and normalize the name first
+            cleaned_name = self._clean_name(name)
+            normalized_name = self._normalize_name(cleaned_name)
+            
+            logger.info(f"Cleaned name: {cleaned_name}, Normalized name: {normalized_name}")
+            
             # Ensure the content is at the beginning
             if hasattr(content, 'seek'):
                 content.seek(0)
@@ -64,7 +109,9 @@ class MediaStorage(S3Boto3Storage):
             # Use direct upload with boto3 for better control
             try:
                 bucket_name = self.bucket_name
-                s3_key = self._normalize_name(self._clean_name(name))
+                s3_key = normalized_name
+                
+                logger.info(f"S3 upload details - Bucket: {bucket_name}, Key: {s3_key}")
                 
                 # Get S3 client with proper config
                 s3_client = boto3.client(
@@ -87,13 +134,20 @@ class MediaStorage(S3Boto3Storage):
                     else:
                         content_type = 'application/octet-stream'
                 
-                # Prepare for upload
+                # Log content type
+                logger.info(f"Content type for {name}: {content_type}")
+                
+                # Prepare for upload with ACL
                 extra_args = {
                     'ContentType': content_type,
+                    'ACL': 'public-read'  # Explicitly set ACL on object
                 }
                 
                 # Reset file position
                 content_file.seek(0)
+                
+                # Log upload attempt
+                logger.info(f"Uploading file to S3: {s3_key} (size: {len(content_bytes) if content_bytes else 'unknown'})")
                 
                 # Upload file to S3 using upload_fileobj for more reliable uploads
                 s3_client.upload_fileobj(
@@ -105,6 +159,10 @@ class MediaStorage(S3Boto3Storage):
                 
                 logger.info(f"Successfully uploaded file to S3: {name} -> {s3_key}")
                 
+                # Generate direct S3 URL
+                s3_url = f"https://{bucket_name}.s3.{settings.AWS_S3_REGION_NAME}.amazonaws.com/{s3_key}"
+                logger.info(f"Direct S3 URL: {s3_url}")
+                
                 # Verify upload was successful
                 try:
                     s3_client.head_object(Bucket=bucket_name, Key=s3_key)
@@ -113,7 +171,7 @@ class MediaStorage(S3Boto3Storage):
                     logger.error(f"Failed to verify file exists in S3 after upload: {str(e)}")
                     # Continue anyway since the upload might have been successful
                 
-                return name
+                return cleaned_name
             except Exception as e:
                 logger.error(f"Failed to upload file to S3: {name}")
                 logger.error(f"Error: {str(e)}")
@@ -129,13 +187,31 @@ class MediaStorage(S3Boto3Storage):
         Returns the URL where the contents of the file can be accessed.
         """
         try:
-            url = super().url(name, **kwargs)
-            logger.debug(f"Generated S3 URL for {name}: {url}")
-            return url
+            name = self._clean_name(name)
+            s3_key = self._normalize_name(name)
+            
+            # Generate direct URL
+            direct_url = f"https://{self.bucket_name}.s3.{settings.AWS_S3_REGION_NAME}.amazonaws.com/{s3_key}"
+            logger.debug(f"Direct S3 URL for {name}: {direct_url}")
+            
+            return direct_url
         except Exception as e:
             logger.error(f"Error generating URL for {name}: {str(e)}")
-            # Return a placeholder URL if there's an error
-            return f"/media/{name}"
+            
+            # Return a direct URL as fallback
+            try:
+                # Try to create a basic direct URL as fallback
+                if self.location:
+                    path = f"{self.location}/{name}"
+                else:
+                    path = name
+                
+                direct_url = f"https://{self.bucket_name}.s3.{settings.AWS_S3_REGION_NAME}.amazonaws.com/{path}"
+                logger.info(f"Using direct S3 URL as fallback: {direct_url}")
+                return direct_url
+            except:
+                # If all else fails, return a relative URL
+                return f"/media/{name}"
 
 # Debug functions for direct S3 testing
 def test_s3_connection():

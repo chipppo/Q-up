@@ -254,6 +254,23 @@ const EditProfileForm = () => {
         setError('File size too large. Maximum size is 5MB.');
         return;
       }
+      
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        setError('File must be an image (JPEG, PNG, GIF).');
+        return;
+      }
+      
+      // Clear previous errors
+      setError(null);
+      
+      // Log file details for debugging
+      console.log('Avatar file selected:', {
+        name: file.name,
+        type: file.type,
+        size: file.size
+      });
+      
       setFormData(prev => ({
         ...prev,
         avatar: file  // This will be a File object
@@ -416,6 +433,7 @@ const EditProfileForm = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError(null);
     
     try {
       const formDataToSend = new FormData();
@@ -432,20 +450,32 @@ const EditProfileForm = () => {
 
       // Remove any undefined or null values
       Object.keys(jsonData).forEach(key => {
-        if (jsonData[key] !== undefined && jsonData[key] !== null) {
+        if (key !== 'avatar' && jsonData[key] !== undefined && jsonData[key] !== null) {
           formDataToSend.append(key, jsonData[key]);
         }
       });
 
-      // Add the avatar if it exists
-      if (formData.avatar) {
+      // Add the avatar if it exists - add this last to prevent form data issues
+      if (formData.avatar && formData.avatar instanceof File) {
+        console.log('Adding avatar to form data:', formData.avatar.name);
         formDataToSend.append('avatar', formData.avatar);
       }
 
+      console.log('FormData keys:', [...formDataToSend.keys()]);
+      
+      // Check if form has avatar
+      if (formDataToSend.has('avatar')) {
+        console.log('Avatar found in form data before submission');
+      }
+
+      // Output headers for debugging
+      const headers = {
+        'Content-Type': 'multipart/form-data',
+      };
+      console.log('Request headers:', headers);
+
       const response = await API.patch(`/users/${username}/update/`, formDataToSend, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        }
+        headers: headers
       });
       
       if (response.status === 200) {
@@ -454,7 +484,27 @@ const EditProfileForm = () => {
       }
     } catch (error) {
       console.error('Update error:', error);
-      const errorMessage = error.response?.data?.detail || 'Failed to update profile';
+      
+      // Enhanced error handling
+      let errorMessage = 'Failed to update profile';
+      
+      if (error.response) {
+        console.error('Error response data:', error.response.data);
+        console.error('Error response status:', error.response.status);
+        
+        // Extract detailed error message if available
+        if (error.response.data) {
+          if (error.response.data.detail) {
+            errorMessage = error.response.data.detail;
+          } else if (typeof error.response.data === 'object') {
+            // Format field-specific errors
+            errorMessage = Object.entries(error.response.data)
+              .map(([field, message]) => `${field}: ${message}`)
+              .join(', ');
+          }
+        }
+      }
+      
       toast.error(errorMessage);
       setError(errorMessage);
     }

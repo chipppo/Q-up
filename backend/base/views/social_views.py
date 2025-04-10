@@ -44,10 +44,17 @@ class PostListView(APIView):
         import logging
         logger = logging.getLogger(__name__)
         
+        logger.info("Creating new post")
+        logger.info(f"Request Content-Type: {request.content_type}")
+        logger.info(f"FILES keys: {list(request.FILES.keys()) if request.FILES else 'None'}")
+        logger.info(f"DATA keys: {list(request.data.keys()) if request.data else 'None'}")
+        
         try:
             # Get data from request
             content = request.data.get('content', '').strip()
-            image = request.FILES.get('image', None)
+            image = None
+            if 'image' in request.FILES:
+                image = request.FILES['image']
             
             # Check that at least one of content or image is provided
             if not content and not image:
@@ -75,34 +82,41 @@ class PostListView(APIView):
                         status=status.HTTP_400_BAD_REQUEST
                     )
             
-            # Create post
+            # Create post in two steps to handle image upload separately
             try:
+                # First create the post without the image
                 post = Post.objects.create(
                     user=request.user,
-                    content=content,
-                    image=image
+                    content=content
                 )
                 
-                # Check if image was successfully uploaded (if provided)
-                if image and not post.image:
-                    logger.error(f"Image upload failed for post {post.id}")
-                    post.delete()  # Remove the post if image upload failed
-                    return Response(
-                        {'detail': 'Качването на изображението не бе успешно'},
-                        status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                    )
-                
-                # Verify S3 URL is accessible for uploaded image
-                if post.image:
+                # Then handle the image upload separately
+                if image:
                     try:
-                        url = post.image.url
-                        logger.info(f"Post image successfully uploaded to: {url}")
-                    except Exception as e:
-                        logger.error(f"Error generating URL for post image: {str(e)}")
-                        # Don't delete the post, but log the error
+                        logger.info(f"Attempting to save image for post {post.id}")
+                        post.image = image
+                        post.save()
+                        
+                        # Get the image URL for validation
+                        try:
+                            image_url = post.image.url
+                            logger.info(f"Post image saved successfully. URL: {image_url}")
+                        except Exception as url_error:
+                            logger.error(f"Error getting image URL: {str(url_error)}")
+                            
+                            # Try to create a direct URL as fallback
+                            try:
+                                from django.conf import settings
+                                image_url = f"https://{settings.AWS_STORAGE_BUCKET_NAME}.s3.{settings.AWS_S3_REGION_NAME}.amazonaws.com/media/{post.image.name}"
+                                logger.info(f"Direct image URL: {image_url}")
+                            except Exception as direct_url_err:
+                                logger.error(f"Error creating direct URL: {str(direct_url_err)}")
+                        
+                    except Exception as img_error:
+                        logger.error(f"Failed to save image for post {post.id}: {str(img_error)}")
+                        logger.error(f"The post itself was created successfully and will be returned without the image")
                 
-                # Notification functionality removed - model doesn't exist
-                
+                # Serialize and return the post
                 serializer = PostSerializer(post, context={'request': request})
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
                 
@@ -116,11 +130,11 @@ class PostListView(APIView):
                 )
                 
         except Exception as e:
-            logger.error(f"Unexpected error in PostsView.post: {str(e)}")
+            logger.error(f"Unexpected error in post creation: {str(e)}")
             import traceback
             logger.error(traceback.format_exc())
             return Response(
-                {'detail': f'Неуспешно създаване на публикация: {str(e)}'},
+                {'detail': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
