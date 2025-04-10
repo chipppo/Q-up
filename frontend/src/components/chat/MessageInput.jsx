@@ -93,97 +93,110 @@ const MessageInput = ({ selectedChat, replyTo, setReplyTo, addMessage, scrollToB
   };
   
   // Send message with better file handling
-  const handleSendMessage = async (e) => {
-    if (e) e.preventDefault();
-    
-    if ((!message.trim() && !selectedImage && !selectedFile) || sending || !selectedChat) {
+  const handleSendMessage = async () => {
+    if ((!message.trim() && !selectedImage && !selectedFile) || sending) {
       return;
     }
-    
+
     try {
       setSending(true);
-      
-      // Create FormData for file upload
+
       const formData = new FormData();
       
-      // Add message content if any
       if (message.trim()) {
-        formData.append("content", message.trim());
+        formData.append('content', message.trim());
       }
       
-      // Add image if any
       if (selectedImage) {
-        console.debug("Attaching image:", selectedImage.name, selectedImage.type, selectedImage.size);
-        formData.append("image", selectedImage, selectedImage.name);
+        formData.append('image', selectedImage);
       }
       
-      // Add file if any
       if (selectedFile) {
-        console.debug("Attaching file:", selectedFile.name, selectedFile.type, selectedFile.size);
-        formData.append("image", selectedFile, selectedFile.name);
+        formData.append('file', selectedFile);
       }
-      
-      // Add reply_to if replying to a message
+
       if (replyTo) {
-        formData.append("parent", replyTo.id);
+        formData.append('reply_to', replyTo.id);
       }
+
+      // Get the authentication token
+      const token = API.defaults.headers.Authorization.split(' ')[1];
       
-      // Log form data for debugging (can't directly log FormData content)
-      console.debug("FormData keys:", [...formData.entries()].map(entry => `${entry[0]}: ${typeof entry[1] === 'object' ? entry[1].name : entry[1]}`));
-      
-      toast.info("Sending message...");
-      
-      // Request config with proper headers
-      const requestConfig = {
+      if (!token) {
+        toast.error("Authentication error. Please login again.");
+        setSending(false);
+        return;
+      }
+
+      const response = await fetch(`${API.defaults.baseURL}/api/chat/${selectedChat.id}/messages/`, {
+        method: 'POST',
         headers: {
-          "Content-Type": "multipart/form-data"
+          'Authorization': `Token ${token}`
+        },
+        body: formData
+      });
+
+      if (!response.ok) {
+        // Try to parse the error message from the response
+        let errorMessage = "Failed to send message";
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.detail || errorData.message || Object.values(errorData).flat().join(", ") || errorMessage;
+        } catch (e) {
+          console.error("Error parsing error response:", e);
         }
-      };
-      
-      const response = await API.post(`/chats/${selectedChat.id}/messages/`, formData, requestConfig);
-      
-      // Add the new message to the message array
-      addMessage(response.data);
-      
-      // Show success message
-      if (selectedImage) {
-        toast.success("Image sent successfully");
-      } else if (selectedFile) {
-        toast.success("File sent successfully");
-      } else {
-        toast.success("Message sent");
+        
+        // Show different messages based on response status
+        if (response.status === 413) {
+          toast.error("File too large. Please upload a smaller file.");
+        } else if (response.status === 401 || response.status === 403) {
+          toast.error("You don't have permission to send messages in this chat.");
+        } else if (response.status === 404) {
+          toast.error("Chat not found. It may have been deleted.");
+        } else if (response.status >= 500) {
+          toast.error("Server error. Please try again later.");
+        } else {
+          toast.error(errorMessage);
+        }
+        
+        console.error("Error sending message:", response.status, errorMessage);
+        setSending(false);
+        return;
       }
-      
-      // Reset form state
-      setMessage("");
+
+      // Clear the input field
+      setMessage('');
       setSelectedImage(null);
       setImagePreview(null);
       setSelectedFile(null);
       setFilePreview(null);
       setReplyTo(null);
       
-      // Always scroll to bottom when sending a new message
-      setTimeout(() => scrollToBottom({ smooth: true }), 100);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      if (documentInputRef.current) documentInputRef.current.value = '';
+
+      // Refetch the messages
+      if (addMessage) {
+        const data = await response.json();
+        addMessage(data);
+      }
+
+      // Clear typing timeout
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+      
+      // Scroll to bottom of message list
+      if (scrollToBottom) {
+        scrollToBottom();
+      }
+      
+      // Show toast message
+      toast.success("Message sent!");
       
     } catch (error) {
       console.error("Error sending message:", error);
-      
-      if (error.response && error.response.status === 400) {
-        if (error.response.data?.detail) {
-          // Translate Bulgarian error messages
-          let errorMessage = error.response.data.detail;
-          if (errorMessage.includes("Невалиден тип файл")) {
-            errorMessage = "Invalid file type. Please try another format.";
-          } else if (errorMessage.includes("Размерът")) {
-            errorMessage = "File size is too large. Please try a smaller file.";
-          }
-          toast.error(`Failed to send: ${errorMessage}`);
-        } else {
-          toast.error(`Failed to send message: ${error.response.statusText}`);
-        }
-      } else {
-        toast.error("Failed to send message. Please try again later.");
-      }
+      toast.error("Failed to send message: " + (error.message || "Unknown error"));
     } finally {
       setSending(false);
     }

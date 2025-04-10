@@ -462,53 +462,150 @@ class MessageSerializer(serializers.ModelSerializer):
         return obj.replies.count()
     
     def get_parent_sender(self, obj):
-        if obj.parent and obj.parent.sender:
-            return obj.parent.sender.username
-        return None
-    
-    def get_image(self, obj):
-        if obj.image:
-            try:
-                request = self.context.get('request')
-                if request:
-                    return request.build_absolute_uri(obj.image.url)
-                return obj.image.url
-            except Exception as e:
-                print(f"Error getting image URL: {str(e)}")
+        try:
+            import logging
+            logger = logging.getLogger(__name__)
+            
+            if not hasattr(obj, 'parent') or not obj.parent:
                 return None
-        return None
-    
-    def get_file_info(self, obj):
-        """Get file metadata like name, type, and if it's an image"""
-        if not obj.image:
+                
+            try:
+                parent = obj.parent
+                
+                if not hasattr(parent, 'sender') or not parent.sender:
+                    return None
+                    
+                sender = parent.sender
+                
+                # Safely get sender attributes with fallbacks
+                display_name = ""
+                if hasattr(sender, 'display_name') and sender.display_name:
+                    display_name = sender.display_name
+                
+                username = ""
+                if hasattr(sender, 'username'):
+                    username = sender.username
+                
+                avatar = None
+                if hasattr(sender, 'avatar') and sender.avatar and hasattr(sender.avatar, 'url'):
+                    avatar = sender.avatar.url
+                
+                return {
+                    'id': sender.id,
+                    'display_name': display_name,
+                    'username': username,
+                    'avatar': avatar
+                }
+            except Exception as sender_error:
+                logger.error(f"Error getting parent sender: {str(sender_error)}")
+                return None
+                
+        except Exception as e:
+            print(f"Error in get_parent_sender: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return None
-            
-        is_image = False
-        if obj.file_type and obj.file_type.startswith('image/'):
-            is_image = True
-        elif not obj.file_type and obj.image:
-            # Try to guess from file extension
-            file_ext = obj.image.name.lower().split('.')[-1] if '.' in obj.image.name else ''
-            image_extensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp']
-            is_image = file_ext in image_extensions
-            
-        return {
-            'name': obj.file_name or obj.image.name.split('/')[-1],
-            'type': obj.file_type or 'application/octet-stream',
-            'is_image': is_image,
-            'size': obj.image.size if hasattr(obj.image, 'size') else None
-        }
 
-    # Return information about the parent message
+    def get_image(self, obj):
+        try:
+            import logging
+            logger = logging.getLogger(__name__)
+            
+            if not hasattr(obj, 'image') or not obj.image:
+                return None
+                
+            try:
+                # Try to get the URL safely
+                if hasattr(obj.image, 'url'):
+                    return obj.image.url
+                return None
+            except Exception as url_error:
+                logger.error(f"Error getting image URL: {str(url_error)}")
+                return None
+                
+        except Exception as e:
+            print(f"Error in get_image_url: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return None
+
+    def get_file_info(self, obj):
+        try:
+            import logging
+            logger = logging.getLogger(__name__)
+            
+            # If no image, return empty dict
+            if not hasattr(obj, 'image') or not obj.image:
+                return {}
+                
+            try:
+                # Get file details with fallbacks
+                file_name = obj.file_name if hasattr(obj, 'file_name') and obj.file_name else ''
+                if not file_name and obj.image and hasattr(obj.image, 'name'):
+                    file_name = obj.image.name.split('/')[-1]
+                
+                file_type = obj.file_type if hasattr(obj, 'file_type') and obj.file_type else ''
+                if not file_type and obj.image:
+                    import mimetypes
+                    if hasattr(obj.image, 'name'):
+                        file_type = mimetypes.guess_type(obj.image.name)[0] or ''
+                
+                file_size = 0
+                if obj.image and hasattr(obj.image, 'size'):
+                    file_size = obj.image.size
+                
+                return {
+                    'name': file_name,
+                    'type': file_type,
+                    'size': file_size
+                }
+            except Exception as detail_error:
+                logger.error(f"Error getting file details: {str(detail_error)}")
+                import traceback
+                logger.error(traceback.format_exc())
+                
+                # Return minimal info that won't break frontend
+                return {
+                    'name': 'file',
+                    'type': '',
+                    'size': 0
+                }
+                
+        except Exception as e:
+            print(f"Error in get_file_info: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return {}
+
     def get_parent_message(self, obj):
-        if obj.parent:
-            return {
-                'id': obj.parent.id,
-                'content': obj.parent.content,
-                'sender': obj.parent.sender.username,
-                'created_at': obj.parent.created_at
-            }
-        return None
+        try:
+            import logging
+            logger = logging.getLogger(__name__)
+            
+            if not hasattr(obj, 'parent') or not obj.parent:
+                return None
+                
+            try:
+                parent = obj.parent
+                
+                # Safely get content with fallbacks
+                content = ""
+                if hasattr(parent, 'content') and parent.content:
+                    content = parent.content[:50] + '...' if len(parent.content) > 50 else parent.content
+                
+                return {
+                    'id': parent.id,
+                    'content': content
+                }
+            except Exception as parent_error:
+                logger.error(f"Error getting parent message: {str(parent_error)}")
+                return None
+                
+        except Exception as e:
+            print(f"Error in get_parent_message: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return None
 
     # Validation - must have text or file
     def validate(self, data):
@@ -538,36 +635,99 @@ class ChatSerializer(serializers.ModelSerializer):
     # Връща последното съобщение в чата
     def get_last_message(self, obj):
         try:
-            last_message = obj.messages.order_by('-created_at').first()
+            import logging
+            logger = logging.getLogger(__name__)
+            
+            try:
+                last_message = obj.messages.order_by('-created_at').first()
+            except Exception as query_error:
+                logger.error(f"Error querying last message: {str(query_error)}")
+                return None
+                
             if last_message:
-                return {
-                    'id': last_message.id,
-                    'content': last_message.content[:50] + '...' if len(last_message.content) > 50 else last_message.content,
-                    'sender': last_message.sender.username,
-                    'created_at': last_message.created_at,
-                    'has_image': bool(last_message.image),
-                    'has_file': bool(hasattr(last_message, 'file') and last_message.file)
-                }
+                try:
+                    # Safely get content with fallbacks
+                    content = ""
+                    if hasattr(last_message, 'content') and last_message.content:
+                        content = last_message.content[:50] + '...' if len(last_message.content) > 50 else last_message.content
+                    
+                    # Safely get sender with fallbacks
+                    sender = ""
+                    if hasattr(last_message, 'sender') and last_message.sender:
+                        sender = last_message.sender.username
+                    
+                    # Safely check for image with fallbacks
+                    has_image = False
+                    if hasattr(last_message, 'image') and last_message.image:
+                        has_image = bool(last_message.image)
+                    
+                    # Safely check for file with fallbacks
+                    has_file = False
+                    if hasattr(last_message, 'file') and last_message.file:
+                        has_file = True
+                        
+                    return {
+                        'id': last_message.id,
+                        'content': content,
+                        'sender': sender,
+                        'created_at': last_message.created_at,
+                        'has_image': has_image,
+                        'has_file': has_file
+                    }
+                except Exception as format_error:
+                    logger.error(f"Error formatting last message: {str(format_error)}")
+                    import traceback
+                    logger.error(traceback.format_exc())
+                    # Return a minimal response that won't break the frontend
+                    return {
+                        'id': last_message.id,
+                        'content': "",
+                        'sender': "",
+                        'created_at': last_message.created_at,
+                        'has_image': False,
+                        'has_file': False
+                    }
             return None
         except Exception as e:
             print(f"Error in get_last_message: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return None
     
     # Връща брой непрочетени съобщения за текущия потребител
     def get_unread_count(self, obj):
         try:
-            user = self.context.get('request').user
-            if not user or not user.is_authenticated:
+            import logging
+            logger = logging.getLogger(__name__)
+            
+            # Safely get user with fallbacks
+            request = self.context.get('request')
+            if not request:
+                logger.warning("No request in context")
                 return 0
                 
-            # Count unread messages sent by others
-            unread_count = obj.messages.filter(
-                is_read=False
-            ).exclude(
-                sender=user
-            ).count()
+            user = request.user
+            if not user or not user.is_authenticated:
+                logger.warning("No authenticated user")
+                return 0
             
-            return unread_count
+            try:    
+                # Count unread messages sent by others
+                unread_count = obj.messages.filter(
+                    is_read=False
+                ).exclude(
+                    sender=user
+                ).count()
+                
+                return unread_count
+            except Exception as query_error:
+                logger.error(f"Error counting unread messages: {str(query_error)}")
+                import traceback
+                logger.error(traceback.format_exc())
+                return 0
             
         except Exception as e:
+            print(f"Error in get_unread_count: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return 0

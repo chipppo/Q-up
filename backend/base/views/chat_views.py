@@ -21,14 +21,37 @@ class ChatListView(APIView):
     def get(self, request):
         try:
             # Get all chats where the user is a participant
-            chats = Chat.objects.filter(participants=request.user).prefetch_related(
-                'participants',
-                'messages'
-            ).order_by('-updated_at')
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f"Fetching chats for user {request.user.username}")
+            
+            try:
+                chats = Chat.objects.filter(participants=request.user).prefetch_related(
+                    'participants',
+                    'messages'
+                ).order_by('-updated_at')
+                logger.info(f"Found {chats.count()} chats")
+            except Exception as db_error:
+                logger.error(f"Database error in ChatListView.get: {str(db_error)}")
+                import traceback
+                logger.error(traceback.format_exc())
+                return Response(
+                    {'detail': f'Database error: {str(db_error)}'},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
 
             # Serialize the chats
-            serializer = ChatSerializer(chats, many=True, context={'request': request})
-            return Response(serializer.data)
+            try:
+                serializer = ChatSerializer(chats, many=True, context={'request': request})
+                return Response(serializer.data)
+            except Exception as ser_error:
+                logger.error(f"Serialization error in ChatListView.get: {str(ser_error)}")
+                import traceback
+                logger.error(traceback.format_exc())
+                return Response(
+                    {'detail': f'Serialization error: {str(ser_error)}'},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
         except Exception as e:
             print(f"Error in ChatListView.get: {str(e)}")
             import traceback

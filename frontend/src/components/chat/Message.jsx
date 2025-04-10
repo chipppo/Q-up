@@ -60,24 +60,18 @@ const formatImageUrl = (url) => {
  */
 const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) => {
   // Get authentication context correctly
-  const auth = useAuth();
-  const currentUser = auth?.auth?.user || {};
-  const currentUsername = currentUser?.username;
+  const { username } = useAuth();
   
-  // More robust check for own messages
+  // More robust check for own messages - compare with the logged in username
   const isOwnMessage = Boolean(
-    currentUsername && (
-      (message.sender_username && message.sender_username === currentUsername) ||
+    username && (
+      (message.sender_username && message.sender_username === username) ||
       (message.sender && (
-        // Handle both string and object sender formats
-        (typeof message.sender === 'string' && message.sender === currentUsername) || 
-        (message.sender?.username === currentUsername)
+        (typeof message.sender === 'string' && message.sender === username) || 
+        (message.sender?.username === username)
       ))
     )
   );
-  
-  // Add console log to debug sender identification
-  console.debug(`Message ${message.id} from ${typeof message.sender === 'object' ? message.sender?.username : message.sender} - isOwnMessage: ${isOwnMessage}, currentUser: ${currentUsername}`);
   
   // Get sender name from various possible properties
   const senderName = 
@@ -200,53 +194,64 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
   };
 
   /**
-   * Formats message timestamp into readable format
-   * Shows only time for today's messages, date and time for older ones
+   * Formats message time in a human-readable format
    * 
    * @function formatMessageTime
-   * @param {string|Date} timestamp - The timestamp to format
+   * @param {Date|string} time - The timestamp to format
    * @returns {string} Formatted time string
    */
-  const formatMessageTime = (timestamp) => {
-    if (!timestamp) return '';
-    
-    const messageDate = new Date(timestamp);
+  const formatMessageTime = (time) => {
+    const date = typeof time === 'string' ? new Date(time) : time;
     const now = new Date();
-    const diffMs = now - messageDate;
-    const diffSec = Math.floor(diffMs / 1000);
-    const diffMin = Math.floor(diffSec / 60);
-    const diffHour = Math.floor(diffMin / 60);
-    const diffDay = Math.floor(diffHour / 24);
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
     
-    // Format date as YYYY-MM-DD
-    const dateOptions = { year: 'numeric', month: '2-digit', day: '2-digit' };
-    const formattedDate = messageDate.toLocaleDateString('en-GB', dateOptions).replace(/\//g, '-');
+    // Check if valid date
+    if (isNaN(date.getTime())) {
+      return "Invalid date";
+    }
     
-    // Format time in 24-hour mode (HH:MM)
-    const timeOptions = { hour: '2-digit', minute: '2-digit', hour12: false };
-    const formattedTime = messageDate.toLocaleTimeString('en-GB', timeOptions);
+    // Just now: less than a minute ago
+    if (diffMins < 1) {
+      return "just now";
+    }
     
-    // For today: show only time
-    if (diffDay < 1) return formattedTime;
+    // Minutes: 1m, 2m, ..., 59m
+    if (diffMins < 60) {
+      return `${diffMins}m`;
+    }
     
-    // For older messages: show date and time
-    return `${formattedDate} ${formattedTime}`;
+    // Hours: 1h, 2h, ..., 23h
+    if (diffHours < 24) {
+      return `${diffHours}h`;
+    }
+    
+    // Days: 1d, 2d, ... 6d
+    if (diffDays < 7) {
+      return `${diffDays}d`;
+    }
+    
+    // Different year: Jan 1, 2022
+    if (date.getFullYear() !== now.getFullYear()) {
+      return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+    
+    // Same year, different month/day: Jan 1
+    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
   };
 
   return (
-    <Box
-      className={`message-wrapper ${isOwnMessage ? 'sent' : 'received'}`}
-    >
+    <Box className={`message-wrapper ${isOwnMessage ? 'sent' : 'received'}`} sx={{ opacity: isDeleting ? 0.5 : 1 }}>
       {!isOwnMessage && (
         <Typography variant="caption" color="text.secondary" sx={{ ml: 1, mb: 0.5, fontWeight: 'bold' }}>
           {senderName}
         </Typography>
       )}
       
-      <Box 
-        sx={{ 
+      <Box sx={{ 
           display: 'flex', 
-          flexDirection: 'row', 
           alignItems: 'flex-start', 
           maxWidth: '100%',
           justifyContent: isOwnMessage ? 'flex-end' : 'flex-start',
@@ -281,6 +286,11 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
             color: isOwnMessage ? 'white' : 'var(--color-text-primary)',
             borderTopRightRadius: isOwnMessage ? '4px' : '16px',
             borderTopLeftRadius: isOwnMessage ? '16px' : '4px',
+            borderBottomRightRadius: isOwnMessage ? '16px' : '16px',
+            borderBottomLeftRadius: isOwnMessage ? '16px' : '16px',
+            boxShadow: isOwnMessage 
+              ? '0 1px 3px rgba(0, 0, 0, 0.2)' 
+              : '0 1px 2px rgba(0, 0, 0, 0.1)',
             position: 'relative'
           }}
         >
