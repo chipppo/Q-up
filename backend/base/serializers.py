@@ -459,113 +459,57 @@ class MessageSerializer(serializers.ModelSerializer):
         ]
     
     def get_replies_count(self, obj):
-        try:
-            return obj.replies.count()
-        except Exception as e:
-            print(f"Error in get_replies_count: {str(e)}")
-            return 0
+        return obj.replies.count()
     
     def get_parent_sender(self, obj):
-        try:
-            if obj.parent and hasattr(obj.parent, 'sender') and obj.parent.sender:
-                return getattr(obj.parent.sender, 'username', None)
-            return None
-        except Exception as e:
-            print(f"Error in get_parent_sender: {str(e)}")
-            return None
+        if obj.parent and obj.parent.sender:
+            return obj.parent.sender.username
+        return None
     
     def get_image(self, obj):
-        try:
-            if not hasattr(obj, 'image') or not obj.image:
-                return None
-                
+        if obj.image:
             try:
                 request = self.context.get('request')
                 if request:
-                    # Check if the image URL is already absolute
-                    image_url = obj.image.url
-                    if image_url.startswith('http://') or image_url.startswith('https://'):
-                        return image_url
-                        
-                    # Build absolute URL
-                    return request.build_absolute_uri(image_url)
-                else:
-                    # Return relative URL if request is not available
-                    return obj.image.url
+                    return request.build_absolute_uri(obj.image.url)
+                return obj.image.url
             except Exception as e:
-                logger = logging.getLogger(__name__)
-                logger.error(f"Error getting image URL for message {obj.id}: {str(e)}")
-                import traceback
-                logger.error(traceback.format_exc())
+                print(f"Error getting image URL: {str(e)}")
                 return None
-        except Exception as e:
-            logger = logging.getLogger(__name__)
-            logger.error(f"Error in get_image: {str(e)}")
-            return None
+        return None
     
     def get_file_info(self, obj):
         """Get file metadata like name, type, and if it's an image"""
-        try:
-            if not hasattr(obj, 'image') or not obj.image:
-                return None
-                
-            is_image = False
-            
-            # Get file type safely
-            file_type = getattr(obj, 'file_type', None)
-            if file_type and file_type.startswith('image/'):
-                is_image = True
-            elif not file_type and obj.image:
-                # Try to guess from file extension
-                file_name = obj.image.name if hasattr(obj.image, 'name') else ''
-                file_ext = file_name.lower().split('.')[-1] if '.' in file_name else ''
-                image_extensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp']
-                is_image = file_ext in image_extensions
-            
-            # Get file name safely
-            file_name = getattr(obj, 'file_name', None)
-            if not file_name and hasattr(obj.image, 'name'):
-                file_name = obj.image.name.split('/')[-1]
-                
-            # Get file size safely
-            file_size = None
-            if hasattr(obj.image, 'size'):
-                file_size = obj.image.size
-                
-            return {
-                'name': file_name or 'file',
-                'type': file_type or 'application/octet-stream',
-                'is_image': is_image,
-                'size': file_size
-            }
-        except Exception as e:
-            print(f"Error in get_file_info: {str(e)}")
+        if not obj.image:
             return None
+            
+        is_image = False
+        if obj.file_type and obj.file_type.startswith('image/'):
+            is_image = True
+        elif not obj.file_type and obj.image:
+            # Try to guess from file extension
+            file_ext = obj.image.name.lower().split('.')[-1] if '.' in obj.image.name else ''
+            image_extensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp']
+            is_image = file_ext in image_extensions
+            
+        return {
+            'name': obj.file_name or obj.image.name.split('/')[-1],
+            'type': obj.file_type or 'application/octet-stream',
+            'is_image': is_image,
+            'size': obj.image.size if hasattr(obj.image, 'size') else None
+        }
 
     # Return information about the parent message
     def get_parent_message(self, obj):
-        try:
-            if not obj.parent:
-                return None
-                
-            # Safety checks for parent message fields
-            parent_content = getattr(obj.parent, 'content', '')
-            
-            # Safely get sender username
-            sender_username = None
-            if hasattr(obj.parent, 'sender') and obj.parent.sender:
-                sender_username = getattr(obj.parent.sender, 'username', None)
-                
+        if obj.parent:
             return {
                 'id': obj.parent.id,
-                'content': parent_content,
-                'sender': sender_username or 'Unknown',
-                'created_at': getattr(obj.parent, 'created_at', None)
+                'content': obj.parent.content,
+                'sender': obj.parent.sender.username,
+                'created_at': obj.parent.created_at
             }
-        except Exception as e:
-            print(f"Error in get_parent_message: {str(e)}")
-            return None
-    
+        return None
+
     # Validation - must have text or file
     def validate(self, data):
         # Make chat field optional since we'll set it in the view
@@ -595,17 +539,16 @@ class ChatSerializer(serializers.ModelSerializer):
     def get_last_message(self, obj):
         try:
             last_message = obj.messages.order_by('-created_at').first()
-            if not last_message:
-                return None
-                
-            return {
-                'id': last_message.id,
-                'content': last_message.content[:50] if last_message.content else "",
-                'sender': last_message.sender.username if last_message.sender else "",
-                'created_at': last_message.created_at,
-                'has_image': bool(last_message.image),
-                'has_file': False  # Simplify by always returning False
-            }
+            if last_message:
+                return {
+                    'id': last_message.id,
+                    'content': last_message.content[:50] + '...' if len(last_message.content) > 50 else last_message.content,
+                    'sender': last_message.sender.username,
+                    'created_at': last_message.created_at,
+                    'has_image': bool(last_message.image),
+                    'has_file': bool(hasattr(last_message, 'file') and last_message.file)
+                }
+            return None
         except Exception as e:
             print(f"Error in get_last_message: {str(e)}")
             return None
@@ -614,7 +557,17 @@ class ChatSerializer(serializers.ModelSerializer):
     def get_unread_count(self, obj):
         try:
             user = self.context.get('request').user
-            return 0  # Temporarily return 0 to simplify
+            if not user or not user.is_authenticated:
+                return 0
+                
+            # Count unread messages sent by others
+            unread_count = obj.messages.filter(
+                is_read=False
+            ).exclude(
+                sender=user
+            ).count()
+            
+            return unread_count
+            
         except Exception as e:
-            print(f"Error in get_unread_count: {str(e)}")
             return 0

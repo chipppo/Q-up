@@ -20,10 +20,13 @@ class ChatListView(APIView):
 
     def get(self, request):
         try:
-            # Simple implementation - just get the chats without prefetch_related
-            chats = Chat.objects.filter(participants=request.user).order_by('-updated_at')
-            
-            # Use a simpler serialization approach
+            # Get all chats where the user is a participant
+            chats = Chat.objects.filter(participants=request.user).prefetch_related(
+                'participants',
+                'messages'
+            ).order_by('-updated_at')
+
+            # Serialize the chats
             serializer = ChatSerializer(chats, many=True, context={'request': request})
             return Response(serializer.data)
         except Exception as e:
@@ -31,7 +34,7 @@ class ChatListView(APIView):
             import traceback
             traceback.print_exc()
             return Response(
-                {'detail': f'Error fetching chats: {str(e)}'},
+                {'detail': 'Неуспешно извличане на чатове'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
@@ -365,15 +368,39 @@ class MessageListView(APIView):
                         # Store original filename and content type
                         message.file_name = getattr(image, 'name', '')
                         message.file_type = getattr(image, 'content_type', '')
-                        message.image = image
-                        message.save()
                         
-                        logger.info(f"File saved successfully: {message.file_name} ({message.file_type})")
+                        # Try to save the image with error handling
+                        try:
+                            message.image = image
+                            message.save()
+                            logger.info(f"File saved successfully: {message.file_name} ({message.file_type})")
+                        except IOError as io_error:
+                            logger.error(f"IOError saving file: {str(io_error)}")
+                            # If there's a permission error or I/O error, return a specific message
+                            return Response(
+                                {'detail': f'Error saving file: {str(io_error)}'},
+                                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                            )
+                        except Exception as save_error:
+                            logger.error(f"Error saving image to storage: {str(save_error)}")
+                            import traceback
+                            logger.error(traceback.format_exc())
+                            # Continue without file - message was created successfully
+                            return Response(
+                                {'detail': f'Message created but file could not be saved: {str(save_error)}',
+                                 'message': MessageSerializer(message, context={'request': request}).data},
+                                status=status.HTTP_201_CREATED
+                            )
                     except Exception as file_error:
-                        logger.error(f"Error saving file: {str(file_error)}")
+                        logger.error(f"Error preparing file: {str(file_error)}")
                         import traceback
                         logger.error(traceback.format_exc())
                         # Continue without file - message was created successfully
+                        return Response(
+                            {'detail': 'Message created but file could not be processed',
+                             'message': MessageSerializer(message, context={'request': request}).data},
+                            status=status.HTTP_201_CREATED
+                        )
                 
                 # Update chat last activity timestamp
                 chat.save()
