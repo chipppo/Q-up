@@ -20,7 +20,7 @@ def setup():
         return False
     
     # Install required packages
-    packages = ['boto3', 'django', 'pillow', 'python-dotenv']
+    packages = ['boto3', 'django', 'pillow', 'python-dotenv', 'djangorestframework']
     logger.info(f"Installing packages: {', '.join(packages)}")
     try:
         subprocess.check_call([sys.executable, "-m", "pip", "install", "--user"] + packages)
@@ -33,13 +33,24 @@ def setup():
     if local_bin not in os.environ.get("PATH", ""):
         os.environ["PATH"] = f"{local_bin}:{os.environ.get('PATH', '')}"
     
-    # Add user local site-packages to PYTHONPATH
+    # Add user local site-packages to PYTHONPATH and sys.path directly
     python_version = f"python{sys.version_info.major}.{sys.version_info.minor}"
     site_packages = os.path.expanduser(f"~/.local/lib/{python_version}/site-packages")
+    if site_packages not in sys.path:
+        sys.path.insert(0, site_packages)
+    
     if "PYTHONPATH" not in os.environ:
         os.environ["PYTHONPATH"] = site_packages
     elif site_packages not in os.environ["PYTHONPATH"]:
         os.environ["PYTHONPATH"] = f"{site_packages}:{os.environ['PYTHONPATH']}"
+    
+    # Add current directory to PYTHONPATH
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    if current_dir not in sys.path:
+        sys.path.insert(0, current_dir)
+    parent_dir = os.path.dirname(current_dir)
+    if parent_dir not in sys.path:
+        sys.path.insert(0, parent_dir)
     
     logger.info("Environment set up successfully")
     return True
@@ -62,7 +73,16 @@ def upload_to_s3():
         import boto3
         from pathlib import Path
         from django.core.files.storage import default_storage
-        from base.models import MyUser, Post, Game, RankTier, Message
+        
+        # Import models
+        try:
+            from base.models import MyUser, Post, Game, RankTier, Message
+        except ImportError as e:
+            logger.error(f"Error importing models: {str(e)}")
+            logger.info("Continuing without database updates, only uploading files")
+            update_db = False
+        else:
+            update_db = True
         
         # Create S3 client
         s3 = boto3.client(
@@ -143,6 +163,11 @@ def upload_to_s3():
                 errors += 1
         
         logger.info(f"Upload complete: {uploaded} files uploaded, {errors} errors")
+        
+        # Skip database updates if we couldn't import models
+        if not update_db:
+            logger.info("Skipping database updates due to model import errors")
+            return True
         
         # Check for image fields in database and update them
         logger.info("Updating database references...")
