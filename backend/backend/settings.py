@@ -193,24 +193,28 @@ AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
 AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME')
 AWS_S3_REGION_NAME = os.environ.get('AWS_S3_REGION_NAME')
 
-# Debug logging for S3 settings
-logger = logging.getLogger(__name__)
-
+# Debug logging for environment variables
 if not all([AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_STORAGE_BUCKET_NAME, AWS_S3_REGION_NAME]):
-    logger.error("AWS S3 credentials are incomplete. Check your .env file:")
-    logger.error(f"AWS_ACCESS_KEY_ID exists: {bool(AWS_ACCESS_KEY_ID)}")
-    logger.error(f"AWS_SECRET_ACCESS_KEY exists: {bool(AWS_SECRET_ACCESS_KEY)}")
-    logger.error(f"AWS_STORAGE_BUCKET_NAME exists: {bool(AWS_STORAGE_BUCKET_NAME)}")
-    logger.error(f"AWS_S3_REGION_NAME exists: {bool(AWS_S3_REGION_NAME)}")
-    logger.error(f"Checked .env file at: {os.path.join(BASE_DIR, '.env')}, exists: {os.path.exists(os.path.join(BASE_DIR, '.env'))}")
+    print(f"WARNING: Missing AWS credentials - AWS_ACCESS_KEY_ID: {'✓' if AWS_ACCESS_KEY_ID else '✗'}, " +
+          f"AWS_SECRET_ACCESS_KEY: {'✓' if AWS_SECRET_ACCESS_KEY else '✗'}, " +
+          f"AWS_STORAGE_BUCKET_NAME: {'✓' if AWS_STORAGE_BUCKET_NAME else '✗'}, " +
+          f"AWS_S3_REGION_NAME: {'✓' if AWS_S3_REGION_NAME else '✗'}")
+    print(f"Environment file path: {os.path.join(BASE_DIR, '.env')}")
+    print(f"Environment file exists: {os.path.exists(os.path.join(BASE_DIR, '.env'))}")
+else:
+    print(f"AWS credentials loaded successfully: " +
+          f"AWS_ACCESS_KEY_ID: {AWS_ACCESS_KEY_ID[:4]}...{AWS_ACCESS_KEY_ID[-4:]}, " +
+          f"Bucket: {AWS_STORAGE_BUCKET_NAME}, Region: {AWS_S3_REGION_NAME}")
 
-# Full S3 configuration
+# Full S3 configuration - force usage of environment variables directly
 if AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY and AWS_STORAGE_BUCKET_NAME and AWS_S3_REGION_NAME:
+    import boto3
+    import logging
+    
+    # Force all S3 operations to use these credentials directly
     AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com'
     AWS_S3_ADDRESSING_STYLE = 'virtual'
     AWS_S3_FILE_OVERWRITE = False
-    # Removed ACL settings since your bucket doesn't support them
-    # AWS_DEFAULT_ACL = 'public-read' 
     AWS_S3_SIGNATURE_VERSION = 's3v4'
     AWS_S3_OBJECT_PARAMETERS = {
         'CacheControl': 'max-age=86400',
@@ -232,13 +236,37 @@ if AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY and AWS_STORAGE_BUCKET_NAME and A
     botocore_logger = logging.getLogger('botocore')
     botocore_logger.setLevel(logging.DEBUG)
     
-    logger.info("S3 storage configuration complete")
+    # Set up boto3 directly to test credentials
+    try:
+        s3_client = boto3.client(
+            's3',
+            aws_access_key_id=AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
+            region_name=AWS_S3_REGION_NAME
+        )
+        print(f"Successfully created S3 client with credentials")
+        
+        # Test credentials with bucket access
+        try:
+            s3_client.put_object(
+                Bucket=AWS_STORAGE_BUCKET_NAME,
+                Key="settings-test.txt",
+                Body=b"Test file created from settings.py",
+                ContentType="text/plain"
+            )
+            print(f"Successfully uploaded test file to bucket {AWS_STORAGE_BUCKET_NAME}")
+        except Exception as e:
+            print(f"ERROR: Failed to upload test file to bucket: {str(e)}")
+    except Exception as e:
+        print(f"ERROR: Failed to initialize S3 client: {str(e)}")
+    
+    print("S3 storage configuration complete")
 else:
     # Fallback to local storage
     STATIC_URL = '/static/'
     MEDIA_URL = '/media/'
     MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
-    logger.warning("Using local file storage because S3 environment variables are not properly configured")
+    print("Using local file storage because S3 environment variables are not properly configured")
 
 # Configure CORS to allow access to S3 resources
 CORS_ALLOWED_ORIGINS = [
