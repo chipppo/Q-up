@@ -292,26 +292,34 @@ function SearchProfiles() {
       
       // Convert active hour periods to actual hours
       if (filters.activeHours.length > 0) {
-        const selectedHourPeriods = availableFilters.activeHours.filter(
-          period => filters.activeHours.includes(period.id)
-        );
-        
-        // Flatten all hours from selected periods
-        const allSelectedHours = selectedHourPeriods.flatMap(period => period.hours);
-        
-        // Remove duplicates
-        const uniqueHours = [...new Set(allSelectedHours)];
-        
         // Get the current user's timezone offset
-        const { auth } = useAuth();
-        const currentUserTimezoneOffset = auth?.user?.timezone_offset || 0;
+        const currentUserTimezoneOffset = userData?.timezone_offset || 0;
+        
+        // Get hours for the selected periods
+        const allSelectedHours = [];
+        
+        // Use our utility function to get all hours for selected periods
+        filters.activeHours.forEach(periodId => {
+          const period = TIME_PERIODS.find(p => p.id === periodId);
+          if (period) {
+            period.hours.forEach(hour => {
+              if (!allSelectedHours.includes(hour)) {
+                allSelectedHours.push(hour);
+              }
+            });
+          }
+        });
+        
+        // Sort the hours
+        const sortedLocalHours = allSelectedHours.sort();
         
         // Convert hours from local timezone to UTC for server-side filtering
-        const utcHours = uniqueHours.map(hour => {
+        const utcHours = sortedLocalHours.map(hour => {
           const [hourStr, minuteStr] = hour.split(':');
           let hourNum = parseInt(hourStr, 10);
           
           // Apply reverse timezone offset to convert to UTC
+          // Subtract the offset to go from local to UTC
           hourNum = (hourNum - currentUserTimezoneOffset + 24) % 24;
           
           // Format back to string with leading zeros

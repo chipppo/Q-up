@@ -172,11 +172,10 @@ export const formatAvatarUrl = (url, username = 'U') => {
   // Default avatar using UI Avatars service with username-based color
   const defaultAvatar = `https://ui-avatars.com/api/?name=${firstLetter}&background=hsl(${hue},70%,60%)&color=fff&size=256`;
   
-  // If no URL provided, return default avatar
-  if (!url) return defaultAvatar;
-  
-  // If URL is null, undefined, or empty string
-  if (!url || url === "") return defaultAvatar;
+  // Check for null, undefined, empty string and default avatar patterns
+  if (!url || url === "" || url === "null" || url === "undefined") {
+    return defaultAvatar;
+  }
   
   // Check if it's an external URL
   if (url.startsWith('http')) {
@@ -185,16 +184,24 @@ export const formatAvatarUrl = (url, username = 'U') => {
         url.includes('/media/profile_pics/404') || 
         url.includes('404') || 
         url.includes('placeholder') ||
-        url.includes('undefined')) {
+        url.includes('undefined') ||
+        url.includes('null')) {
       return defaultAvatar;
     }
+    
+    // Fix incorrect region format in existing URLs
+    if (url.includes('eu-north-1b')) {
+      url = url.replace('eu-north-1b', 'eu-north-1');
+    }
+    
     return url;
   }
   
   // Check for default paths in relative URLs
   if (url.includes('/media/default/') || 
       url.includes('/media/profile_pics/404') || 
-      url.includes('undefined')) {
+      url.includes('undefined') ||
+      url.includes('null')) {
     return defaultAvatar;
   }
   

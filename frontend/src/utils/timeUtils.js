@@ -15,38 +15,77 @@ export const TIME_PERIODS = [
 ];
 
 /**
- * Converts individual hours to period IDs
- * 
- * @param {Array} hoursList - Array of hours in "HH:MM" format
- * @returns {Array} Array of period IDs that contain any of the specified hours
+ * Maps each hour to the period(s) it belongs to
+ * Useful for quick lookups
  */
-export const hoursToPeriodIds = (hoursList) => {
-  if (!hoursList || !Array.isArray(hoursList)) return [];
-  
-  return TIME_PERIODS
-    .filter(period => {
-      // A period is selected if ANY of its hours are in the hoursList
-      return period.hours.some(hour => hoursList.includes(hour));
-    })
-    .map(period => period.id);
+export const HOUR_TO_PERIOD_MAP = {};
+
+// Build the hour-to-period mapping
+TIME_PERIODS.forEach(period => {
+  period.hours.forEach(hour => {
+    if (!HOUR_TO_PERIOD_MAP[hour]) {
+      HOUR_TO_PERIOD_MAP[hour] = [];
+    }
+    HOUR_TO_PERIOD_MAP[hour].push(period.id);
+  });
+});
+
+/**
+ * Converts timezone offset to a standardized format
+ * 
+ * @param {number} offset - Timezone offset in hours
+ * @returns {number} Normalized offset between -12 and 14
+ */
+export const normalizeTimezoneOffset = (offset) => {
+  if (typeof offset !== 'number') return 0;
+  return Math.max(-12, Math.min(14, offset));
 };
 
 /**
- * Converts period IDs to individual hours
+ * Converts an array of active hours to period IDs
+ * 
+ * @param {Array} activeHours - Array of hours in "HH:MM" format
+ * @returns {Array} Array of period IDs that contain these hours
+ */
+export const hoursToPeriodIds = (activeHours) => {
+  if (!activeHours || !Array.isArray(activeHours) || activeHours.length === 0) {
+    return [];
+  }
+  
+  // Create a set of unique period IDs
+  const periodIds = new Set();
+  
+  activeHours.forEach(hour => {
+    // Look up periods this hour belongs to
+    const periods = HOUR_TO_PERIOD_MAP[hour] || [];
+    periods.forEach(periodId => periodIds.add(periodId));
+  });
+  
+  return Array.from(periodIds);
+};
+
+/**
+ * Converts period IDs to the hours they contain
  * 
  * @param {Array} periodIds - Array of period IDs
- * @returns {Array} Array of all unique hours from the selected periods
+ * @returns {Array} Array of hours in "HH:MM" format
  */
 export const periodIdsToHours = (periodIds) => {
-  if (!periodIds || !Array.isArray(periodIds)) return [];
+  if (!periodIds || !Array.isArray(periodIds) || periodIds.length === 0) {
+    return [];
+  }
   
-  // Get all hours from the selected periods
-  const hours = TIME_PERIODS
-    .filter(period => periodIds.includes(period.id))
-    .flatMap(period => period.hours);
+  // Create a set of unique hours
+  const hours = new Set();
   
-  // Remove duplicates (hours that appear in multiple periods)
-  return [...new Set(hours)];
+  periodIds.forEach(periodId => {
+    const period = TIME_PERIODS.find(p => p.id === periodId);
+    if (period) {
+      period.hours.forEach(hour => hours.add(hour));
+    }
+  });
+  
+  return Array.from(hours).sort();
 };
 
 /**
@@ -61,13 +100,70 @@ export const formatActiveHours = (activeHours, timezoneOffset = 0) => {
     return "Not specified";
   }
   
-  // Get the period IDs from active hours
-  const activePeriodIds = hoursToPeriodIds(activeHours);
+  // Convert hours from UTC to local timezone
+  const normalizedOffset = normalizeTimezoneOffset(timezoneOffset);
   
-  // For each period, check if ALL hours are active
-  const fullyActivePeriods = TIME_PERIODS.filter(period => 
-    period.hours.every(hour => activeHours.includes(hour))
-  ).map(period => period.name);
+  const convertedHours = activeHours.map(hour => {
+    const [hourStr, minuteStr] = hour.split(':');
+    let hourNum = parseInt(hourStr, 10);
+    
+    // Apply timezone offset
+    hourNum = (hourNum + normalizedOffset + 24) % 24;
+    
+    // Format back to string with leading zeros
+    return `${hourNum.toString().padStart(2, '0')}:${minuteStr}`;
+  });
   
-  return fullyActivePeriods.length > 0 ? fullyActivePeriods.join(", ") : "Not specified";
+  // Track which periods are fully or partially covered
+  const periodCoverage = {};
+  
+  // Initialize all periods as not covered
+  TIME_PERIODS.forEach(period => {
+    periodCoverage[period.id] = {
+      periodName: period.name,
+      coveredHours: 0,
+      totalHours: period.hours.length
+    };
+  });
+  
+  // Count covered hours for each period
+  convertedHours.forEach(hour => {
+    const periodsForHour = HOUR_TO_PERIOD_MAP[hour] || [];
+    periodsForHour.forEach(periodId => {
+      if (periodCoverage[periodId]) {
+        periodCoverage[periodId].coveredHours += 1;
+      }
+    });
+  });
+  
+  // Generate labels for periods
+  const periodLabels = [];
+  
+  // Add fully covered periods
+  const fullyCovered = [];
+  // Add partially covered periods
+  const partiallyCovered = [];
+  
+  Object.values(periodCoverage).forEach(period => {
+    if (period.coveredHours === 0) {
+      // Not covered at all
+      return;
+    } else if (period.coveredHours === period.totalHours) {
+      // Fully covered
+      fullyCovered.push(period.periodName);
+    } else {
+      // Partially covered
+      partiallyCovered.push(`${period.periodName}*`);
+    }
+  });
+  
+  // Combine results, prioritizing fully covered periods
+  periodLabels.push(...fullyCovered);
+  
+  // Only show partially covered if no full periods match
+  if (fullyCovered.length === 0) {
+    periodLabels.push(...partiallyCovered);
+  }
+  
+  return periodLabels.length > 0 ? periodLabels.join(", ") : "Not specified";
 }; 

@@ -214,7 +214,8 @@ const Header = () => {
                   backgroundColor: userData?.avatar_url ? 'transparent' : stringToColor(username || '')
                 }}
                 onError={(e) => {
-                  e.target.src = `https://ui-avatars.com/api/?name=${username?.[0]}&background=random`;
+                  e.target.onerror = null; // Prevent infinite error loop
+                  e.target.src = formatAvatarUrl(null, username || 'U');
                 }}
               />
             </button>
@@ -325,7 +326,8 @@ const Header = () => {
                 backgroundColor: userData?.avatar_url ? 'transparent' : stringToColor(username || '')
               }}
               onError={(e) => {
-                e.target.src = `https://ui-avatars.com/api/?name=${username?.[0]}&background=random`;
+                e.target.onerror = null; // Prevent infinite error loop
+                e.target.src = formatAvatarUrl(null, username || 'U');
               }}
             />
           </button>

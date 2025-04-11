@@ -98,6 +98,17 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
       '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg',
       '.tiff', '.tif', '.avif', '.heic', '.heif', '.jfif', '.pjpeg', '.pjp'
     ];
+    
+    // First try a more direct WebP detection
+    if (url.toLowerCase().includes('.webp') || url.toLowerCase().includes('image/webp')) {
+      return true;
+    }
+    
+    // Try SVG detection
+    if (url.toLowerCase().includes('.svg') || url.toLowerCase().includes('image/svg')) {
+      return true;
+    }
+    
     const hasImageExtension = imageExtensions.some(ext => {
       const urlLower = url.toLowerCase();
       return urlLower.endsWith(ext) || urlLower.includes(`${ext}?`);
@@ -236,6 +247,16 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
   const handleImageLoad = () => {
     setImageLoading(false);
     setImageError(false);
+    
+    // Ensure image is visible by directly setting style
+    const messageId = `message-${message.id}`;
+    const container = document.getElementById(messageId);
+    if (container) {
+      const img = container.querySelector('.message-image');
+      if (img) {
+        img.style.display = 'block';
+      }
+    }
   };
 
   const handleImageError = (e) => {
@@ -249,12 +270,34 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
   useEffect(() => {
     if (message.image || message.has_image) {
       setImageLoading(true);
+    } else {
+      setImageLoading(false);
     }
+    
+    // Reset loading state after a short timeout if it gets stuck
+    const timer = setTimeout(() => {
+      setImageLoading(false);
+    }, 3000);
+    
+    return () => clearTimeout(timer);
   }, [message.image, message.has_image]);
 
   const isImage = (filename) => {
+    if (!filename) return false;
+    
+    // Special checks for known image types that might be missed
+    const urlLower = filename.toLowerCase();
+    if (urlLower.includes('.webp') || urlLower.includes('image/webp')) {
+      return true;
+    }
+    if (urlLower.includes('.svg') || urlLower.includes('image/svg')) {
+      return true;
+    }
+    
+    // Extract file extension from the path
     const extension = filename.split('.').pop().toLowerCase();
-    return ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(extension);
+    return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 
+            'tiff', 'tif', 'avif', 'heic', 'heif'].includes(extension);
   };
 
   return (
@@ -321,14 +364,13 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
           {/* Image attachments */}
           {(message.image || message.has_image) && (
             <Box mt={message.content ? 1 : 0} mb={1} sx={{ width: '100%', boxSizing: 'border-box' }}>
-              {imageLoading && (
-                <Box sx={{ display: 'flex', justifyContent: 'center', m: 2 }}>
-                  <CircularProgress size={24} color="inherit" />
-                </Box>
-              )}
-
               {isImageAttachment(formatAvatarUrl(message.image)) ? (
                 <>
+                  {imageLoading && (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', m: 2 }}>
+                      <CircularProgress size={24} color="inherit" />
+                    </Box>
+                  )}
                   <img 
                     src={formatAvatarUrl(message.image)}
                     alt="Message attachment" 

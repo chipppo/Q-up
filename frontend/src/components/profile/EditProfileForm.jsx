@@ -265,32 +265,43 @@ const EditProfileForm = () => {
 
   const handleActiveHoursChange = (period) => {
     setFormData(prev => {
-      // Get the current active hours
-      const currentHours = Array.isArray(prev.active_hours) ? prev.active_hours : [];
+      // Get the current active hours, ensuring it's an array
+      const currentHours = Array.isArray(prev.active_hours) ? [...prev.active_hours] : [];
       
-      // Convert the period ID to hours
-      const periodHours = periodIdsToHours([period]);
+      // Get the hours for this period
+      const periodObj = TIME_PERIODS.find(p => p.id === period);
       
-      // Check if all hours in this period are already active
-      const allHoursActive = periodHours.every(hour => currentHours.includes(hour));
+      if (!periodObj) {
+        console.error(`Period ${period} not found in TIME_PERIODS`);
+        return prev;
+      }
+      
+      const periodHours = periodObj.hours;
+      
+      // Count how many hours from this period are already active
+      const activeHoursInPeriod = periodHours.filter(hour => currentHours.includes(hour));
+      const allHoursActive = activeHoursInPeriod.length === periodHours.length;
+      
+      let updatedHours;
       
       if (allHoursActive) {
-        // If all hours are active, remove them
-        return {
-          ...prev,
-          active_hours: currentHours.filter(hour => !periodHours.includes(hour))
-        };
+        // If all hours are active, remove ALL hours from this period
+        updatedHours = currentHours.filter(hour => !periodHours.includes(hour));
       } else {
-        // If not all active, add ALL hours in the period (no partial selection)
-        const newHours = [...currentHours];
+        // Otherwise, add ALL hours from this period (no partial selections)
+        
         // First, remove any existing hours from this period to ensure clean state
-        const hoursWithoutPeriod = newHours.filter(hour => !periodHours.includes(hour));
+        const hoursWithoutPeriod = currentHours.filter(hour => !periodHours.includes(hour));
+        
         // Then add all hours from this period
-        return {
-          ...prev,
-          active_hours: [...hoursWithoutPeriod, ...periodHours].sort()
-        };
+        updatedHours = [...hoursWithoutPeriod, ...periodHours];
       }
+      
+      // Sort hours for consistent display and storage
+      return {
+        ...prev,
+        active_hours: updatedHours.sort()
+      };
     });
   };
 

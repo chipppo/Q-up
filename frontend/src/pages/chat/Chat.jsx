@@ -435,6 +435,25 @@ const Chat = () => {
   };
 
   /**
+   * Resets any file inputs in the message form to prevent issues
+   * after message operations like deletion
+   * 
+   * @function resetFileInputs
+   */
+  const resetFileInputs = () => {
+    // Find any file inputs in the message form and reset them
+    const fileInputs = document.querySelectorAll('input[type="file"]');
+    fileInputs.forEach(input => {
+      input.value = '';
+    });
+    
+    // Also reset attachment state in the MessageInput component
+    if (messageInputRef.current && messageInputRef.current.resetAttachments) {
+      messageInputRef.current.resetAttachments();
+    }
+  };
+
+  /**
    * Deletes a message from the chat
    * 
    * @function handleDeleteMessage
@@ -443,13 +462,49 @@ const Chat = () => {
   const handleDeleteMessage = async (messageId) => {
     if (!messageId) return;
     
-    setDeletingMessages(prev => ({ ...prev, [messageId]: true }));
+    // Store message ID safely
+    const idToDelete = String(messageId);
+    
+    // Set deleting state by ID
+    setDeletingMessages(prev => ({ ...prev, [idToDelete]: true }));
     
     try {
-      await API.delete(`/messages/${messageId}/`);
+      // First capture the adjacent messages for reference
+      const messageIndex = messages.findIndex(m => String(m.id) === idToDelete);
+      const adjacentMessages = {
+        before: messageIndex > 0 ? messages[messageIndex - 1] : null,
+        after: messageIndex < messages.length - 1 ? messages[messageIndex + 1] : null
+      };
       
-      // Remove message from local state
-      setMessages(prevMessages => prevMessages.filter(m => m.id !== messageId));
+      // Call the API to delete the message
+      await API.delete(`/messages/${idToDelete}/`);
+      
+      // Remove message from local state with key-based updates to maintain stability
+      setMessages(prevMessages => {
+        // Create a new array without the deleted message
+        const updatedMessages = prevMessages.filter(m => String(m.id) !== idToDelete);
+        
+        // Add keys to help React maintain stable identity
+        return updatedMessages.map(msg => ({
+          ...msg,
+          // Ensure each message has a stable key that survived the deletion
+          key: `msg-${msg.id}-${Date.now()}`
+        }));
+      });
+      
+      // Reset any file inputs to prevent issues
+      resetFileInputs();
+      
+      // Restore scroll position based on adjacent messages
+      setTimeout(() => {
+        if (adjacentMessages.after) {
+          const afterEl = document.getElementById(`message-${adjacentMessages.after.id}`);
+          if (afterEl) afterEl.scrollIntoView({ behavior: 'auto', block: 'nearest' });
+        } else if (adjacentMessages.before) {
+          const beforeEl = document.getElementById(`message-${adjacentMessages.before.id}`);
+          if (beforeEl) beforeEl.scrollIntoView({ behavior: 'auto', block: 'nearest' });
+        }
+      }, 100);
       
       toast.success('Message deleted successfully');
       
@@ -459,9 +514,10 @@ const Chat = () => {
       console.error('Error deleting message:', error);
       toast.error('Failed to delete message');
     } finally {
+      // Clean up deleting state
       setDeletingMessages(prev => {
         const updated = { ...prev };
-        delete updated[messageId];
+        delete updated[idToDelete];
         return updated;
       });
     }

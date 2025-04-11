@@ -8,7 +8,7 @@
  * @requires React
  * @requires material-ui
  */
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useImperativeHandle, forwardRef } from 'react';
 import {
   Box,
   TextField,
@@ -41,13 +41,13 @@ import '../../styles/components/chat/MessageInput.css';
  * @param {boolean} props.disabled - Whether input is disabled
  * @returns {JSX.Element} Message input component
  */
-const MessageInput = ({ 
+const MessageInput = forwardRef(({ 
   addMessage, 
   replyTo, 
   clearReplyTo, 
   chatId, 
   disabled = false 
-}) => {
+}, ref) => {
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [attachment, setAttachment] = useState(null);
@@ -55,6 +55,22 @@ const MessageInput = ({
   const [error, setError] = useState('');
   const fileInputRef = useRef(null);
   const messageInputRef = useRef(null);
+  
+  // Expose methods to parent component via ref
+  useImperativeHandle(ref, () => ({
+    focus: () => {
+      if (messageInputRef.current) {
+        messageInputRef.current.focus();
+      }
+    },
+    resetAttachments: () => {
+      setAttachment(null);
+      setAttachmentPreview('');
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  }));
   
   // Focus on input when component mounts
   useEffect(() => {
@@ -373,6 +389,6 @@ const MessageInput = ({
       />
     </Box>
   );
-};
+});
 
 export default MessageInput; 

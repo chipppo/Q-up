@@ -73,7 +73,7 @@ const ChatHeader = ({ selectedChat, username, isMobile, onBackClick }) => {
           sx={{ width: 40, height: 40 }}
           src={formatAvatarUrl(otherUser?.avatar_url, otherUser?.username || 'U')}
           onError={(e) => {
-            // Use our consistent default avatar system instead of direct UI Avatars call
+            e.target.onerror = null; // Prevent infinite error loop
             e.target.src = formatAvatarUrl(null, otherUser?.username || 'U');
           }}
         >
