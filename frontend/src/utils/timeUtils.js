@@ -4,14 +4,14 @@
 
 // Time periods with their corresponding hours in 24-hour format
 export const TIME_PERIODS = [
-  { id: "earlyMorning", name: "Early Morning", hours: ["05:00", "06:00", "07:00", "08:00"] },
-  { id: "morning", name: "Morning", hours: ["08:00", "09:00", "10:00", "11:00"] },
-  { id: "noon", name: "Noon", hours: ["11:00", "12:00", "13:00", "14:00"] },
-  { id: "afternoon", name: "Afternoon", hours: ["14:00", "15:00", "16:00", "17:00"] },
-  { id: "evening", name: "Evening", hours: ["17:00", "18:00", "19:00", "20:00"] },
-  { id: "night", name: "Night", hours: ["20:00", "21:00", "22:00", "23:00"] },
-  { id: "lateNight", name: "Late Night", hours: ["23:00", "00:00", "01:00", "02:00"] },
-  { id: "overnight", name: "Overnight", hours: ["02:00", "03:00", "04:00", "05:00"] }
+  { id: "earlyMorning", name: "Early Morning", hours: ["05:00", "06:00", "07:00"] },
+  { id: "morning", name: "Morning", hours: ["08:00", "09:00", "10:00"] },
+  { id: "noon", name: "Noon", hours: ["11:00", "12:00", "13:00"] },
+  { id: "afternoon", name: "Afternoon", hours: ["14:00", "15:00", "16:00"] },
+  { id: "evening", name: "Evening", hours: ["17:00", "18:00", "19:00"] },
+  { id: "night", name: "Night", hours: ["20:00", "21:00", "22:00"] },
+  { id: "lateNight", name: "Late Night", hours: ["23:00", "00:00", "01:00"] },
+  { id: "overnight", name: "Overnight", hours: ["02:00", "03:00", "04:00"] }
 ];
 
 /**

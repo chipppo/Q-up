@@ -33,14 +33,14 @@ const LANGUAGE_OPTIONS = [
 
 // Time periods for activity filtering
 const ACTIVITY_PERIODS = [
-  { id: "earlyMorning", name: "Early Morning (5-8 AM)" },
-  { id: "morning", name: "Morning (8-11 AM)" },
-  { id: "noon", name: "Noon (11 AM-2 PM)" },
-  { id: "afternoon", name: "Afternoon (2-5 PM)" },
-  { id: "evening", name: "Evening (5-8 PM)" },
-  { id: "night", name: "Night (8-11 PM)" },
-  { id: "lateNight", name: "Late Night (11 PM-2 AM)" },
-  { id: "overnight", name: "Overnight (2-5 AM)" }
+  { id: "earlyMorning", name: "Early Morning (5-7 AM)" },
+  { id: "morning", name: "Morning (8-10 AM)" },
+  { id: "noon", name: "Noon (11-13 PM)" },
+  { id: "afternoon", name: "Afternoon (14-16 PM)" },
+  { id: "evening", name: "Evening (17-19 PM)" },
+  { id: "night", name: "Night (20-22 PM)" },
+  { id: "lateNight", name: "Late Night (23-1 AM)" },
+  { id: "overnight", name: "Overnight (2-4 AM)" }
 ];
 
 // Note: We use formatAvatarUrl from axios.js to handle avatar URLs consistently

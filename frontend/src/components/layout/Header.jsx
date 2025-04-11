@@ -313,7 +313,7 @@ const Header = () => {
           </Link>
         )}
 
-        {isLoggedIn && (
+        {isLoggedIn ? (
           <button
             className="avatar-button-mobile"
             onClick={handleMenu}
@@ -331,14 +331,14 @@ const Header = () => {
               }}
             />
           </button>
+        ) : (
+          <button
+            className="mobile-menu-button"
+            onClick={handleMobileMenuOpen}
+          >
+            <MenuIcon />
+          </button>
         )}
-
-        <button
-          className="mobile-menu-button"
-          onClick={handleMobileMenuOpen}
-        >
-          <MenuIcon />
-        </button>
 
         <Menu
           anchorEl={mobileMenuAnchorEl}
