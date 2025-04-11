@@ -316,7 +316,7 @@ const Header = () => {
         {isLoggedIn ? (
           <button
             className="avatar-button-mobile"
-            onClick={handleMenu}
+            onClick={handleMobileMenuOpen}
           >
             <img 
               src={formatAvatarUrl(userData?.avatar_url, username)}
