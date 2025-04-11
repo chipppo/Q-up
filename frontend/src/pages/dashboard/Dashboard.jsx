@@ -600,7 +600,7 @@ function Dashboard() {
                 <Button 
                   variant="contained" 
                   sx={{ mt: 2 }}
-                  onClick={() => navigate('/create-post')}
+                  onClick={() => navigate('/feed')}
                 >
                   Create Your First Post
                 </Button>

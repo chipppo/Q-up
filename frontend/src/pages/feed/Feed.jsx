@@ -197,7 +197,9 @@ const Feed = ({ createPostMode = false }) => {
     <Container className="feed-container">
       {/* Create Post Form */}
       <div id="create-post-form">
-        <CreatePostForm onPostCreated={handlePostCreated} />
+        <CreatePostForm onPostCreated={(newPost) => {
+          setPosts(prevPosts => [newPost, ...prevPosts]);
+        }} />
       </div>
       
       {/* Posts list with loading and empty states */}
