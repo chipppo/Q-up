@@ -402,4 +402,27 @@ class CommentRepliesView(APIView):
         except Comment.DoesNotExist:
             return Response({'error': 'Коментарът не е намерен'}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST) 
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class AllPostsView(APIView):
+    """
+    Списък на всички публикации в платформата, независимо от следването.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request):
+        """Получаване на всички публикации във времева последователност"""
+        posts = Post.objects.all().select_related('user', 'game').order_by('-created_at')
+        
+        # Add pagination
+        page = int(request.query_params.get('page', 1))
+        limit = int(request.query_params.get('limit', 20))
+        start = (page - 1) * limit
+        end = start + limit
+        
+        # Slice the queryset for pagination
+        paginated_posts = posts[start:end]
+        
+        serializer = PostSerializer(paginated_posts, many=True, context={'request': request})
+        return Response(serializer.data) 

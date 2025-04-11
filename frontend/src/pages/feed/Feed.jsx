@@ -23,10 +23,13 @@ import {
   Button, 
   Alert,
   Divider,
-  Paper
+  Paper,
+  Tabs,
+  Tab
 } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import PostCard from '../../components/feed/PostCard';
+import CreatePostForm from '../../components/feed/CreatePostForm';
 import API from '../../api/axios';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-toastify';
@@ -41,12 +44,15 @@ import '../../styles/pages/feed/Feed.css';
 const Feed = () => {
   const { isLoggedIn, username } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(null);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const [feedType, setFeedType] = useState('following'); // 'following' or 'all'
+  const [showCreatePost, setShowCreatePost] = useState(location.state?.createPost || false);
   const postsPerPage = 20;
 
   /**
@@ -66,7 +72,17 @@ const Feed = () => {
     if (isLoggedIn) {
       fetchPosts();
     }
-  }, [isLoggedIn]);
+  }, [isLoggedIn, feedType]);
+
+  /**
+   * Handles tab change between Following and All feeds
+   */
+  const handleTabChange = (event, newValue) => {
+    setPosts([]);
+    setPage(1);
+    setHasMore(true);
+    setFeedType(newValue);
+  };
 
   /**
    * Fetches posts with pagination support
@@ -83,8 +99,11 @@ const Feed = () => {
         setLoading(true);
       }
 
+      // Choose the appropriate endpoint based on feed type
+      const endpoint = feedType === 'following' ? '/posts/' : '/all-posts/';
+      
       // Adding pagination parameters to the request
-      const response = await API.get(`/posts/?page=${page}&limit=${postsPerPage}`);
+      const response = await API.get(`${endpoint}?page=${loadMore ? page : 1}&limit=${postsPerPage}`);
       
       // Checking if there are more posts to load
       const fetchedPosts = response.data;
@@ -153,6 +172,22 @@ const Feed = () => {
     fetchPosts(true);
   };
 
+  /**
+   * Handles successful post creation
+   * 
+   * @param {Object} newPost - The newly created post
+   */
+  const handlePostCreated = (newPost) => {
+    // Add new post to the beginning of the list
+    setPosts(prevPosts => [newPost, ...prevPosts]);
+    
+    // Hide the create post form
+    setShowCreatePost(false);
+    
+    // Clear location state
+    window.history.replaceState({}, document.title);
+  };
+
   if (loading) {
     return (
       <Container className="feed-container" sx={{ textAlign: 'center' }}>
@@ -178,21 +213,67 @@ const Feed = () => {
     <Container className="feed-container">
       <Paper elevation={0} sx={{ p: 3, mb: 4, borderRadius: 2 }} className="feed-header">
         <Typography variant="h4" component="h1" gutterBottom>
-          Your Feed
+          {feedType === 'following' ? 'Your Feed' : 'All Posts'}
         </Typography>
         <Typography variant="body1" color="text.secondary" paragraph>
-          See the latest posts from people you follow
+          {feedType === 'following' 
+            ? 'See the latest posts from people you follow' 
+            : 'Discover posts from all users on the platform'}
         </Typography>
+        
+        {/* Feed Type Tabs */}
+        <Box sx={{ borderBottom: 1, borderColor: 'divider', mt: 2 }}>
+          <Tabs 
+            value={feedType} 
+            onChange={handleTabChange} 
+            aria-label="feed type tabs"
+            sx={{ '& .MuiTab-root': { fontWeight: 'bold' } }}
+          >
+            <Tab value="following" label="Following" />
+            <Tab value="all" label="Discover All" />
+          </Tabs>
+        </Box>
       </Paper>
+
+      {/* Create Post Form */}
+      {showCreatePost && (
+        <Box mb={4}>
+          <CreatePostForm 
+            onPostCreated={handlePostCreated} 
+          />
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
+            <Button 
+              variant="text" 
+              color="inherit" 
+              onClick={() => {
+                setShowCreatePost(false);
+                window.history.replaceState({}, document.title);
+              }}
+            >
+              Cancel
+            </Button>
+          </Box>
+        </Box>
+      )}
 
       {posts.length === 0 ? (
         <Box className="empty-feed">
           <Typography variant="h6" color="text.secondary" gutterBottom>
             No posts to display
           </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Follow more users to see their posts in your feed
+          <Typography variant="body1" color="text.secondary" paragraph>
+            {feedType === 'following' 
+              ? 'Follow more users to see their posts in your feed' 
+              : 'Be the first to create a post!'}
           </Typography>
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={() => navigate('/feed', { state: { createPost: true } })}
+            sx={{ mt: 2 }}
+          >
+            Create Post
+          </Button>
         </Box>
       ) : (
         <>

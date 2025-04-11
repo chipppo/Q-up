@@ -7,6 +7,7 @@
  * - Image attachments
  * - Post deletion for owners
  * - Nested comment replies
+ * - Follow/unfollow button for users not currently followed
  * 
  * @module PostCard
  * @requires React
@@ -15,11 +16,11 @@
  * @requires react-toastify
  * @requires AuthContext
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Card,  CardHeader,  CardMedia,  CardContent,  CardActions,  Avatar,
   IconButton,  Typography,  TextField,  Button,  Box,  Divider,  List,  ListItem,
-  ListItemAvatar,  ListItemText,  Collapse,  Menu,  MenuItem,
+  ListItemAvatar,  ListItemText,  Collapse,  Menu,  MenuItem, Tooltip, Chip
 } from '@mui/material';
 import {
   ArrowUpward as LikeIcon,
@@ -27,6 +28,8 @@ import {
   MoreVert as MoreIcon,
   Delete as DeleteIcon,
   Send as SendIcon,
+  PersonAdd as FollowIcon,
+  PersonRemove as UnfollowIcon
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import API from '../../api/axios';
@@ -77,10 +80,70 @@ const PostCard = ({ post, onPostUpdate, onPostDelete }) => {
   const [likesCount, setLikesCount] = useState(post.likes_count);
   const [comments, setComments] = useState([]);
   const [loadingComments, setLoadingComments] = useState(false);
+  const [isFollowing, setIsFollowing] = useState(null);
+  const [followLoading, setFollowLoading] = useState(false);
 
   const isOwner = post.user.username === username;
   const menuOpen = Boolean(anchorEl);
   const likesMenuOpen = Boolean(likesAnchorEl);
+
+  // Check if the current user follows the post author
+  useEffect(() => {
+    const checkFollowingStatus = async () => {
+      if (!isLoggedIn || isOwner || isFollowing !== null) return;
+      
+      try {
+        const response = await API.get(`/users/${post.user.username}/followers/`);
+        const isCurrentUserFollowing = response.data.some(
+          follower => follower.username === username
+        );
+        setIsFollowing(isCurrentUserFollowing);
+      } catch (error) {
+        console.error('Error checking following status:', error);
+      }
+    };
+    
+    checkFollowingStatus();
+  }, [isLoggedIn, username, post.user.username, isOwner, isFollowing]);
+
+  /**
+   * Handles following or unfollowing the post author
+   */
+  const handleFollowToggle = async () => {
+    if (!isLoggedIn) {
+      toast.error('You must be logged in to follow users');
+      return;
+    }
+    
+    if (isOwner) return; // Can't follow yourself
+    
+    try {
+      setFollowLoading(true);
+      
+      // Optimistic update
+      const newFollowState = !isFollowing;
+      setIsFollowing(newFollowState);
+      
+      // Determine endpoint based on action
+      const endpoint = newFollowState 
+        ? `/users/${post.user.username}/follow/` 
+        : `/users/${post.user.username}/unfollow/`;
+        
+      await API.post(endpoint);
+      
+      toast.success(newFollowState 
+        ? `You are now following ${post.user.display_name || post.user.username}` 
+        : `You have unfollowed ${post.user.display_name || post.user.username}`
+      );
+    } catch (error) {
+      // Revert on failure
+      setIsFollowing(!isFollowing);
+      console.error('Error updating follow status:', error);
+      toast.error('Failed to update follow status');
+    } finally {
+      setFollowLoading(false);
+    }
+  };
 
   /**
    * Toggles comment section expansion and loads comments when expanded
@@ -516,7 +579,7 @@ const PostCard = ({ post, onPostUpdate, onPostDelete }) => {
           />
         }
         action={
-          isOwner && (
+          isOwner ? (
             <>
               <IconButton onClick={handleMenuClick}>
                 <MoreIcon />
@@ -532,16 +595,50 @@ const PostCard = ({ post, onPostUpdate, onPostDelete }) => {
                 </MenuItem>
               </Menu>
             </>
+          ) : isLoggedIn && isFollowing !== null && (
+            <Tooltip title={isFollowing ? "Unfollow" : "Follow"}>
+              <IconButton 
+                onClick={handleFollowToggle}
+                disabled={followLoading}
+                size="small"
+                sx={{ 
+                  color: isFollowing ? 'error.main' : 'primary.main',
+                  mr: 1 
+                }}
+              >
+                {isFollowing ? <UnfollowIcon /> : <FollowIcon />}
+              </IconButton>
+            </Tooltip>
           )
         }
         title={
-          <Typography 
-            component={Link} 
-            to={`/profile/${post.user.username}`}
-            sx={{ textDecoration: 'none', color: 'inherit', fontWeight: 'bold' }}
-          >
-            {post.user.display_name || post.user.username}
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography 
+              component={Link} 
+              to={`/profile/${post.user.username}`}
+              sx={{ textDecoration: 'none', color: 'inherit', fontWeight: 'bold' }}
+            >
+              {post.user.display_name || post.user.username}
+            </Typography>
+            
+            {isLoggedIn && !isOwner && isFollowing === false && (
+              <Chip
+                label="Follow"
+                size="small"
+                icon={<FollowIcon fontSize="small" />}
+                onClick={handleFollowToggle}
+                disabled={followLoading}
+                color="primary"
+                variant="outlined"
+                sx={{ 
+                  fontSize: '0.7rem', 
+                  height: 24, 
+                  cursor: 'pointer',
+                  '&:hover': { backgroundColor: 'rgba(0, 255, 170, 0.1)' }
+                }}
+              />
+            )}
+          </Box>
         }
         subheader={new Date(post.created_at).toLocaleString()}
       />
