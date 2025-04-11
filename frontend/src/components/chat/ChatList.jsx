@@ -181,8 +181,8 @@ const ChatList = ({
                     <Avatar 
                       src={formatAvatarUrl(user.avatar_url, user.username)}
                       onError={(e) => {
-                        // Replace broken image with letter avatar
-                        e.target.src = `https://ui-avatars.com/api/?name=${user.username[0].toUpperCase()}&background=random&color=fff`;
+                        // Use our consistent avatar function
+                        e.target.src = formatAvatarUrl(null, user.username);
                       }}
                     >
                       {user.username[0].toUpperCase()}
@@ -254,8 +254,8 @@ const ChatList = ({
                       <Avatar 
                         src={formatAvatarUrl(otherUser?.avatar_url, otherUser?.username)}
                         onError={(e) => {
-                          // Replace broken image with letter avatar
-                          e.target.src = `https://ui-avatars.com/api/?name=${otherUser?.username?.[0]?.toUpperCase() || 'U'}&background=random&color=fff`;
+                          // Use our consistent avatar function
+                          e.target.src = formatAvatarUrl(null, otherUser?.username || 'U');
                         }}
                       >
                         {otherUser?.username?.[0]?.toUpperCase()}

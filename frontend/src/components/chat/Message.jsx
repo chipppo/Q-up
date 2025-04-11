@@ -33,31 +33,8 @@ import {
   Error as ErrorIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
-import API from '../../api/axios';
+import API, { formatAvatarUrl } from '../../api/axios';
 import '../../styles/components/chat/Message.css';
-
-/**
- * Formats image URLs to handle various image source formats
- * 
- * @function formatImageUrl
- * @param {string|null} url - URL to format
- * @returns {string|null} Formatted URL or null if URL is missing
- */
-const formatImageUrl = (url) => {
-  if (!url) return null;
-  
-  // Only append baseURL if not already a full URL
-  if (url.startsWith('http')) {
-    // Check for broken profiles
-    if (url.includes('/media/profile_pics/') && url.includes('404')) {
-      return null;
-    }
-    return url;
-  }
-  
-  // Handle relative URLs
-  return `/api${url}`;
-};
 
 /**
  * Component that renders a single chat message with various interactions
@@ -344,10 +321,10 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
                 </Box>
               )}
 
-              {isImageAttachment(formatImageUrl(message.image)) ? (
+              {isImageAttachment(formatAvatarUrl(message.image)) ? (
                 <>
                   <img 
-                    src={formatImageUrl(message.image)}
+                    src={formatAvatarUrl(message.image)}
                     alt="Message attachment" 
                     className="message-image"
                     onLoad={handleImageLoad}
@@ -366,7 +343,7 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
               ) : (
                 <Box 
                   className="file-attachment"
-                  onClick={() => handleFileDownload(formatImageUrl(message.image), getFileName(message.image))}
+                  onClick={() => handleFileDownload(formatAvatarUrl(message.image), getFileName(message.image))}
                 >
                   <AttachFileIcon color="primary" />
                   <Box sx={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', ml: 2, flex: 1 }}>

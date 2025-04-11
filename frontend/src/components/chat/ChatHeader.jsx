@@ -73,8 +73,8 @@ const ChatHeader = ({ selectedChat, username, isMobile, onBackClick }) => {
           sx={{ width: 40, height: 40 }}
           src={formatAvatarUrl(otherUser?.avatar_url, otherUser?.username || 'U')}
           onError={(e) => {
-            // Replace broken image with letter avatar
-            e.target.src = `https://ui-avatars.com/api/?name=${otherUser?.username?.[0]?.toUpperCase() || 'U'}&background=random&color=fff`;
+            // Use our consistent default avatar system instead of direct UI Avatars call
+            e.target.src = formatAvatarUrl(null, otherUser?.username || 'U');
           }}
         >
           {otherUser?.username?.[0]?.toUpperCase()}

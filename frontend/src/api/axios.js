@@ -161,19 +161,31 @@ export const formatAvatarUrl = (url, username = 'U') => {
   // First letter of username, defaulting to 'U' if unavailable
   const firstLetter = username && username.length > 0 ? username[0].toUpperCase() : 'U';
   
-  // Default avatar using UI Avatars service with consistent styling
-  const defaultAvatar = `https://ui-avatars.com/api/?name=${firstLetter}&background=random&color=fff&size=256`;
+  // Create a consistent hash from username for stable color generation
+  const hash = username?.split('')?.reduce((acc, char) => {
+    return char.charCodeAt(0) + ((acc << 5) - acc);
+  }, 0) || 0;
+  
+  // Generate a consistent color based on username hash
+  const hue = Math.abs(hash) % 360;
+  
+  // Default avatar using UI Avatars service with username-based color
+  const defaultAvatar = `https://ui-avatars.com/api/?name=${firstLetter}&background=hsl(${hue},70%,60%)&color=fff&size=256`;
   
   // If no URL provided, return default avatar
   if (!url) return defaultAvatar;
   
+  // If URL is null, undefined, or empty string
+  if (!url || url === "") return defaultAvatar;
+  
   // Check if it's an external URL
   if (url.startsWith('http')) {
-    // Check for various problematic patterns in URLs
+    // Handle common error patterns in URLs
     if (url.includes('/media/default/') || 
         url.includes('/media/profile_pics/404') || 
         url.includes('404') || 
-        url.includes('placeholder')) {
+        url.includes('placeholder') ||
+        url.includes('undefined')) {
       return defaultAvatar;
     }
     return url;

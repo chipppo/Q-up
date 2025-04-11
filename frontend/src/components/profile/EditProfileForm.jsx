@@ -54,6 +54,7 @@ import SportsEsportsIcon from '@mui/icons-material/SportsEsports';
 import HeadsetIcon from '@mui/icons-material/Headset';
 import VideogameAssetIcon from '@mui/icons-material/VideogameAsset';
 import LinkIcon from '@mui/icons-material/Link';
+import { TIME_PERIODS, hoursToPeriodIds, periodIdsToHours } from '../../utils/timeUtils';
 
 /**
  * Days of the week for scheduling active hours
@@ -99,21 +100,6 @@ const LANGUAGES = [
 const PLATFORMS = [
   'PC', 'PlayStation 5', 'PlayStation 4', 'Xbox Series X/S', 'Xbox One', 
   'Nintendo Switch', 'Mobile', 'Steam Deck', 'VR'
-];
-
-/**
- * Predefined time periods that group hours together
- * Makes it easier for users to select multiple hours at once
- */
-const TIME_PERIODS = [
-  { id: "earlyMorning", name: "Early Morning (5-8 AM)", hours: ["05:00", "06:00", "07:00", "08:00"] },
-  { id: "morning", name: "Morning (8-11 AM)", hours: ["08:00", "09:00", "10:00", "11:00"] },
-  { id: "noon", name: "Noon (11 AM-2 PM)", hours: ["11:00", "12:00", "13:00", "14:00"] },
-  { id: "afternoon", name: "Afternoon (2-5 PM)", hours: ["14:00", "15:00", "16:00", "17:00"] },
-  { id: "evening", name: "Evening (5-8 PM)", hours: ["17:00", "18:00", "19:00", "20:00"] },
-  { id: "night", name: "Night (8-11 PM)", hours: ["20:00", "21:00", "22:00", "23:00"] },
-  { id: "lateNight", name: "Late Night (11 PM-2 AM)", hours: ["23:00", "00:00", "01:00", "02:00"] },
-  { id: "overnight", name: "Overnight (2-5 AM)", hours: ["02:00", "03:00", "04:00", "05:00"] }
 ];
 
 /**
@@ -282,8 +268,8 @@ const EditProfileForm = () => {
       // Get the current active hours
       const currentHours = Array.isArray(prev.active_hours) ? prev.active_hours : [];
       
-      // Find the hours for this period
-      const periodHours = TIME_PERIODS.find(p => p.id === period)?.hours || [];
+      // Convert the period ID to hours
+      const periodHours = periodIdsToHours([period]);
       
       // Check if all hours in this period are already active
       const allHoursActive = periodHours.every(hour => currentHours.includes(hour));
