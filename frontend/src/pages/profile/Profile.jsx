@@ -15,7 +15,7 @@
  */
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import API from "../../api/axios";
+import API, { formatAvatarUrl } from "../../api/axios";
 import { useAuth } from "../../context/AuthContext.jsx";
 import "../../styles/pages/profile/Profile.css";
 import { toast } from 'react-toastify';
@@ -184,7 +184,7 @@ function ViewProfile({ user, gameStats, isFollowing, onFollowToggle, isLoggedIn,
         <Grid item xs={12} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <Avatar
-              src={user?.avatar || '/images/profile-placeholder.svg'}
+              src={formatAvatarUrl(user?.avatar, user?.username)}
               sx={{ width: 100, height: 100 }}
             >
               {user?.username?.[0]?.toUpperCase()}

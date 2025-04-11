@@ -14,7 +14,7 @@
  */
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import API from "../../api/axios";
+import API, { formatAvatarUrl } from "../../api/axios";
 import { useAuth } from "../../context/AuthContext";
 import { toast } from "react-toastify";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
@@ -146,10 +146,10 @@ const FollowSuggestions = ({ username, limit = 3 }) => {
               <Link to={`/profile/${user.username}`}>
                 <img 
                   className="follow-suggestion-avatar"
-                  src={user.avatar ? `${API.defaults.baseURL}${user.avatar}` : null}
+                  src={formatAvatarUrl(user.avatar, user.username)}
                   alt={user.username}
                   onError={(e) => {
-                    e.target.src = `https://ui-avatars.com/api/?name=${user.username[0]}&background=random`;
+                    e.target.src = formatAvatarUrl(null, user.username);
                   }}
                 />
               </Link>

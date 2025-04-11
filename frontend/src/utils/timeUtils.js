@@ -61,13 +61,13 @@ export const formatActiveHours = (activeHours, timezoneOffset = 0) => {
     return "Not specified";
   }
   
-  // Convert hours to period IDs
+  // Get the period IDs from active hours
   const activePeriodIds = hoursToPeriodIds(activeHours);
   
-  // Get the names of active periods
-  const periodNames = TIME_PERIODS
-    .filter(period => activePeriodIds.includes(period.id))
-    .map(period => period.name);
+  // For each period, check if ALL hours are active
+  const fullyActivePeriods = TIME_PERIODS.filter(period => 
+    period.hours.every(hour => activeHours.includes(hour))
+  ).map(period => period.name);
   
-  return periodNames.length > 0 ? periodNames.join(", ") : "Not specified";
+  return fullyActivePeriods.length > 0 ? fullyActivePeriods.join(", ") : "Not specified";
 }; 

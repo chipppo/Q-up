@@ -16,7 +16,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import API from '../../api/axios';
+import API, { formatAvatarUrl } from '../../api/axios';
 import { toast } from 'react-toastify';
 import {
   Box,
@@ -281,16 +281,14 @@ const EditProfileForm = () => {
           active_hours: currentHours.filter(hour => !periodHours.includes(hour))
         };
       } else {
-        // If not all hours are active, add the missing ones
+        // If not all active, add ALL hours in the period (no partial selection)
         const newHours = [...currentHours];
-        periodHours.forEach(hour => {
-          if (!newHours.includes(hour)) {
-            newHours.push(hour);
-          }
-        });
+        // First, remove any existing hours from this period to ensure clean state
+        const hoursWithoutPeriod = newHours.filter(hour => !periodHours.includes(hour));
+        // Then add all hours from this period
         return {
           ...prev,
-          active_hours: newHours.sort()
+          active_hours: [...hoursWithoutPeriod, ...periodHours].sort()
         };
       }
     });
@@ -458,18 +456,12 @@ const EditProfileForm = () => {
           const isActive = Array.isArray(formData.active_hours) && 
             period.hours.every(hour => formData.active_hours.includes(hour));
           
-          // Check if some hours in this period are active (for partial selection)
-          const isPartiallyActive = Array.isArray(formData.active_hours) && 
-            period.hours.some(hour => formData.active_hours.includes(hour)) &&
-            !isActive;
-          
           return (
             <Chip
               key={period.id}
               label={period.name}
               onClick={() => handleActiveHoursChange(period.id)}
-              color={isActive ? "primary" : isPartiallyActive ? "secondary" : "default"}
-              variant={isPartiallyActive ? "outlined" : "filled"}
+              color={isActive ? "primary" : "default"}
               sx={{ m: 0.5 }}
             />
           );
@@ -515,7 +507,7 @@ const EditProfileForm = () => {
           <Grid item xs={12}>
             <Box display="flex" alignItems="center" gap={2}>
               <Avatar
-                src={formData.avatar instanceof File ? URL.createObjectURL(formData.avatar) : formData.avatar ? `${API.defaults.baseURL}${formData.avatar}` : null}
+                src={formData.avatar instanceof File ? URL.createObjectURL(formData.avatar) : formatAvatarUrl(formData.avatar, username)}
                 sx={{ width: 100, height: 100 }}
               />
               <Button variant="contained" component="label">
