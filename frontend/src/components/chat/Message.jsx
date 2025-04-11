@@ -31,31 +31,8 @@ import {
   Download as DownloadIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
-import API from '../../api/axios';
+import API, { formatImageUrl } from '../../api/axios';
 import '../../styles/components/chat/Message.css';
-
-/**
- * Formats image URLs to handle various image source formats
- * 
- * @function formatImageUrl
- * @param {string} url - URL to format
- * @returns {string|null} Formatted URL or null if URL is missing
- */
-const formatImageUrl = (url) => {
-  if (!url) return null;
-  
-  // Only append baseURL if not already a full URL
-  if (url.startsWith('http')) {
-    // Check for broken profiles
-    if (url.includes('/media/profile_pics/') && url.includes('404')) {
-      return null;
-    }
-    return url;
-  }
-  
-  // Handle relative URLs
-  return `/api${url}`;
-};
 
 /**
  * Component that renders a single chat message with various interactions
@@ -304,10 +281,16 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
               }}
             >
               <Typography variant="caption" fontWeight="medium" sx={{ display: 'block', mb: 0.5 }}>
-                {message.parent_sender || (message.parent?.sender?.username ? message.parent.sender.username : 'User')}
+                {typeof message.parent === 'object' && message.parent?.sender ? 
+                  (typeof message.parent.sender === 'object' ? 
+                    message.parent.sender.username || 'User' : 
+                    message.parent.sender || 'User') : 
+                  message.parent_sender || 'User'}
               </Typography>
               <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                {message.parent_message?.content || message.parent?.content || (message.parent?.has_image ? 'Image' : 'File')}
+                {message.parent_content || 
+                  (typeof message.parent === 'object' ? message.parent.content : null) || 
+                  (message.parent_has_image ? 'Image' : 'Reply')}
               </Typography>
             </Box>
           )}
@@ -373,37 +356,6 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
               )}
             </Box>
           )}
-          
-          {/* Message timestamp inside the bubble */}
-          <Typography 
-            variant="caption" 
-            className="message-timestamp-inline"
-            sx={{ 
-              position: 'absolute',
-              bottom: '2px',
-              right: '8px',
-              fontSize: '0.7rem', 
-              opacity: 0.8,
-              color: isOwnMessage ? 'rgba(255, 255, 255, 0.8)' : 'text.secondary',
-              display: 'flex',
-              alignItems: 'center'
-            }} 
-          >
-            {isOwnMessage && message.is_read !== undefined && (
-              <span className="message-status" style={{ marginRight: '5px' }}>
-                {message.is_read ? 
-                  <span style={{ display: 'inline-flex', alignItems: 'center', color: isOwnMessage ? 'rgba(255, 255, 255, 0.9)' : 'var(--color-primary)' }}>
-                    <DoneAllIcon fontSize="inherit" style={{ marginRight: '2px', fontSize: '0.8rem' }} />
-                  </span> 
-                  : 
-                  <span style={{ display: 'inline-flex', alignItems: 'center', color: isOwnMessage ? 'rgba(255, 255, 255, 0.7)' : 'var(--color-text-tertiary)' }}>
-                    <CheckIcon fontSize="inherit" style={{ marginRight: '2px', fontSize: '0.8rem' }} />
-                  </span>
-                }
-              </span>
-            )}
-            {formatMessageTime(messageTime)}
-          </Typography>
         </div>
         
         {isOwnMessage && (
@@ -422,6 +374,38 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
           </IconButton>
         )}
       </Box>
+      
+      {/* Message timestamp moved outside the bubble */}
+      <Typography 
+        variant="caption" 
+        className="message-timestamp-outside"
+        sx={{ 
+          fontSize: '0.7rem', 
+          opacity: 0.8,
+          color: 'text.secondary',
+          display: 'flex',
+          alignItems: 'center',
+          mt: 0.5,
+          mr: isOwnMessage ? 1 : 0,
+          ml: isOwnMessage ? 0 : 1,
+          justifyContent: isOwnMessage ? 'flex-end' : 'flex-start',
+        }} 
+      >
+        {isOwnMessage && message.is_read !== undefined && (
+          <span className="message-status" style={{ marginRight: '5px' }}>
+            {message.is_read ? 
+              <span style={{ display: 'inline-flex', alignItems: 'center', color: 'var(--color-primary)' }}>
+                <DoneAllIcon fontSize="inherit" style={{ marginRight: '2px', fontSize: '0.8rem' }} />
+              </span> 
+              : 
+              <span style={{ display: 'inline-flex', alignItems: 'center', color: 'var(--color-text-tertiary)' }}>
+                <CheckIcon fontSize="inherit" style={{ marginRight: '2px', fontSize: '0.8rem' }} />
+              </span>
+            }
+          </span>
+        )}
+        {formatMessageTime(messageTime)}
+      </Typography>
       
       <Menu
         anchorEl={anchorEl}

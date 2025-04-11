@@ -134,18 +134,60 @@ API.interceptors.response.use(
  * @returns {string} Properly formatted avatar URL
  */
 export const formatAvatarUrl = (url, username = 'U') => {
-  if (!url) return `https://ui-avatars.com/api/?name=${username[0].toUpperCase()}&background=random&color=fff`;
+  // For consistent logging
+  console.log('Processing avatar URL:', url, 'for user:', username);
+  
+  // If no URL provided, use ui-avatars with first letter of username
+  if (!url || url === 'null' || url === 'undefined') {
+    return `https://ui-avatars.com/api/?name=${username ? username[0].toUpperCase() : 'U'}&background=random&color=fff`;
+  }
+  
+  // Check if it's already a full URL
   if (url.startsWith('http')) {
-    // Check if it's an external URL that contains a default avatar path
-    if (url.includes('/media/default/') || url.includes('/media/profile_pics/') && url.includes('404')) {
-      return `https://ui-avatars.com/api/?name=${username[0].toUpperCase()}&background=random&color=fff`;
+    // Handle known problematic paths that result in 404s
+    if (url.includes('/media/default/') || 
+        (url.includes('/media/profile_pics/') && url.includes('404')) ||
+        url.includes('undefined') ||
+        url.includes('null')) {
+      return `https://ui-avatars.com/api/?name=${username ? username[0].toUpperCase() : 'U'}&background=random&color=fff`;
     }
     return url;
   }
-  if (url.includes('/media/default/') || url.includes('/media/profile_pics/') && url.includes('404')) {
-    return `https://ui-avatars.com/api/?name=${username[0].toUpperCase()}&background=random&color=fff`;
+  
+  // Handle relative URLs with problematic paths
+  if (url.includes('/media/default/') || 
+      url.includes('undefined') ||
+      url.includes('null') ||
+      (url.includes('/media/profile_pics/') && url.includes('404'))) {
+    return `https://ui-avatars.com/api/?name=${username ? username[0].toUpperCase() : 'U'}&background=random&color=fff`;
   }
-  return `${API.defaults.baseURL}${url}`;
+  
+  // For relative URLs, make them absolute with API base URL
+  return `${API.defaults.baseURL}${url.startsWith('/') ? url : '/' + url}`;
+};
+
+/**
+ * Utility function to format image URLs consistently across the application
+ * 
+ * @param {string|null} url - The image URL to format
+ * @returns {string|null} Properly formatted URL or null if URL is missing
+ */
+export const formatImageUrl = (url) => {
+  // For consistent logging
+  console.log('Processing image URL:', url);
+  
+  // If no URL provided, return null
+  if (!url || url === 'null' || url === 'undefined') {
+    return null;
+  }
+  
+  // Check if it's already a full URL
+  if (url.startsWith('http')) {
+    return url;
+  }
+  
+  // For relative URLs, make them absolute with API base URL
+  return `${API.defaults.baseURL}${url.startsWith('/') ? url : '/' + url}`;
 };
 
 export default API;

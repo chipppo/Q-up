@@ -14,7 +14,7 @@ import {
   InsertDriveFile as InsertDriveFileIcon,
   Reply as ReplyIcon,
 } from '@mui/icons-material';
-import API from '../../api/axios';
+import API, { formatImageUrl } from '../../api/axios';
 import { toast } from 'react-toastify';
 import '../../styles/components/chat/MessageInput.css';
 
@@ -109,14 +109,22 @@ const MessageInput = ({ selectedChat, replyTo, setReplyTo, addMessage, scrollToB
       
       if (selectedImage) {
         formData.append('image', selectedImage);
+        console.log('Uploading image:', selectedImage.name, selectedImage.type, selectedImage.size);
       }
       
       if (selectedFile) {
-        formData.append('file', selectedFile);
+        formData.append('image', selectedFile); // Using 'image' field for all file types
+        console.log('Uploading file:', selectedFile.name, selectedFile.type, selectedFile.size);
       }
 
-      if (replyTo) {
-        formData.append('reply_to', replyTo.id);
+      if (replyTo && replyTo.id) {
+        formData.append('parent', replyTo.id); // Server expects 'parent' not 'reply_to'
+        console.log('Replying to message:', replyTo.id);
+      }
+
+      // Log the form data keys for debugging
+      for (let key of formData.keys()) {
+        console.log(`FormData contains: ${key}`);
       }
 
       // Get the authentication token
@@ -171,8 +179,9 @@ const MessageInput = ({ selectedChat, replyTo, setReplyTo, addMessage, scrollToB
       setImagePreview(null);
       setSelectedFile(null);
       setFilePreview(null);
-      setReplyTo(null);
+      setReplyTo(null); // Clear reply state after sending
       
+      // Clear file input values
       if (fileInputRef.current) fileInputRef.current.value = '';
       if (documentInputRef.current) documentInputRef.current.value = '';
 
@@ -192,22 +201,14 @@ const MessageInput = ({ selectedChat, replyTo, setReplyTo, addMessage, scrollToB
         scrollToBottom();
       }
       
-      // Show toast message
-      toast.success("Message sent!");
-      
+      // Show toast message - simple version
+      toast.success("Message sent");
     } catch (error) {
       console.error("Error sending message:", error);
       toast.error("Failed to send message: " + (error.message || "Unknown error"));
     } finally {
       setSending(false);
     }
-  };
-  
-  // Helper function to format image URLs
-  const formatImageUrl = (url) => {
-    if (!url) return null;
-    if (url.startsWith('http')) return url;
-    return `${API.defaults.baseURL}${url}`;
   };
   
   // Handle image selection

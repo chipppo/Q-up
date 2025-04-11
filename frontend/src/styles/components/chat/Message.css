@@ -53,7 +53,7 @@
   width: 100%;
   max-width: 100%;
   overflow-x: hidden;
-  padding-bottom: 15px; /* Space for timestamp */
+  padding-bottom: 0; /* Removed padding that was for timestamp */
 }
 
 /* Sent message specific styles */
@@ -132,6 +132,14 @@
   right: 8px;
   bottom: 2px;
   opacity: 0.8;
+}
+
+.message-timestamp-outside {
+  font-size: 0.7rem;
+  opacity: 0.8;
+  margin-top: 2px;
+  padding: 0 4px;
+  white-space: nowrap;
 }
 
 .message-status {
