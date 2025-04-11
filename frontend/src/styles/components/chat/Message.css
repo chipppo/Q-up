@@ -125,6 +125,14 @@
   display: block;
 }
 
+/* SVG specific styling */
+object.message-image {
+  background-color: rgba(255, 255, 255, 0.1);
+  padding: 8px;
+  width: 100%;
+  min-height: 100px;
+}
+
 .message-image[src$=".svg"], 
 .message-image[src*=".svg?"] {
   object-fit: contain;

@@ -341,20 +341,43 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
                   (message.image.toLowerCase().includes('.webp') || 
                    message.image.toLowerCase().includes('.svg')))) ? (
                 <>
-                  <img 
-                    src={formatAvatarUrl(message.image)}
-                    alt="Message attachment" 
-                    className="message-image"
-                    onLoad={handleImageLoad}
-                    onError={handleImageError}
-                    style={{ 
-                      display: imageLoading || imageError ? 'none' : 'block',
-                      maxWidth: '100%',
-                      maxHeight: '350px',
-                      objectFit: message.image?.toLowerCase().endsWith('.svg') ? 'contain' : 'cover',
-                      borderRadius: '8px'
-                    }}
-                  />
+                  {message.image && message.image.toLowerCase().includes('.svg') ? (
+                    // Special handling for SVG files using object tag for better compatibility
+                    <object
+                      data={formatAvatarUrl(message.image)}
+                      type="image/svg+xml"
+                      className="message-image"
+                      onLoad={handleImageLoad}
+                      style={{ 
+                        display: imageLoading || imageError ? 'none' : 'block',
+                        maxWidth: '100%',
+                        maxHeight: '350px',
+                        borderRadius: '8px',
+                        backgroundColor: 'rgba(255, 255, 255, 0.1)'
+                      }}
+                    >
+                      <Box className="image-error-message">
+                        <ErrorIcon fontSize="small" sx={{ mr: 1, verticalAlign: 'middle' }} />
+                        SVG could not be loaded
+                      </Box>
+                    </object>
+                  ) : (
+                    // Regular image handling for other formats
+                    <img 
+                      src={formatAvatarUrl(message.image)}
+                      alt="Message attachment" 
+                      className="message-image"
+                      onLoad={handleImageLoad}
+                      onError={handleImageError}
+                      style={{ 
+                        display: imageLoading || imageError ? 'none' : 'block',
+                        maxWidth: '100%',
+                        maxHeight: '350px',
+                        objectFit: 'cover',
+                        borderRadius: '8px'
+                      }}
+                    />
+                  )}
                   {imageError && (
                     <Box className="image-error-message">
                       <ErrorIcon fontSize="small" sx={{ mr: 1, verticalAlign: 'middle' }} />
