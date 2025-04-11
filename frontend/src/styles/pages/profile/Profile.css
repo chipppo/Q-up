@@ -162,29 +162,6 @@
   font-weight: 600;
 }
 
-/* Override MUI Tab styles for better visibility */
-.MuiTabs-root .MuiTab-root {
-  color: var(--color-text-secondary);
-  font-weight: 500;
-  opacity: 1;
-  transition: all var(--transition-fast);
-}
-
-.MuiTabs-root .MuiTab-root:hover {
-  color: var(--color-primary);
-  background-color: rgba(0, 255, 170, 0.05);
-}
-
-.MuiTabs-root .MuiTab-root.Mui-selected {
-  color: var(--color-primary);
-  font-weight: 600;
-}
-
-.MuiTabs-indicator {
-  background-color: var(--color-primary);
-  height: 3px;
-}
-
 .profile-content {
   min-height: 300px;
 }
@@ -390,4 +367,27 @@
     width: 100%;
     max-width: 200px;
   }
+}
+
+/* Override MUI Tab styles for better visibility */
+.MuiTabs-root .MuiTab-root {
+  color: var(--color-text-secondary);
+  font-weight: 500;
+  opacity: 1;
+  transition: all var(--transition-fast);
+}
+
+.MuiTabs-root .MuiTab-root:hover {
+  color: var(--color-primary);
+  background-color: rgba(0, 255, 170, 0.05);
+}
+
+.MuiTabs-root .MuiTab-root.Mui-selected {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.MuiTabs-indicator {
+  background-color: var(--color-primary);
+  height: 3px;
 }

@@ -234,8 +234,21 @@ const theme = createTheme({
           '& .MuiTabs-flexContainer': {
             '@media (max-width: 600px)': {
               overflowX: 'auto',
+              msOverflowStyle: 'none', /* IE and Edge */
+              scrollbarWidth: 'none',  /* Firefox */
+              '&::-webkit-scrollbar': {
+                display: 'none'  /* Chrome, Safari, Opera */
+              }
             },
           },
+          '& .MuiTabs-scroller': {
+            overflowX: 'auto !important',
+            msOverflowStyle: 'none', /* IE and Edge */
+            scrollbarWidth: 'none',  /* Firefox */
+            '&::-webkit-scrollbar': {
+              display: 'none'  /* Chrome, Safari, Opera */
+            }
+          }
         },
         scrollButtons: {
           '&.Mui-disabled': {

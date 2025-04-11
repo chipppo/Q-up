@@ -47,6 +47,11 @@
   align-items: flex-start;
 }
 
+/* Additional space for replies */
+.message-wrapper.with-reply {
+  margin-bottom: 16px;
+}
+
 .message-bubble {
   padding: 10px 14px;
   border-radius: 16px;
@@ -156,5 +161,14 @@
 @media (max-width: 480px) {
   .messages-container {
     padding: 4px 8px;
+  }
+  
+  .message-wrapper {
+    width: 100%;
+    margin-bottom: 10px;
+  }
+  
+  .message-bubble {
+    max-width: 85%;
   }
 } 

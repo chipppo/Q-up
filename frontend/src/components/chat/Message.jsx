@@ -296,9 +296,34 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
     return () => clearTimeout(timer);
   }, [message.image, message.has_image]);
 
+  const isImage = (filename) => {
+    if (!filename) return false;
+    
+    // Special checks for known image types that might be missed
+    const urlLower = filename.toLowerCase();
+    if (urlLower.includes('.webp') || urlLower.includes('image/webp')) {
+      return true;
+    }
+    if (urlLower.includes('.svg') || urlLower.includes('image/svg')) {
+      return true;
+    }
+    
+    // Extract file extension from the path
+    const extension = filename.split('.').pop().toLowerCase();
+    return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 
+            'tiff', 'tif', 'avif', 'heic', 'heif'].includes(extension);
+  };
+
   return (
-    <Box className={`message-wrapper ${isOwnMessage ? 'sent' : 'received'}`} 
-      sx={{ opacity: isDeleting ? 0.5 : 1 }}>
+    <Box 
+      className={`
+        message-wrapper 
+        ${isOwnMessage ? 'sent' : 'received'} 
+        ${message.parent ? 'with-reply' : ''}
+      `}
+      data-testid={`message-${message.id}`}
+      sx={{ opacity: isDeleting ? 0.5 : 1 }}
+    >
       
       {/* Sender name for received messages */}
       {!isOwnMessage && (
@@ -335,15 +360,39 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
         >
           {/* Reply reference */}
           {message.parent && (
-            <Box className="reply-bubble">
-              <Typography variant="caption" fontWeight="medium" sx={{ display: 'block', mb: 0.5 }}>
+            <Box className="reply-bubble" sx={{ 
+              width: '100%',
+              maxWidth: 'none',
+              position: 'relative',
+              left: 0,
+              right: 0,
+            }}>
+              <Typography variant="caption" fontWeight="medium" 
+                sx={{ 
+                  display: 'block', 
+                  mb: 0.5,
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  width: '100%'
+                }}
+              >
                 {typeof message.parent_sender === 'object' 
                   ? message.parent_sender?.display_name || message.parent_sender?.username || 'User'
                   : message.parent_sender || (message.parent?.sender?.username 
                     ? message.parent.sender.username 
                     : 'User')}
               </Typography>
-              <Typography variant="body2" sx={{ opacity: 0.9 }}>
+              <Typography variant="body2" 
+                sx={{ 
+                  opacity: 0.9,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical',
+                }}
+              >
                 {message.parent_message?.content || message.parent?.content || 
                   (message.parent?.has_image || message.parent?.image ? 'Image' : 'File')}
               </Typography>
@@ -374,9 +423,7 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
                     onLoad={handleImageLoad}
                     onError={handleImageError}
                     style={{ 
-                      display: imageLoading || imageError ? 'none' : 'block',
-                      maxWidth: '100%',
-                      height: 'auto'
+                      display: imageLoading || imageError ? 'none' : 'block'
                     }}
                   />
                   {imageError && (
@@ -409,7 +456,7 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
           {/* File attachments */}
           {message.file && (
             <div className="message-file">
-              {isImageAttachment(message.file) ? (
+              {isImage(message.file) ? (
                 <img 
                   src={`${API.defaults.baseURL}${message.file}`} 
                   alt="Shared file" 

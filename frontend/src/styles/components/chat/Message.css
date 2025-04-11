@@ -28,11 +28,11 @@
 
 /* Message bubble */
 .message-bubble {
+  position: relative;
   padding: 10px 14px;
   border-radius: 16px;
-  max-width: 85%;
+  max-width: 80%;
   word-wrap: break-word;
-  position: relative;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
   margin-bottom: 4px; /* Add space for timestamp below */
 }
@@ -107,8 +107,20 @@
   font-size: 0.85rem;
   background-color: rgba(0, 255, 170, 0.05);
   border-radius: 4px;
-  width: calc(100% - 20px);
+  width: 100%;
+  max-width: none;
   box-sizing: border-box;
+  position: relative;
+  /* Ensure the replied message doesn't make the reply extremely tall */
+  max-height: 80px;
+  overflow: hidden;
+}
+
+/* Ensure quoted content doesn't create extremely tall bubbles */
+.reply-bubble Typography[variant="body2"] {
+  max-height: 40px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Images */
@@ -117,19 +129,19 @@
   border-radius: 8px;
   margin-top: 8px;
   cursor: pointer;
-  object-fit: contain; /* Ensure image maintains aspect ratio */
-  display: block; /* Ensure consistent display behavior */
-  max-height: 300px; /* Limit extremely tall images */
-  width: auto; /* Keep natural width */
-  height: auto; /* Keep natural height */
+  object-fit: contain;
+  display: block;
+  max-height: 300px;
+  width: auto;
+  height: auto;
 }
 
 /* SVG-specific styles to ensure they display correctly */
 .message-image[src$=".svg"],
 .message-image[src*=".svg?"] {
   background-color: transparent;
-  min-width: 100px; /* Ensure tiny SVGs are visible */
-  min-height: 100px; /* Ensure tiny SVGs are visible */
+  min-width: 100px;
+  min-height: 100px;
 }
 
 /* WebP-specific styles if needed */
@@ -247,12 +259,12 @@
 
 @media (max-width: 480px) {
   .message-bubble {
-    max-width: calc(85% - 36px); /* Adjust for the menu button */
-    padding: 8px 12px;
+    max-width: 90%;
   }
   
-  .message-wrapper.sent,
-  .message-wrapper.received {
-    width: 98%;
+  .reply-bubble {
+    margin-left: -5px;
+    margin-right: -5px;
+    width: calc(100% + 10px);
   }
 } 

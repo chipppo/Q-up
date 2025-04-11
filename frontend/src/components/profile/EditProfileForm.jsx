@@ -285,16 +285,16 @@ const EditProfileForm = () => {
       let updatedHours;
       
       if (allHoursActive) {
-        // If all hours are active, remove ONLY the hours from this specific period
+        // If all hours are active, remove ALL hours from this period
         updatedHours = currentHours.filter(hour => !periodHours.includes(hour));
       } else {
-        // Otherwise, add ONLY the hours from this specific period that aren't already selected
+        // Otherwise, add ALL hours from this period (no partial selections)
         
-        // Create a new set to avoid duplicate hours
-        updatedHours = [...new Set([
-          ...currentHours,
-          ...periodHours
-        ])];
+        // First, remove any existing hours from this period to ensure clean state
+        const hoursWithoutPeriod = currentHours.filter(hour => !periodHours.includes(hour));
+        
+        // Then add all hours from this period
+        updatedHours = [...hoursWithoutPeriod, ...periodHours];
       }
       
       // Sort hours for consistent display and storage
