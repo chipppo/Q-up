@@ -137,8 +137,13 @@ const MessageInput = forwardRef(({
     
     setAttachment(file);
     
+    // Recognize WebP and SVG files as images even if content type is wrong
+    const isImage = file.type.startsWith('image/') || 
+                   file.name.toLowerCase().endsWith('.webp') ||
+                   file.name.toLowerCase().endsWith('.svg');
+    
     // Create preview for images
-    if (file.type.startsWith('image/')) {
+    if (isImage) {
       const reader = new FileReader();
       reader.onload = (event) => {
         setAttachmentPreview(event.target.result);

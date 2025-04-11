@@ -52,6 +52,9 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
   // Get authentication context correctly
   const { username } = useAuth();
   
+  // Generate a stable key for this message that won't change on re-renders
+  const stableMessageKey = React.useMemo(() => `msg-${message.id}-${Date.now()}`, [message.id]);
+  
   // More robust check for own messages - compare with the logged in username
   const isOwnMessage = Boolean(
     username && message && (
@@ -411,7 +414,7 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
           {/* File attachments */}
           {message.file && (
             <div className="message-file">
-              {isImage(message.file) ? (
+              {isImage(message.file) || message.file.toLowerCase().includes('.webp') || message.file.toLowerCase().includes('.svg') ? (
                 <img 
                   src={`${API.defaults.baseURL}${message.file}`} 
                   alt="Shared file" 

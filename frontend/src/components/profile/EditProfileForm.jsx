@@ -133,6 +133,15 @@ const EditProfileForm = () => {
   const [removingLink, setRemovingLink] = useState(false);
   const [removingLinkIndex, setRemovingLinkIndex] = useState(null);
 
+  // Get a flat list of all valid active hours from TIME_PERIODS
+  const ALL_VALID_HOURS = React.useMemo(() => {
+    const validHours = new Set();
+    TIME_PERIODS.forEach(period => {
+      period.hours.forEach(hour => validHours.add(hour));
+    });
+    return Array.from(validHours);
+  }, []);
+
   /**
    * Load the user's current profile data when the component mounts
    */
@@ -144,7 +153,7 @@ const EditProfileForm = () => {
         
         console.log('Fetched user data:', userData);
         
-        // Ensure active_hours is always an array
+        // Ensure active_hours is always an array of valid hours
         let parsedActiveHours = [];
         try {
           if (userData.active_hours) {
@@ -160,7 +169,12 @@ const EditProfileForm = () => {
                     .sort();
             }
           }
-          parsedActiveHours = Array.isArray(parsedActiveHours) ? parsedActiveHours : [];
+          
+          // Filter out any invalid hour values that might be leftover
+          parsedActiveHours = Array.isArray(parsedActiveHours) 
+            ? parsedActiveHours.filter(hour => ALL_VALID_HOURS.includes(hour))
+            : [];
+            
         } catch (e) {
           console.error('Error parsing active_hours:', e);
           parsedActiveHours = [];
@@ -268,7 +282,7 @@ const EditProfileForm = () => {
       // Get the current active hours, ensuring it's an array
       const currentHours = Array.isArray(prev.active_hours) ? [...prev.active_hours] : [];
       
-      // Get the hours for this period
+      // Find the period object
       const periodObj = TIME_PERIODS.find(p => p.id === period);
       
       if (!periodObj) {
@@ -276,25 +290,26 @@ const EditProfileForm = () => {
         return prev;
       }
       
-      const periodHours = periodObj.hours;
+      // Get the exact hours for this period
+      const exactPeriodHours = [...periodObj.hours];
       
-      // Count how many hours from this period are already active
-      const activeHoursInPeriod = periodHours.filter(hour => currentHours.includes(hour));
-      const allHoursActive = activeHoursInPeriod.length === periodHours.length;
+      // Check if ALL hours in this period are already active
+      const allHoursActive = exactPeriodHours.every(hour => currentHours.includes(hour));
       
       let updatedHours;
       
       if (allHoursActive) {
-        // If all hours are active, remove ALL hours from this period
-        updatedHours = currentHours.filter(hour => !periodHours.includes(hour));
+        // If all hours are active, remove ONLY the hours in this exact period
+        updatedHours = currentHours.filter(hour => !exactPeriodHours.includes(hour));
       } else {
-        // Otherwise, add ALL hours from this period (no partial selections)
-        
-        // First, remove any existing hours from this period to ensure clean state
-        const hoursWithoutPeriod = currentHours.filter(hour => !periodHours.includes(hour));
+        // First remove any hours from this period that might already be selected
+        // to ensure clean state
+        const hoursWithoutThisPeriod = currentHours.filter(hour => 
+          !exactPeriodHours.includes(hour)
+        );
         
         // Then add all hours from this period
-        updatedHours = [...hoursWithoutPeriod, ...periodHours];
+        updatedHours = [...hoursWithoutThisPeriod, ...exactPeriodHours];
       }
       
       // Sort hours for consistent display and storage
@@ -463,21 +478,34 @@ const EditProfileForm = () => {
       </Typography>
       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
         {TIME_PERIODS.map(period => {
-          // Check if all hours in this period are active
-          const isActive = Array.isArray(formData.active_hours) && 
-            period.hours.every(hour => formData.active_hours.includes(hour));
+          // Count how many hours in this period are active
+          const activeHoursInPeriod = Array.isArray(formData.active_hours) 
+            ? period.hours.filter(hour => formData.active_hours.includes(hour))
+            : [];
+            
+          // Check selection status
+          const isFullyActive = activeHoursInPeriod.length === period.hours.length;
+          const isPartiallyActive = activeHoursInPeriod.length > 0 && !isFullyActive;
           
           return (
             <Chip
               key={period.id}
-              label={period.name}
+              label={`${period.name}${isPartiallyActive ? ' *' : ''}`}
               onClick={() => handleActiveHoursChange(period.id)}
-              color={isActive ? "primary" : "default"}
-              sx={{ m: 0.5 }}
+              color={isFullyActive ? "primary" : (isPartiallyActive ? "secondary" : "default")}
+              variant={isPartiallyActive ? "outlined" : "filled"}
+              sx={{ 
+                m: 0.5,
+                borderColor: isPartiallyActive ? 'secondary.main' : 'transparent',
+                backgroundColor: isPartiallyActive ? 'rgba(255, 0, 170, 0.1)' : undefined
+              }}
             />
           );
         })}
       </Box>
+      <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+        * Partially selected (some hours in this time period are active)
+      </Typography>
     </Grid>
   );
 

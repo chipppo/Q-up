@@ -1183,7 +1183,7 @@ const Chat = () => {
                 
                 {messages.map((message, index) => (
                   <Message 
-                    key={`${message.id}-${index}`} 
+                    key={message.key || `msg-${message.id}-${index}`} 
                     message={message} 
                     highlightedId={highlightedMessageId} 
                     onMenuOpen={handleMessageMenuOpen}

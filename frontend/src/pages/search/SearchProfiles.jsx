@@ -34,12 +34,13 @@ const TIME_PERIODS = [
  * 
  * @function formatImageUrl
  * @param {string|null} url - The image URL to format
+ * @param {string} username - Username for fallback avatar
  * @returns {string|null} The formatted URL or null if no URL provided
  */
-const formatImageUrl = (url) => {
-  if (!url) return '/images/profile-placeholder.svg'; // Use the new SVG placeholder
-  if (url.startsWith('http')) return url;
-  return `${API.defaults.baseURL}${url}`;
+const formatImageUrl = (url, username) => {
+  // Import formatAvatarUrl from our axios module to use consistent avatar handling
+  const { formatAvatarUrl } = require('../../api/axios');
+  return formatAvatarUrl(url, username);
 };
 
 /**
@@ -779,8 +780,12 @@ function UserCard({ user }) {
       <Link to={`/profile/${user.username}`} className="user-card-link">
         <div className="user-card-avatar">
           <img 
-            src={formatImageUrl(user.avatar_url)}
-            alt={`${user.display_name || user.username}'s avatar`} 
+            src={formatImageUrl(user.avatar_url, user.username)}
+            alt={`${user.display_name || user.username}'s avatar`}
+            onError={(e) => {
+              e.target.onerror = null; // Prevent infinite error loops
+              e.target.src = formatImageUrl(null, user.username);
+            }}
           />
         </div>
         <div className="user-card-info">
