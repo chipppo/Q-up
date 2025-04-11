@@ -774,13 +774,17 @@ const Chat = () => {
     }, 5 * 60 * 1000);
   }, []);
 
+  /**
+   * Handles user activity events by resetting the inactivity timer
+   * 
+   * @function handleUserActivity
+   */
+  const handleUserActivity = () => {
+    resetUserActivityTimeout();
+  };
+
   // Set up user activity tracking
   useEffect(() => {
-    // Track mouse and keyboard activity
-    const handleUserActivity = () => {
-      resetUserActivityTimeout();
-    };
-    
     // Add event listeners for user activity
     window.addEventListener('mousemove', handleUserActivity);
     window.addEventListener('keydown', handleUserActivity);

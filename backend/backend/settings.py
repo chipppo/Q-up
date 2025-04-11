@@ -223,13 +223,13 @@ LOGGING = {
 }
 
 # AWS S3 Settings (using environment variables only - no hardcoded values)
-AWS_ACCESS_KEY_ID = None  # Temporarily disable S3
-AWS_SECRET_ACCESS_KEY = None  # Temporarily disable S3
+AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')  # Enable S3
+AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')  # Enable S3
 AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME')
 AWS_S3_REGION_NAME = os.environ.get('AWS_S3_REGION_NAME')
 
 # S3 Configuration
-if False:  # Temporarily disable S3 storage
+if True:  # Enable S3 storage
     DEFAULT_FILE_STORAGE = 'backend.storage_backends.MediaStorage'
     
     # Basic S3 settings
