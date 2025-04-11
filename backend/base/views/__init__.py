@@ -31,7 +31,8 @@ from .social_views import (
     LikeView,
     LikesListView,
     CommentView,
-    CommentRepliesView
+    CommentRepliesView,
+    AllPostsView
 )
 
 from .chat_views import (
