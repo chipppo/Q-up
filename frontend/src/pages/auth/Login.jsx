@@ -164,8 +164,20 @@ function Login() {
     setValidationErrors({});
     setIsLoading(true);
 
+    // Prepare login payload - use exact structure expected by backend
+    const payload = { username, password };
+    console.log('Login payload:', payload);
+
     try {
-      const response = await API.post("/login/", { username, password });
+      // Use axios directly to have more control over the request
+      const response = await API.post("/login/", JSON.stringify(payload), {
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+      
+      console.log('Login response:', response.data);
+      
       const { access, refresh } = response.data;
       
       login(access, refresh, username);
@@ -176,6 +188,11 @@ function Login() {
       navigate(destination, { replace: true });
     } catch (error) {
       console.error('Login error:', error);
+      // Log more detailed error information
+      console.error('Error response:', error.response?.data);
+      console.error('Error status:', error.response?.status);
+      console.error('Error headers:', error.response?.headers);
+      
       // Set error message
       const errorMessage = error.response?.data?.detail || 'Login failed. Please check your credentials.';
       setError(errorMessage);
@@ -188,8 +205,7 @@ function Login() {
         pauseOnHover: true,
         draggable: true,
       });
-      
-      // Keep loading state off
+    } finally {
       setIsLoading(false);
     }
   };
@@ -216,12 +232,25 @@ function Login() {
     setValidationErrors({});
     setIsLoading(true);
 
+    // Prepare password reset payload
+    const payload = { email };
+    console.log('Password reset payload:', payload);
+
     try {
-      await API.post("/password-reset/", { email });
+      // Use axios directly with explicit content type
+      await API.post("/password-reset/", JSON.stringify(payload), {
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+      
       setResetSent(true);
       toast.success("Password reset instructions have been sent to your email");
     } catch (error) {
       console.error('Password reset error:', error);
+      console.error('Error response:', error.response?.data);
+      console.error('Error status:', error.response?.status);
+      
       setError(error.response?.data?.detail || 'Failed to send reset instructions. Please try again.');
       toast.error('Failed to send reset instructions');
     } finally {

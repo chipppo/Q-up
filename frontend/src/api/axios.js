@@ -16,6 +16,10 @@ import axios from 'axios';
  */
 const API = axios.create({
   baseURL: '/api',  // Use relative path for flexibility across environments
+  headers: {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json'
+  }
 });
 
 // Refreshing state
