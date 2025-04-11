@@ -330,7 +330,10 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
                     onLoad={handleImageLoad}
                     onError={handleImageError}
                     style={{ 
-                      display: imageLoading || imageError ? 'none' : 'block'
+                      display: imageLoading || imageError ? 'none' : 'block',
+                      maxWidth: '100%',
+                      maxHeight: '350px',
+                      objectFit: message.image?.toLowerCase().endsWith('.svg') ? 'contain' : 'cover'
                     }}
                   />
                   {imageError && (

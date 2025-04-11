@@ -292,6 +292,14 @@ const AppContent = () => {
               }
             />
             <Route
+              path="/create-post"
+              element={
+                <ProtectedRoute>
+                  <Feed createPostMode={true} />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/chat"
               element={
                 <ProtectedRoute>
