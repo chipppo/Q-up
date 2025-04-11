@@ -481,6 +481,7 @@ class Message(models.Model):
     is_delivered = models.BooleanField(default=True)  # Статус за доставка
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    file_info = models.JSONField(null=True, blank=True)  # Store additional file metadata
     
     class Meta:
         ordering = ['created_at']

@@ -114,7 +114,7 @@ export const formatActiveHours = (activeHours, timezoneOffset = 0) => {
     return `${hourNum.toString().padStart(2, '0')}:${minuteStr}`;
   });
   
-  // Track which periods are fully or partially covered
+  // Track which periods are fully covered
   const periodCoverage = {};
   
   // Initialize all periods as not covered
@@ -136,34 +136,15 @@ export const formatActiveHours = (activeHours, timezoneOffset = 0) => {
     });
   });
   
-  // Generate labels for periods
-  const periodLabels = [];
-  
-  // Add fully covered periods
+  // Only include fully covered periods
   const fullyCovered = [];
-  // Add partially covered periods
-  const partiallyCovered = [];
   
   Object.values(periodCoverage).forEach(period => {
-    if (period.coveredHours === 0) {
-      // Not covered at all
-      return;
-    } else if (period.coveredHours === period.totalHours) {
-      // Fully covered
+    if (period.coveredHours === period.totalHours) {
+      // Only include fully covered periods
       fullyCovered.push(period.periodName);
-    } else {
-      // Partially covered
-      partiallyCovered.push(`${period.periodName}*`);
     }
   });
   
-  // Combine results, prioritizing fully covered periods
-  periodLabels.push(...fullyCovered);
-  
-  // Only show partially covered if no full periods match
-  if (fullyCovered.length === 0) {
-    periodLabels.push(...partiallyCovered);
-  }
-  
-  return periodLabels.length > 0 ? periodLabels.join(", ") : "Not specified";
+  return fullyCovered.length > 0 ? fullyCovered.join(", ") : "Not specified";
 }; 

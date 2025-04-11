@@ -11,37 +11,39 @@
  * @requires react-router-dom
  * @requires AuthContext
  */
-import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
-import API from "../../api/axios";
-import { useAuth } from "../../context/AuthContext.jsx";
-import "../../styles/pages/search/SearchProfiles.css";
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import API, { formatAvatarUrl } from '../../api/axios';
+import { useAuth } from '../../context/AuthContext';
+import { TIME_PERIODS } from '../../utils/timeUtils';
+import '../../styles/pages/search/SearchProfiles.css';
 
-// Define time periods with their corresponding hours
-const TIME_PERIODS = [
-  { id: "earlyMorning", name: "Early Morning (5-8 AM)", hours: ["05:00", "06:00", "07:00", "08:00"] },
-  { id: "morning", name: "Morning (8-11 AM)", hours: ["08:00", "09:00", "10:00", "11:00"] },
-  { id: "noon", name: "Noon (11 AM-2 PM)", hours: ["11:00", "12:00", "13:00", "14:00"] },
-  { id: "afternoon", name: "Afternoon (2-5 PM)", hours: ["14:00", "15:00", "16:00", "17:00"] },
-  { id: "evening", name: "Evening (5-8 PM)", hours: ["17:00", "18:00", "19:00", "20:00"] },
-  { id: "night", name: "Night (8-11 PM)", hours: ["20:00", "21:00", "22:00", "23:00"] },
-  { id: "lateNight", name: "Late Night (11 PM-2 AM)", hours: ["23:00", "00:00", "01:00", "02:00"] },
-  { id: "overnight", name: "Overnight (2-5 AM)", hours: ["02:00", "03:00", "04:00", "05:00"] }
+// Constants
+const GAME_DISPLAY_LIMIT = 3;
+
+// Filter option examples (these can be dynamically loaded)
+const PLATFORM_OPTIONS = [
+  "PC", "PlayStation", "Xbox", "Nintendo Switch", "Mobile"
 ];
 
-/**
- * Utility function to safely format image URLs by adding base URL when needed
- * 
- * @function formatImageUrl
- * @param {string|null} url - The image URL to format
- * @param {string} username - Username for fallback avatar
- * @returns {string|null} The formatted URL or null if no URL provided
- */
-const formatImageUrl = (url, username) => {
-  // Import formatAvatarUrl from our axios module to use consistent avatar handling
-  const { formatAvatarUrl } = require('../../api/axios');
-  return formatAvatarUrl(url, username);
-};
+const LANGUAGE_OPTIONS = [
+  "English", "Spanish", "Bulgarian", "French", "German", "Italian", "Portuguese", 
+  "Russian", "Japanese", "Korean", "Chinese", "Arabic"
+];
+
+// Time periods for activity filtering
+const ACTIVITY_PERIODS = [
+  { id: "earlyMorning", name: "Early Morning (5-8 AM)" },
+  { id: "morning", name: "Morning (8-11 AM)" },
+  { id: "noon", name: "Noon (11 AM-2 PM)" },
+  { id: "afternoon", name: "Afternoon (2-5 PM)" },
+  { id: "evening", name: "Evening (5-8 PM)" },
+  { id: "night", name: "Night (8-11 PM)" },
+  { id: "lateNight", name: "Late Night (11 PM-2 AM)" },
+  { id: "overnight", name: "Overnight (2-5 AM)" }
+];
+
+// Note: We use formatAvatarUrl from axios.js to handle avatar URLs consistently
 
 /**
  * Component for game-specific filters including hours played and gaming goals
@@ -780,11 +782,11 @@ function UserCard({ user }) {
       <Link to={`/profile/${user.username}`} className="user-card-link">
         <div className="user-card-avatar">
           <img 
-            src={formatImageUrl(user.avatar_url, user.username)}
-            alt={`${user.display_name || user.username}'s avatar`}
+            src={formatAvatarUrl(user.avatar_url, user.username)}
+            alt={`${user.display_name || user.username}'s avatar`} 
             onError={(e) => {
-              e.target.onerror = null; // Prevent infinite error loops
-              e.target.src = formatImageUrl(null, user.username);
+              e.target.onerror = null; // Prevent infinite error loop
+              e.target.src = formatAvatarUrl(null, user.username || 'U');
             }}
           />
         </div>
@@ -804,9 +806,6 @@ function UserCard({ user }) {
           <div className="user-active-hours">
             <span className="active-hours-label">Active: </span>
             <span className="active-hours-value">{formatActiveHours(user.active_hours, user.timezone_offset)}</span>
-            {formatActiveHours(user.active_hours, user.timezone_offset).includes('*') && (
-              <span className="active-hours-note">* Partially active</span>
-            )}
           </div>
           
           {/* Display user tags (platforms, languages) */}

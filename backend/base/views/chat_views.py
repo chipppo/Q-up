@@ -14,6 +14,57 @@ import logging
 import os
 from django.utils.text import slugify
 import uuid
+from django.db.models import Q
+import mimetypes
+
+# Configure logging
+logger = logging.getLogger(__name__)
+
+# Helper function to correctly identify webp and other image formats
+def is_image_file(filename, content_type=None):
+    """
+    Determines if a file is an image based on its filename and content type.
+    Specifically handles WebP files which might be misidentified.
+    
+    Args:
+        filename: The filename including extension
+        content_type: Content type if available
+        
+    Returns:
+        bool: True if file is an image, False otherwise
+    """
+    # Set up known image extensions and content types
+    image_extensions = {
+        '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg',
+        '.tiff', '.tif', '.avif', '.heic', '.heif', '.jfif'
+    }
+    
+    image_content_types = {
+        'image/jpeg', 'image/png', 'image/gif', 'image/webp', 
+        'image/bmp', 'image/svg+xml', 'image/tiff', 'image/avif'
+    }
+    
+    # Special handling for WebP
+    if filename.lower().endswith('.webp') or (content_type and 'webp' in content_type.lower()):
+        return True
+    
+    # Special handling for SVG
+    if filename.lower().endswith('.svg') or (content_type and 'svg' in content_type.lower()):
+        return True
+    
+    # Check file extension
+    _, ext = os.path.splitext(filename.lower())
+    if ext in image_extensions:
+        return True
+    
+    # Check content type if provided
+    if content_type and content_type in image_content_types:
+        return True
+    
+    # Fall back to mimetypes guess
+    guessed_type = mimetypes.guess_type(filename)[0]
+    return guessed_type and guessed_type.startswith('image/')
+
 
 class ChatListView(APIView):
     """
@@ -465,6 +516,16 @@ class MessageListView(APIView):
                     
                     # Log successful upload
                     logger.info(f"File uploaded successfully to: {message.image.url}")
+                    
+                    # Store additional file information in message data
+                    # This is used by the frontend to determine how to display the file
+                    message.file_info = {
+                        'name': unique_filename,
+                        'type': image_file.content_type,
+                        'size': image_file.size,
+                        'is_image': is_image_file(unique_filename, image_file.content_type)
+                    }
+                    message.save()
                 except Exception as e:
                     logger.error(f"File upload error: {str(e)}")
                     message.delete()  # Clean up the message

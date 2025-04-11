@@ -52,9 +52,6 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
   // Get authentication context correctly
   const { username } = useAuth();
   
-  // Generate a stable key for this message that won't change on re-renders
-  const stableMessageKey = React.useMemo(() => `msg-${message.id}-${Date.now()}`, [message.id]);
-  
   // More robust check for own messages - compare with the logged in username
   const isOwnMessage = Boolean(
     username && message && (
@@ -89,28 +86,35 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
    * @returns {boolean} True if the attachment appears to be an image
    */
   const isImageAttachment = (url) => {
-    // First check if we have file info from the server
+    // First check if we have file info from the server - this is the most reliable method
     if (message.file_info && message.file_info.is_image !== undefined) {
       return message.file_info.is_image;
     }
     
     if (!url) return false;
     
+    // WebP-specific detection (highest priority checks)
+    if (url.toLowerCase().includes('.webp') || 
+        (message.file_info && message.file_info.type && message.file_info.type.includes('webp'))) {
+      return true;
+    }
+    
+    // SVG-specific detection
+    if (url.toLowerCase().includes('.svg') || 
+        (message.file_info && message.file_info.type && message.file_info.type.includes('svg'))) {
+      return true;
+    }
+    
+    // Check for image content types
+    if (message.file_info && message.file_info.type && message.file_info.type.startsWith('image/')) {
+      return true;
+    }
+    
     // Check for common image extensions in URL
     const imageExtensions = [
       '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg',
       '.tiff', '.tif', '.avif', '.heic', '.heif', '.jfif', '.pjpeg', '.pjp'
     ];
-    
-    // First try a more direct WebP detection
-    if (url.toLowerCase().includes('.webp') || url.toLowerCase().includes('image/webp')) {
-      return true;
-    }
-    
-    // Try SVG detection
-    if (url.toLowerCase().includes('.svg') || url.toLowerCase().includes('image/svg')) {
-      return true;
-    }
     
     const hasImageExtension = imageExtensions.some(ext => {
       const urlLower = url.toLowerCase();
@@ -414,7 +418,7 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
           {/* File attachments */}
           {message.file && (
             <div className="message-file">
-              {isImage(message.file) || message.file.toLowerCase().includes('.webp') || message.file.toLowerCase().includes('.svg') ? (
+              {isImage(message.file) ? (
                 <img 
                   src={`${API.defaults.baseURL}${message.file}`} 
                   alt="Shared file" 

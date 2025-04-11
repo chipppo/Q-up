@@ -797,8 +797,14 @@ const Chat = () => {
       const exists = prevMessages.some(msg => msg.id === newMessage.id);
       if (exists) return prevMessages;
       
+      // Generate a predictable key for stable rendering
+      const messageWithKey = {
+        ...newMessage,
+        key: `msg-${newMessage.id}`
+      };
+      
       // Add new message and sort by timestamp
-      const updatedMessages = [...prevMessages, newMessage];
+      const updatedMessages = [...prevMessages, messageWithKey];
       const sortedMessages = updatedMessages.sort((a, b) => 
         new Date(a.created_at) - new Date(b.created_at)
       );
@@ -1183,7 +1189,7 @@ const Chat = () => {
                 
                 {messages.map((message, index) => (
                   <Message 
-                    key={message.key || `msg-${message.id}-${index}`} 
+                    key={`${message.id}-${index}`} 
                     message={message} 
                     highlightedId={highlightedMessageId} 
                     onMenuOpen={handleMessageMenuOpen}
