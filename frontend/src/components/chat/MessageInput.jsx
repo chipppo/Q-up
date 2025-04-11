@@ -1,3 +1,13 @@
+/**
+ * Message input component for composing and sending messages
+ * 
+ * This component provides a text input field with attachment capabilities
+ * for sending messages in a chat. It handles both text messages and file uploads.
+ * 
+ * @module MessageInput
+ * @requires React
+ * @requires material-ui
+ */
 import React, { useState, useRef, useEffect } from 'react';
 import {
   Box,
@@ -5,470 +15,351 @@ import {
   IconButton,
   CircularProgress,
   Typography,
+  Tooltip,
+  Badge,
+  Button,
+  Collapse,
 } from '@mui/material';
 import {
   Send as SendIcon,
-  Image as ImageIcon,
   AttachFile as AttachFileIcon,
   Close as CloseIcon,
-  InsertDriveFile as InsertDriveFileIcon,
-  Reply as ReplyIcon,
+  Image as ImageIcon,
 } from '@mui/icons-material';
-import API, { formatImageUrl } from '../../api/axios';
-import { toast } from 'react-toastify';
+import API from '../../api/axios';
 import '../../styles/components/chat/MessageInput.css';
 
-const MessageInput = ({ selectedChat, replyTo, setReplyTo, addMessage, scrollToBottom }) => {
+/**
+ * Input component for writing and sending chat messages
+ * 
+ * @function MessageInput
+ * @param {Object} props - Component props
+ * @param {Function} props.addMessage - Callback to add a new message
+ * @param {Object} props.replyTo - Message being replied to, if any
+ * @param {Function} props.clearReplyTo - Function to clear reply state
+ * @param {number} props.chatId - ID of current chat
+ * @param {boolean} props.disabled - Whether input is disabled
+ * @returns {JSX.Element} Message input component
+ */
+const MessageInput = ({ 
+  addMessage, 
+  replyTo, 
+  clearReplyTo, 
+  chatId, 
+  disabled = false 
+}) => {
   const [message, setMessage] = useState('');
-  const [selectedImage, setSelectedImage] = useState(null);
-  const [imagePreview, setImagePreview] = useState(null);
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [filePreview, setFilePreview] = useState(null);
   const [sending, setSending] = useState(false);
-  
-  const messageInputRef = useRef(null);
+  const [attachment, setAttachment] = useState(null);
+  const [attachmentPreview, setAttachmentPreview] = useState('');
+  const [error, setError] = useState('');
   const fileInputRef = useRef(null);
-  const documentInputRef = useRef(null);
-  const typingTimeoutRef = useRef(null);
+  const messageInputRef = useRef(null);
   
-  // Handle input changes
+  // Focus on input when component mounts
+  useEffect(() => {
+    if (messageInputRef.current) {
+      messageInputRef.current.focus();
+    }
+  }, []);
+  
+  // Focus on input when reply is set
+  useEffect(() => {
+    if (replyTo && messageInputRef.current) {
+      messageInputRef.current.focus();
+    }
+  }, [replyTo]);
+  
+  /**
+   * Handles text message changes
+   * 
+   * @function handleMessageChange
+   * @param {React.ChangeEvent<HTMLInputElement>} e - Input change event
+   */
   const handleMessageChange = (e) => {
-    const newValue = e.target.value;
-    setMessage(newValue);
-    
-    // Clear existing timeout
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current);
-    }
-    
-    // No need to send typing status if no chat is selected
-    if (!selectedChat) return;
+    setMessage(e.target.value);
+    if (error) setError('');
   };
   
-  // Handle file selection
-  const handleFileSelect = (e) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      
-      // Validate file size
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error("File size should be less than 10MB");
-        if (documentInputRef.current) documentInputRef.current.value = "";
-        return;
-      }
-      
-      // Block potentially dangerous file types
-      const dangerousExtensions = [".exe", ".bat", ".cmd", ".msi", ".sh", ".vbs", ".ps1", ".php", ".dll"];
-      const fileName = file.name.toLowerCase();
-      const hasDangerousExtension = dangerousExtensions.some(ext => fileName.endsWith(ext));
-      
-      if (hasDangerousExtension) {
-        toast.error("This file type is not allowed for security reasons");
-        if (documentInputRef.current) documentInputRef.current.value = "";
-        return;
-      }
-      
-      try {
-        // Set file for upload
-        setSelectedFile(file);
-        setFilePreview(file);
-        
-        // Clear image selection
-        setSelectedImage(null);
-        setImagePreview(null);
-        if (fileInputRef.current) fileInputRef.current.value = "";
-        
-        toast.success(`File "${file.name}" ready to upload`);
-        
-        // Additional validation to warn about file size
-        if (file.size > 5 * 1024 * 1024) {
-          toast.warning("Large files may take longer to upload");
-        }
-      } catch (error) {
-        console.error("Error handling file:", error);
-        toast.error("Error processing file. Please try another one.");
-        if (documentInputRef.current) documentInputRef.current.value = "";
-      }
+  /**
+   * Handles key press to send message on Enter
+   * 
+   * @function handleKeyPress
+   * @param {React.KeyboardEvent} e - Keyboard event
+   */
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
     }
   };
   
-  // Send message with better file handling
-  const handleSendMessage = async () => {
-    if ((!message.trim() && !selectedImage && !selectedFile) || sending) {
+  /**
+   * Opens file selection dialog
+   * 
+   * @function handleAttachClick
+   */
+  const handleAttachClick = () => {
+    fileInputRef.current.click();
+  };
+  
+  /**
+   * Handles file selection for attachments
+   * 
+   * @function handleFileChange
+   * @param {React.ChangeEvent<HTMLInputElement>} e - File input change event
+   */
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    // Check file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      setError('File is too large. Maximum size is 10MB.');
       return;
     }
-
+    
+    setAttachment(file);
+    
+    // Create preview for images
+    if (file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setAttachmentPreview(event.target.result);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      // For non-image files, just display the file name
+      setAttachmentPreview(`File: ${file.name}`);
+    }
+    
+    // Clear any existing errors
+    setError('');
+  };
+  
+  /**
+   * Removes the current attachment
+   * 
+   * @function handleRemoveAttachment
+   */
+  const handleRemoveAttachment = () => {
+    setAttachment(null);
+    setAttachmentPreview('');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+  
+  /**
+   * Sends the message to the server
+   * 
+   * @async
+   * @function handleSendMessage
+   */
+  const handleSendMessage = async () => {
+    // Skip if already sending
+    if (sending) return;
+    
+    // Skip if disabled
+    if (disabled) return;
+    
+    // Validate message - either text or attachment required
+    const trimmedMessage = message.trim();
+    if (!trimmedMessage && !attachment) {
+      setError('Message cannot be empty');
+      return;
+    }
+    
+    // Clear error if any
+    setError('');
+    
+    // Set sending state
+    setSending(true);
+    
     try {
-      setSending(true);
-
       const formData = new FormData();
       
-      if (message.trim()) {
-        formData.append('content', message.trim());
+      // Add message content if not empty
+      if (trimmedMessage) {
+        formData.append('content', trimmedMessage);
       }
       
-      if (selectedImage) {
-        formData.append('image', selectedImage);
-        console.log('Uploading image:', selectedImage.name, selectedImage.type, selectedImage.size);
+      // Add attachment if exists
+      if (attachment) {
+        formData.append('image', attachment);
+        console.log('Attaching file:', attachment.name, attachment.type, attachment.size);
       }
       
-      if (selectedFile) {
-        formData.append('image', selectedFile); // Using 'image' field for all file types
-        console.log('Uploading file:', selectedFile.name, selectedFile.type, selectedFile.size);
+      // Add parent message ID if replying
+      if (replyTo) {
+        formData.append('parent', replyTo.id);
       }
-
-      if (replyTo && replyTo.id) {
-        formData.append('parent', replyTo.id); // Server expects 'parent' not 'reply_to'
-        console.log('Replying to message:', replyTo.id);
-      }
-
-      // Log the form data keys for debugging
+      
+      // Log FormData keys for debugging
+      const formDataKeys = [];
       for (let key of formData.keys()) {
-        console.log(`FormData contains: ${key}`);
+        formDataKeys.push(key);
       }
-
-      // Get the authentication token
-      const authHeader = API.defaults.headers.Authorization;
-      const token = authHeader ? authHeader.split(' ')[1] : localStorage.getItem('access');
+      console.log('FormData keys:', formDataKeys);
       
-      if (!token) {
-        toast.error("Authentication error. Please login again.");
-        setSending(false);
-        return;
-      }
-
-      const response = await fetch(`/api/chats/${selectedChat.id}/messages/`, {
-        method: 'POST',
+      // Send message to backend
+      const response = await API.post(`/chats/${chatId}/messages/`, formData, {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'multipart/form-data',
         },
-        body: formData
       });
-
-      if (!response.ok) {
-        // Try to parse the error message from the response
-        let errorMessage = "Failed to send message";
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.detail || errorData.message || Object.values(errorData).flat().join(", ") || errorMessage;
-        } catch (e) {
-          console.error("Error parsing error response:", e);
-        }
-        
-        // Show different messages based on response status
-        if (response.status === 413) {
-          toast.error("File too large. Please upload a smaller file.");
-        } else if (response.status === 401 || response.status === 403) {
-          toast.error("You don't have permission to send messages in this chat.");
-        } else if (response.status === 404) {
-          toast.error("Chat not found. It may have been deleted.");
-        } else if (response.status >= 500) {
-          toast.error("Server error. Please try again later.");
-        } else {
-          toast.error(errorMessage);
-        }
-        
-        console.error("Error sending message:", response.status, errorMessage);
-        setSending(false);
-        return;
+      
+      // Add message to UI
+      if (response.data && addMessage) {
+        addMessage(response.data);
       }
-
-      // Clear the input field
+      
+      // Reset input state
       setMessage('');
-      setSelectedImage(null);
-      setImagePreview(null);
-      setSelectedFile(null);
-      setFilePreview(null);
-      setReplyTo(null); // Clear reply state after sending
-      
-      // Clear file input values
-      if (fileInputRef.current) fileInputRef.current.value = '';
-      if (documentInputRef.current) documentInputRef.current.value = '';
-
-      // Refetch the messages
-      if (addMessage) {
-        const data = await response.json();
-        addMessage(data);
+      setAttachment(null);
+      setAttachmentPreview('');
+      if (clearReplyTo) clearReplyTo();
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
       }
-
-      // Clear typing timeout
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
-      }
+    } catch (err) {
+      console.error('Error sending message:', err);
       
-      // Scroll to bottom of message list
-      if (scrollToBottom) {
-        scrollToBottom();
+      // Extract error message
+      let errorMessage = 'Failed to send message. Please try again.';
+      if (err.response && err.response.data) {
+        if (err.response.data.detail) {
+          errorMessage = err.response.data.detail;
+        } else if (err.response.data.content) {
+          errorMessage = err.response.data.content[0];
+        } else if (err.response.data.image) {
+          errorMessage = err.response.data.image[0];
+        } else if (typeof err.response.data === 'string') {
+          errorMessage = err.response.data;
+        }
       }
       
-      // Show toast message - simple version
-      toast.success("Message sent");
-    } catch (error) {
-      console.error("Error sending message:", error);
-      toast.error("Failed to send message: " + (error.message || "Unknown error"));
+      setError(errorMessage);
     } finally {
       setSending(false);
     }
   };
   
-  // Handle image selection
-  const handleImageSelect = (e) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      
-      // Validate file size
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error("Image size should be less than 5MB");
-        if (fileInputRef.current) fileInputRef.current.value = "";
-        return;
-      }
-      
-      // Set selected image and create preview
-      setSelectedImage(file);
-      
-      // Check if file has correct extension but wrong content type
-      const fileName = file.name.toLowerCase();
-      const imageExtensions = [
-        ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg", 
-        ".tiff", ".tif", ".avif", ".heic", ".heif", ".jfif", ".pjpeg", ".pjp"
-      ];
-      const hasImageExtension = imageExtensions.some(ext => fileName.endsWith(ext));
-      
-      // Validate file type with appropriate notifications
-      const validImageTypes = [
-        "image/jpeg", "image/png", "image/gif", "image/webp", "image/bmp", "image/svg+xml",
-        "image/tiff", "image/avif", "image/heic", "image/heif"
-      ];
-      
-      // Only warn for non-optimal file types, but don't prevent upload
-      if (!validImageTypes.includes(file.type)) {
-        if (hasImageExtension) {
-          toast.warning("This file has an image extension but its format may not be fully supported. The upload will be attempted but might not display correctly.");
-        } else {
-          toast.warning("This file type is not recognized as an image. The upload will be attempted but might not display correctly.");
-        }
-      } else {
-        // For valid file types, show success message
-        toast.success("Image selected successfully");
-      }
-      
-      // Create preview regardless of validation warnings
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          // Additional validation to check if image can be loaded
-          const img = new Image();
-          img.onload = () => {
-            // Image loaded successfully, set preview
-            setImagePreview(reader.result);
-            toast.info(`Image "${file.name}" ready to upload`);
-          };
-          img.onerror = () => {
-            // Image cannot be loaded despite correct MIME type
-            toast.error("The file appears to be corrupted or is not a valid image. Please try another image.");
-            setSelectedImage(null);
-            setImagePreview(null);
-            if (fileInputRef.current) fileInputRef.current.value = "";
-          };
-          img.src = reader.result;
-        } catch (error) {
-          console.error("Error processing image:", error);
-          toast.error("Error processing image. Please try another one.");
-          setSelectedImage(null);
-          setImagePreview(null);
-          if (fileInputRef.current) fileInputRef.current.value = "";
-        }
-      };
-      
-      reader.onerror = () => {
-        toast.error("Error reading file. Please try another image.");
-        setSelectedImage(null);
-        setImagePreview(null);
-        if (fileInputRef.current) fileInputRef.current.value = "";
-      };
-      
-      reader.readAsDataURL(file);
-      
-      // Clear previously selected file
-      setSelectedFile(null);
-      setFilePreview(null);
-      if (documentInputRef.current) documentInputRef.current.value = "";
-    }
-  };
-  
-  // Remove selected file or image
-  const handleRemoveFile = () => {
-    setSelectedImage(null);
-    setImagePreview(null);
-    setSelectedFile(null);
-    setFilePreview(null);
-    if (fileInputRef.current) fileInputRef.current.value = '';
-    if (documentInputRef.current) documentInputRef.current.value = '';
-  };
-  
-  // Set focus on input when chat changes
-  useEffect(() => {
-    if (messageInputRef.current) {
-      messageInputRef.current.focus();
-    }
-  }, [selectedChat]);
-  
-  // Clear typing notification timeout when component unmounts
-  useEffect(() => {
-    return () => {
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
-      }
-    };
-  }, []);
-  
   return (
-    <Box
-      sx={{
-        p: 1,
-        borderTop: '1px solid',
-        borderColor: 'divider',
-        bgcolor: 'background.paper',
-        display: 'flex',
-        flexDirection: 'column',
-        width: '100%',
-        flexShrink: 0 // Prevent the input from shrinking
-      }}
-      className="message-input-container"
-    >
+    <Box className="message-input-container">
+      {/* Reply preview */}
       {replyTo && (
-        <Box
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            backgroundColor: 'action.hover',
-            borderRadius: 1,
-            p: 1,
-            mb: 1,
-            gap: 1
-          }}
-          className="reply-to-container"
-        >
-          <ReplyIcon fontSize="small" color="primary" />
-          <Box sx={{ flexGrow: 1 }}>
-            <Typography variant="body2" color="primary" fontWeight="medium">
-              {typeof replyTo.sender === 'string' ? replyTo.sender : replyTo.sender?.username}
+        <Box className="reply-preview-container">
+          <Box className="reply-preview">
+            <Typography variant="caption" fontWeight="medium" sx={{ display: 'block', mb: 0.5 }}>
+              Replying to {replyTo.sender_username || replyTo.sender?.username || 'User'}
             </Typography>
-            <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
-              {replyTo.content || (replyTo.image_url ? 'Image' : 'File')}
+            <Typography 
+              variant="body2" 
+              sx={{ 
+                opacity: 0.8, 
+                overflow: 'hidden', 
+                textOverflow: 'ellipsis', 
+                whiteSpace: 'nowrap',
+                maxWidth: '80%'
+              }}
+            >
+              {replyTo.content || (replyTo.has_image ? 'Image' : 'File')}
             </Typography>
           </Box>
-          <IconButton size="small" onClick={() => setReplyTo(null)}>
+          <IconButton size="small" onClick={clearReplyTo} className="reply-close-button">
             <CloseIcon fontSize="small" />
           </IconButton>
         </Box>
       )}
       
-      {(imagePreview || filePreview) && (
-        <Box
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            backgroundColor: 'action.hover',
-            borderRadius: 1,
-            p: 1,
-            mb: 1,
-            gap: 1
-          }}
-          className="file-preview-container"
-        >
-          {imagePreview ? (
-            <img 
-              src={imagePreview} 
-              alt="Selected" 
-              style={{ 
-                height: 40, 
-                borderRadius: 4,
-                objectFit: 'cover'
-              }} 
-              className="image-preview"
-            />
+      {/* Attachment preview */}
+      <Collapse in={!!attachmentPreview}>
+        <Box className="attachment-preview-container">
+          {attachment && attachment.type.startsWith('image/') ? (
+            <Box className="image-preview-container">
+              <img src={attachmentPreview} alt="Preview" className="image-preview" />
+              <Typography variant="caption" className="file-name">
+                {attachment.name} ({Math.round(attachment.size / 1024)} KB)
+              </Typography>
+            </Box>
           ) : (
-            <InsertDriveFileIcon fontSize="small" color="primary" />
+            attachmentPreview && (
+              <Box className="file-preview-container">
+                <AttachFileIcon color="primary" />
+                <Typography variant="body2" className="file-name" sx={{ ml: 1 }}>
+                  {attachment ? `${attachment.name} (${Math.round(attachment.size / 1024)} KB)` : ''}
+                </Typography>
+              </Box>
+            )
           )}
-          
-          <Typography variant="body2" color="text.primary" sx={{ flexGrow: 1 }}>
-            {imagePreview ? 'Image selected' : filePreview.name}
-          </Typography>
-          
-          <IconButton size="small" onClick={handleRemoveFile}>
+          <IconButton 
+            size="small" 
+            onClick={handleRemoveAttachment} 
+            className="attachment-remove-button"
+          >
             <CloseIcon fontSize="small" />
           </IconButton>
         </Box>
+      </Collapse>
+      
+      {/* Error message */}
+      {error && (
+        <Typography className="error-message" variant="caption" color="error">
+          {error}
+        </Typography>
       )}
       
-      <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-        <input
-          type="file"
-          accept="image/jpeg, image/png, image/gif, image/webp, image/bmp, image/svg+xml, image/tiff, image/avif, image/heic, image/heif"
-          style={{ display: 'none' }}
-          ref={fileInputRef}
-          onChange={handleImageSelect}
-        />
-        <input
-          type="file"
-          style={{ display: 'none' }}
-          ref={documentInputRef}
-          onChange={handleFileSelect}
-        />
-        
-        <IconButton 
-          size="small" 
-          onClick={() => fileInputRef.current?.click()}
-          color="primary"
-          title="Upload image"
-          sx={{ mx: 0.5 }}
-        >
-          <ImageIcon />
-        </IconButton>
-        
-        <IconButton 
-          size="small" 
-          onClick={() => documentInputRef.current?.click()}
-          color="primary"
-          title="Upload file"
-          sx={{ mr: 1 }}
-        >
-          <AttachFileIcon />
-        </IconButton>
+      {/* Input field and buttons */}
+      <Box className="message-input-wrapper">
+        <Tooltip title="Attach file">
+          <IconButton 
+            className="attach-button" 
+            onClick={handleAttachClick}
+            disabled={disabled || sending}
+          >
+            <Badge color="primary" variant="dot" invisible={!attachment}>
+              <AttachFileIcon />
+            </Badge>
+          </IconButton>
+        </Tooltip>
         
         <TextField
-          fullWidth
+          inputRef={messageInputRef}
+          className="message-input"
           placeholder="Type a message..."
-          value={message}
-          onChange={handleMessageChange}
-          onKeyPress={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault();
-              handleSendMessage();
-            }
-          }}
-          variant="outlined"
-          size="small"
           multiline
           maxRows={4}
-          sx={{ flexGrow: 1 }}
+          value={message}
+          onChange={handleMessageChange}
+          onKeyDown={handleKeyPress}
+          disabled={disabled || sending}
+          fullWidth
+          variant="outlined"
+          size="small"
           InputProps={{
-            sx: { fontFamily: 'inherit' },
-            className: 'message-input'
+            className: "message-input-field",
           }}
-          inputRef={messageInputRef}
         />
         
-        <IconButton
-          color="primary"
+        <IconButton 
+          className="send-button" 
           onClick={handleSendMessage}
-          disabled={(!message.trim() && !selectedImage && !selectedFile) || sending}
-          sx={{ ml: 1 }}
+          color="primary"
+          disabled={disabled || sending || (!message.trim() && !attachment)}
         >
           {sending ? <CircularProgress size={24} /> : <SendIcon />}
         </IconButton>
       </Box>
+      
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*,application/pdf,application/zip,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
+        style={{ display: 'none' }}
+        onChange={handleFileChange}
+      />
     </Box>
   );
 };

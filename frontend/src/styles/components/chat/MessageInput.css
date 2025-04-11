@@ -1,6 +1,5 @@
 /* src/styles/components/chat/MessageInput.css - Styles for the message input component */
 
-/* Message input container */
 .message-input-container {
   padding: 10px;
   border-top: 1px solid var(--color-border);
@@ -8,121 +7,140 @@
   display: flex;
   flex-direction: column;
   width: 100%;
-  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.message-input-wrapper {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 8px;
 }
 
 .message-input {
-  font-family: inherit;
-  font-size: 0.95rem;
+  flex-grow: 1;
   border-radius: 20px;
-  background-color: var(--color-bg-secondary);
-  padding: 8px 16px;
+  font-family: inherit;
 }
 
-.reply-to-container {
+.message-input-field {
+  padding: 8px 16px;
+  border-radius: 20px;
+  background-color: var(--color-bg-secondary);
+}
+
+.message-input .MuiOutlinedInput-root {
+  border-radius: 20px;
+}
+
+.message-input .MuiOutlinedInput-root:hover fieldset {
+  border-color: var(--color-primary-light);
+}
+
+.message-input .MuiOutlinedInput-root.Mui-focused fieldset {
+  border-color: var(--color-primary);
+}
+
+.attach-button, .send-button {
+  flex-shrink: 0;
+}
+
+/* Reply preview */
+.reply-preview-container {
+  display: flex;
+  align-items: flex-start;
+  padding: 8px 12px;
+  background-color: rgba(0, 255, 170, 0.05);
+  border-radius: 8px;
+  margin-bottom: 10px;
+  border-left: 3px solid var(--color-primary);
+}
+
+.reply-preview {
+  flex-grow: 1;
+  overflow: hidden;
+}
+
+.reply-close-button {
+  margin-left: 8px;
+}
+
+/* Attachment preview */
+.attachment-preview-container {
   display: flex;
   align-items: center;
+  padding: 8px 12px;
   background-color: rgba(0, 0, 0, 0.04);
   border-radius: 8px;
-  padding: 8px 12px;
-  margin-bottom: 8px;
-  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.image-preview-container {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  flex-grow: 1;
+  overflow: hidden;
+}
+
+.image-preview {
+  height: 60px;
+  border-radius: 4px;
+  object-fit: cover;
+  margin-bottom: 4px;
 }
 
 .file-preview-container {
   display: flex;
   align-items: center;
-  background-color: rgba(0, 0, 0, 0.04);
-  border-radius: 8px;
-  padding: 8px 12px;
-  margin-bottom: 8px;
-  gap: 8px;
+  flex-grow: 1;
+  overflow: hidden;
 }
 
-.image-preview {
-  height: 40px;
-  width: 40px;
+.file-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attachment-remove-button {
+  margin-left: 8px;
+}
+
+/* Error messages */
+.error-message {
+  margin: 4px 0 8px;
+  padding: 4px 8px;
   border-radius: 4px;
-  object-fit: cover;
-  border: 1px solid var(--color-border);
+  background-color: rgba(255, 0, 0, 0.05);
 }
 
-/* Button hover effects */
-.message-input-container .MuiIconButton-root:hover {
-  background-color: rgba(0, 255, 170, 0.1);
+/* Disabled state */
+.message-input-container.disabled {
+  opacity: 0.7;
+  pointer-events: none;
 }
 
-/* Send button styles */
-.message-input-container .MuiIconButton-colorPrimary {
+/* Loading indicator */
+.message-input-container .MuiCircularProgress-root {
   color: var(--color-primary);
 }
 
-.message-input-container .MuiIconButton-colorPrimary:disabled {
-  color: var(--color-text-disabled);
-}
-
-/* Focus styles for the text field */
-.message-input-container .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
-  border-color: var(--color-primary);
-}
-
-/* Typing indicator */
-.typing-indicator {
-  display: flex;
-  align-items: center;
-  padding: 5px 10px;
-  background-color: var(--color-bg-secondary);
-  border-top: 1px solid #444;
-}
-
-.typing-dots {
-  display: flex;
-  margin-right: 8px;
-}
-
-.typing-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background-color: var(--color-text-secondary);
-  margin-right: 4px;
-  animation: typing-animation 1.4s infinite ease-in-out;
-}
-
-.typing-dot:nth-child(1) {
-  animation-delay: 0s;
-}
-
-.typing-dot:nth-child(2) {
-  animation-delay: 0.2s;
-}
-
-.typing-dot:nth-child(3) {
-  animation-delay: 0.4s;
-}
-
-@keyframes typing-animation {
-  0%, 60%, 100% { transform: translateY(0); }
-  30% { transform: translateY(-5px); }
-}
-
-/* Reply preview in input area */
-.reply-preview {
-  background-color: rgba(0, 255, 170, 0.05);
-  border-left: 3px solid var(--color-primary);
-  padding: 8px;
-  margin-bottom: 8px;
-  border-radius: 4px;
-}
-
 /* Responsive styles */
-@media (max-width: 768px) {
+@media (max-width: 600px) {
   .message-input-container {
     padding: 8px;
   }
   
-  .reply-to-container,
-  .file-preview-container {
-    padding: 6px 8px;
+  .message-input-field {
+    padding: 6px 12px;
+  }
+  
+  .attachment-preview-container {
+    padding: 6px 10px;
+  }
+  
+  .image-preview {
+    height: 50px;
   }
 } 

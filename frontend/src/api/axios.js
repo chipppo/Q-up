@@ -56,6 +56,30 @@ API.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    
+    // Log detailed debugging information for file uploads
+    if (config.data instanceof FormData && config.data.has('image')) {
+      console.log('Uploading file with FormData', { 
+        url: config.url,
+        method: config.method,
+        contentType: config.headers['Content-Type'],
+      });
+      
+      // Check size of the file
+      try {
+        const file = config.data.get('image');
+        if (file instanceof File) {
+          console.log('File details:', {
+            name: file.name,
+            type: file.type,
+            size: file.size,
+          });
+        }
+      } catch (err) {
+        console.error('Error getting file from FormData:', err);
+      }
+    }
+    
     return config;
   },
   (error) => {
@@ -134,60 +158,36 @@ API.interceptors.response.use(
  * @returns {string} Properly formatted avatar URL
  */
 export const formatAvatarUrl = (url, username = 'U') => {
-  // For consistent logging
-  console.log('Processing avatar URL:', url, 'for user:', username);
+  // First letter of username, defaulting to 'U' if unavailable
+  const firstLetter = username && username.length > 0 ? username[0].toUpperCase() : 'U';
   
-  // If no URL provided, use ui-avatars with first letter of username
-  if (!url || url === 'null' || url === 'undefined') {
-    return `https://ui-avatars.com/api/?name=${username ? username[0].toUpperCase() : 'U'}&background=random&color=fff`;
-  }
+  // Default avatar using UI Avatars service with consistent styling
+  const defaultAvatar = `https://ui-avatars.com/api/?name=${firstLetter}&background=random&color=fff&size=256`;
   
-  // Check if it's already a full URL
+  // If no URL provided, return default avatar
+  if (!url) return defaultAvatar;
+  
+  // Check if it's an external URL
   if (url.startsWith('http')) {
-    // Handle known problematic paths that result in 404s
+    // Check for various problematic patterns in URLs
     if (url.includes('/media/default/') || 
-        (url.includes('/media/profile_pics/') && url.includes('404')) ||
-        url.includes('undefined') ||
-        url.includes('null')) {
-      return `https://ui-avatars.com/api/?name=${username ? username[0].toUpperCase() : 'U'}&background=random&color=fff`;
+        url.includes('/media/profile_pics/404') || 
+        url.includes('404') || 
+        url.includes('placeholder')) {
+      return defaultAvatar;
     }
     return url;
   }
   
-  // Handle relative URLs with problematic paths
+  // Check for default paths in relative URLs
   if (url.includes('/media/default/') || 
-      url.includes('undefined') ||
-      url.includes('null') ||
-      (url.includes('/media/profile_pics/') && url.includes('404'))) {
-    return `https://ui-avatars.com/api/?name=${username ? username[0].toUpperCase() : 'U'}&background=random&color=fff`;
+      url.includes('/media/profile_pics/404') || 
+      url.includes('undefined')) {
+    return defaultAvatar;
   }
   
-  // For relative URLs, make them absolute with API base URL
-  return `${API.defaults.baseURL}${url.startsWith('/') ? url : '/' + url}`;
-};
-
-/**
- * Utility function to format image URLs consistently across the application
- * 
- * @param {string|null} url - The image URL to format
- * @returns {string|null} Properly formatted URL or null if URL is missing
- */
-export const formatImageUrl = (url) => {
-  // For consistent logging
-  console.log('Processing image URL:', url);
-  
-  // If no URL provided, return null
-  if (!url || url === 'null' || url === 'undefined') {
-    return null;
-  }
-  
-  // Check if it's already a full URL
-  if (url.startsWith('http')) {
-    return url;
-  }
-  
-  // For relative URLs, make them absolute with API base URL
-  return `${API.defaults.baseURL}${url.startsWith('/') ? url : '/' + url}`;
+  // Add API base URL for relative paths
+  return `${API.defaults.baseURL}${url}`;
 };
 
 export default API;

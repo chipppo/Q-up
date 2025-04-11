@@ -1,90 +1,168 @@
 /* src/styles/components/chat/Message.css - Styles for the Message component */
 
-/* Message wrapper - holds a whole message */
+/* Message wrapper */
 .message-wrapper {
-  margin: 8px 0;
-  padding: 0;
+  margin-bottom: 16px;
   width: 100%;
   display: flex;
   flex-direction: column;
-  box-sizing: border-box;
+  position: relative;
 }
 
 .message-wrapper.sent {
   align-items: flex-end;
-  width: 90%; /* Limit width for sent messages */
-  margin-left: auto; /* Push to the right */
 }
 
 .message-wrapper.received {
   align-items: flex-start;
-  width: 90%; /* Limit width for received messages */
-  margin-right: auto; /* Push to the left */
 }
 
-/* -------- Message Bubbles -------- */
+/* Sender name for received messages */
+.message-sender-name {
+  font-size: 0.75rem;
+  margin-left: 10px;
+  margin-bottom: 2px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+/* Message bubble */
 .message-bubble {
-  position: relative;
   padding: 10px 14px;
   border-radius: 16px;
-  display: inline-block;
   max-width: 85%;
-  min-width: 60px;
-  margin: 0;
-  box-sizing: border-box;
-  overflow-wrap: break-word;
   word-wrap: break-word;
-  word-break: break-word;
-  hyphens: auto;
+  position: relative;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-  overflow-x: hidden;
+  margin-bottom: 4px; /* Add space for timestamp below */
 }
 
-/* Message content - the actual text */
-.message-content {
-  font-family: inherit;
-  font-size: 0.95rem;
-  line-height: 1.4;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  word-wrap: break-word;
-  word-break: break-word;
-  hyphens: auto;
-  width: 100%;
-  max-width: 100%;
-  overflow-x: hidden;
-  padding-bottom: 0; /* Removed padding that was for timestamp */
-}
-
-/* Sent message specific styles */
 .message-bubble.sent {
-  background-color: var(--color-primary);
-  color: white;
-  border-top-right-radius: 4px;
-  border-bottom-right-radius: 16px;
-  border-top-left-radius: 16px;
-  border-bottom-left-radius: 16px;
-  margin-right: 0;
-  align-self: flex-end;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  background-color: var(--color-primary-light);
+  border-bottom-right-radius: 4px;
 }
 
-/* Change timestamp color for sent messages */
-.message-bubble.sent .message-timestamp-inline {
-  color: rgba(255, 255, 255, 0.7);
-}
-
-/* Received message specific styles */
 .message-bubble.received {
-  background-color: var(--color-bg-tertiary);
-  color: var(--color-text-primary);
-  border-top-left-radius: 4px;
-  border-top-right-radius: 16px;
-  border-bottom-right-radius: 16px;
-  border-bottom-left-radius: 16px;
-  margin-left: 0;
-  align-self: flex-start;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  background-color: var(--color-bg-paper);
+  border-bottom-left-radius: 4px;
+}
+
+/* Message content */
+.message-content {
+  font-size: 0.95rem;
+  white-space: pre-wrap;
+  padding-bottom: 4px; /* Add space at bottom so text doesn't crowd timestamp */
+}
+
+/* Place timestamp OUTSIDE bubble */
+.message-timestamp-container {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  margin-top: 2px;
+  font-size: 0.7rem;
+  opacity: 0.7;
+  padding: 0 6px;
+}
+
+.message-wrapper.sent .message-timestamp-container {
+  justify-content: flex-end;
+}
+
+.message-wrapper.received .message-timestamp-container {
+  justify-content: flex-start;
+}
+
+.message-timestamp-inline {
+  font-size: 0.7rem;
+  color: var(--color-text-secondary);
+  display: flex;
+  align-items: center;
+}
+
+/* Message status indicators */
+.message-status {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 4px;
+}
+
+/* Highlighted message */
+.highlighted-message {
+  background-color: rgba(255, 214, 0, 0.2) !important;
+  animation: highlight-fade 2s ease-in-out;
+}
+
+@keyframes highlight-fade {
+  0% { background-color: rgba(255, 214, 0, 0.4); }
+  100% { background-color: rgba(255, 214, 0, 0.1); }
+}
+
+/* Reply preview */
+.reply-bubble {
+  border-left: 3px solid var(--color-primary);
+  padding: 6px 10px;
+  opacity: 0.8;
+  margin-bottom: 8px;
+  font-size: 0.85rem;
+  background-color: rgba(0, 255, 170, 0.05);
+  border-radius: 4px;
+  width: calc(100% - 20px);
+  box-sizing: border-box;
+}
+
+/* Images */
+.message-image {
+  max-width: 100%;
+  border-radius: 8px;
+  margin-top: 8px;
+  cursor: pointer;
+}
+
+/* File attachments */
+.file-attachment {
+  display: flex;
+  align-items: center;
+  padding: 10px 14px;
+  background-color: rgba(0, 0, 0, 0.05);
+  border-radius: 8px;
+  margin-top: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.file-attachment:hover {
+  background-color: rgba(0, 0, 0, 0.08);
+}
+
+.file-name {
+  font-weight: 500;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-left: 10px;
+}
+
+.image-error-message {
+  padding: 10px;
+  background-color: rgba(0, 0, 0, 0.05);
+  border-radius: 8px;
+  color: #ff5252;
+  font-style: italic;
+  margin-top: 8px;
+  font-size: 0.85rem;
+}
+
+/* Menu buttons */
+.message-menu-button {
+  opacity: 0.5;
+  transition: opacity 0.2s;
+  margin: 0 4px;
+}
+
+.message-menu-button:hover {
+  opacity: 1;
 }
 
 /* -------- Message Images & Attachments -------- */
@@ -126,58 +204,12 @@
   padding: 0 12px;
 }
 
-.message-timestamp-inline {
-  font-size: 0.7rem;
-  position: absolute;
-  right: 8px;
-  bottom: 2px;
-  opacity: 0.8;
-}
-
-.message-timestamp-outside {
-  font-size: 0.7rem;
-  opacity: 0.8;
-  margin-top: 2px;
-  padding: 0 4px;
-  white-space: nowrap;
-}
-
-.message-status {
-  display: inline-flex;
-  align-items: center;
-  font-size: 0.7rem;
-  margin-left: 4px;
-}
-
 .message-status .seen {
   color: var(--color-primary);
 }
 
 .message-status .sent {
   color: var(--color-text-tertiary);
-}
-
-/* -------- Reply Bubbles -------- */
-.reply-bubble {
-  background-color: rgba(0, 255, 170, 0.1);
-  padding: 4px 8px;
-  border-radius: 4px;
-  margin-bottom: 4px;
-  font-size: 0.85rem;
-  border-left: 3px solid var(--color-primary);
-  width: 100%;
-  box-sizing: border-box;
-}
-
-/* Highlighted message */
-.highlighted-message {
-  background-color: rgba(255, 214, 0, 0.2) !important;
-  animation: highlight-fade 3s ease-in-out;
-}
-
-@keyframes highlight-fade {
-  0% { background-color: rgba(255, 214, 0, 0.4); }
-  100% { background-color: transparent; }
 }
 
 /* Responsive styles */

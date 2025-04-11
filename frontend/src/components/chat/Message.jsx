@@ -10,7 +10,7 @@
  * @requires material-ui
  * @requires AuthContext
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -19,6 +19,7 @@ import {
   MenuItem,
   ListItemIcon,
   ListItemText,
+  CircularProgress,
 } from '@mui/material';
 import {
   MoreVert as MoreVertIcon,
@@ -29,10 +30,34 @@ import {
   DoneAll as DoneAllIcon,
   AttachFile as AttachFileIcon,
   Download as DownloadIcon,
+  Error as ErrorIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
-import API, { formatImageUrl } from '../../api/axios';
+import API from '../../api/axios';
 import '../../styles/components/chat/Message.css';
+
+/**
+ * Formats image URLs to handle various image source formats
+ * 
+ * @function formatImageUrl
+ * @param {string|null} url - URL to format
+ * @returns {string|null} Formatted URL or null if URL is missing
+ */
+const formatImageUrl = (url) => {
+  if (!url) return null;
+  
+  // Only append baseURL if not already a full URL
+  if (url.startsWith('http')) {
+    // Check for broken profiles
+    if (url.includes('/media/profile_pics/') && url.includes('404')) {
+      return null;
+    }
+    return url;
+  }
+  
+  // Handle relative URLs
+  return `/api${url}`;
+};
 
 /**
  * Component that renders a single chat message with various interactions
@@ -70,6 +95,8 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
   const [anchorEl, setAnchorEl] = useState(null);
   const open = Boolean(anchorEl);
   const isDeleting = deletingMessages[message.id];
+  const [imageLoading, setImageLoading] = useState(false);
+  const [imageError, setImageError] = useState(false);
   
   const messageTime = message.timestamp || message.created_at || new Date();
   
@@ -227,14 +254,38 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
     return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
   };
 
+  // Handle image loading
+  const handleImageLoad = () => {
+    setImageLoading(false);
+    setImageError(false);
+  };
+
+  const handleImageError = (e) => {
+    setImageLoading(false);
+    setImageError(true);
+    // Don't remove the image element, just mark as error
+    e.target.style.display = 'none';
+  };
+
+  // Set loading state when dealing with images
+  useEffect(() => {
+    if (message.image || message.has_image) {
+      setImageLoading(true);
+    }
+  }, [message.image, message.has_image]);
+
   return (
-    <Box className={`message-wrapper ${isOwnMessage ? 'sent' : 'received'}`} sx={{ opacity: isDeleting ? 0.5 : 1 }}>
+    <Box className={`message-wrapper ${isOwnMessage ? 'sent' : 'received'}`} 
+      sx={{ opacity: isDeleting ? 0.5 : 1 }}>
+      
+      {/* Sender name for received messages */}
       {!isOwnMessage && (
-        <Typography variant="caption" color="text.secondary" sx={{ ml: 1, mb: 0.5, fontWeight: 'bold' }}>
+        <Typography variant="caption" className="message-sender-name">
           {senderName}
         </Typography>
       )}
       
+      {/* Message bubble with content */}
       <Box sx={{ 
           display: 'flex', 
           alignItems: 'flex-start', 
@@ -243,104 +294,77 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
           width: '100%'
         }}
       >
+        {/* Menu button for received messages (on left) */}
         {!isOwnMessage && (
           <IconButton 
             size="small" 
             onClick={handleMenuClick}
-            sx={{ 
-              opacity: 0.5, 
-              mr: 0.5, 
-              minWidth: '24px',
-              flexShrink: 0,
-              '&:hover': { opacity: 1 } 
-            }}
+            className="message-menu-button"
+            sx={{ mr: 0.5 }}
           >
             <MoreVertIcon fontSize="small" />
           </IconButton>
         )}
         
+        {/* Message bubble with content */}
         <div 
           className={`message-bubble ${isOwnMessage ? 'sent' : 'received'} ${isHighlighted ? 'highlighted-message' : ''}`}
           id={`message-${message.id}`}
         >
+          {/* Reply reference */}
           {message.parent && (
-            <Box 
-              className="reply-bubble"
-              sx={{
-                borderLeft: '3px solid',
-                borderColor: 'primary.main',
-                pl: 1,
-                py: 0.5,
-                opacity: 0.8,
-                mb: 1,
-                fontSize: '0.85rem',
-                backgroundColor: 'rgba(0, 255, 170, 0.05)',
-                borderRadius: '4px',
-                width: '100%',
-                boxSizing: 'border-box'
-              }}
-            >
+            <Box className="reply-bubble">
               <Typography variant="caption" fontWeight="medium" sx={{ display: 'block', mb: 0.5 }}>
-                {typeof message.parent === 'object' && message.parent?.sender ? 
-                  (typeof message.parent.sender === 'object' ? 
-                    message.parent.sender.username || 'User' : 
-                    message.parent.sender || 'User') : 
-                  message.parent_sender || 'User'}
+                {message.parent_sender || (message.parent?.sender?.username 
+                  ? message.parent.sender.username 
+                  : 'User')}
               </Typography>
               <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                {message.parent_content || 
-                  (typeof message.parent === 'object' ? message.parent.content : null) || 
-                  (message.parent_has_image ? 'Image' : 'Reply')}
+                {message.parent_message?.content || message.parent?.content || 
+                  (message.parent?.has_image ? 'Image' : 'File')}
               </Typography>
             </Box>
           )}
         
+          {/* Message text content */}
           {message.content && (
             <div className="message-content">
               {message.content}
             </div>
           )}
         
+          {/* Image attachments */}
           {(message.image || message.has_image) && (
-            <Box mt={message.content ? 1 : 0} sx={{ width: '100%', boxSizing: 'border-box', marginBottom: '16px' }}>
+            <Box mt={message.content ? 1 : 0} mb={1} sx={{ width: '100%', boxSizing: 'border-box' }}>
+              {imageLoading && (
+                <Box sx={{ display: 'flex', justifyContent: 'center', m: 2 }}>
+                  <CircularProgress size={24} color="inherit" />
+                </Box>
+              )}
+
               {isImageAttachment(formatImageUrl(message.image)) ? (
-                <img 
-                  src={formatImageUrl(message.image)}
-                  alt="Message attachment" 
-                  className="message-image"
-                  style={{ maxWidth: '100%', borderRadius: '8px' }}
-                  onError={(e) => {
-                    // Replace broken image with a generic "Image not available" message
-                    e.target.style.display = 'none';
-                    const container = e.target.parentNode;
-                    const errorMsg = document.createElement('div');
-                    errorMsg.className = 'image-error-message';
-                    errorMsg.style.padding = '10px';
-                    errorMsg.style.backgroundColor = 'rgba(0,0,0,0.05)';
-                    errorMsg.style.borderRadius = '8px';
-                    errorMsg.style.color = 'red';
-                    errorMsg.style.fontStyle = 'italic';
-                    errorMsg.textContent = 'Image could not be loaded.';
-                    container.appendChild(errorMsg);
-                  }}
-                />
+                <>
+                  <img 
+                    src={formatImageUrl(message.image)}
+                    alt="Message attachment" 
+                    className="message-image"
+                    onLoad={handleImageLoad}
+                    onError={handleImageError}
+                    style={{ 
+                      display: imageLoading || imageError ? 'none' : 'block'
+                    }}
+                  />
+                  {imageError && (
+                    <Box className="image-error-message">
+                      <ErrorIcon fontSize="small" sx={{ mr: 1, verticalAlign: 'middle' }} />
+                      Image could not be loaded
+                    </Box>
+                  )}
+                </>
               ) : (
                 <Box 
                   className="file-attachment"
                   onClick={() => handleFileDownload(formatImageUrl(message.image), getFileName(message.image))}
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    p: 1.5,
-                    backgroundColor: 'rgba(0,0,0,0.05)',
-                    borderRadius: 2,
-                    mt: 1,
-                    cursor: 'pointer',
-                    transition: 'background-color 0.2s',
-                    '&:hover': {
-                      backgroundColor: 'rgba(0,0,0,0.08)'
-                    }
-                  }}
                 >
                   <AttachFileIcon color="primary" />
                   <Box sx={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', ml: 2, flex: 1 }}>
@@ -358,55 +382,35 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
           )}
         </div>
         
+        {/* Menu button for sent messages (on right) */}
         {isOwnMessage && (
           <IconButton 
             size="small" 
             onClick={handleMenuClick}
-            sx={{ 
-              opacity: 0.5, 
-              ml: 0.5, 
-              minWidth: '24px',
-              flexShrink: 0,
-              '&:hover': { opacity: 1 } 
-            }}
+            className="message-menu-button"
+            sx={{ ml: 0.5 }}
           >
             <MoreVertIcon fontSize="small" />
           </IconButton>
         )}
       </Box>
       
-      {/* Message timestamp moved outside the bubble */}
-      <Typography 
-        variant="caption" 
-        className="message-timestamp-outside"
-        sx={{ 
-          fontSize: '0.7rem', 
-          opacity: 0.8,
-          color: 'text.secondary',
-          display: 'flex',
-          alignItems: 'center',
-          mt: 0.5,
-          mr: isOwnMessage ? 1 : 0,
-          ml: isOwnMessage ? 0 : 1,
-          justifyContent: isOwnMessage ? 'flex-end' : 'flex-start',
-        }} 
-      >
+      {/* Message timestamp (OUTSIDE bubble) */}
+      <Box className="message-timestamp-container">
         {isOwnMessage && message.is_read !== undefined && (
-          <span className="message-status" style={{ marginRight: '5px' }}>
+          <span className="message-status">
             {message.is_read ? 
-              <span style={{ display: 'inline-flex', alignItems: 'center', color: 'var(--color-primary)' }}>
-                <DoneAllIcon fontSize="inherit" style={{ marginRight: '2px', fontSize: '0.8rem' }} />
-              </span> 
-              : 
-              <span style={{ display: 'inline-flex', alignItems: 'center', color: 'var(--color-text-tertiary)' }}>
-                <CheckIcon fontSize="inherit" style={{ marginRight: '2px', fontSize: '0.8rem' }} />
-              </span>
+              <DoneAllIcon fontSize="inherit" style={{ fontSize: '0.8rem' }} /> : 
+              <CheckIcon fontSize="inherit" style={{ fontSize: '0.8rem' }} />
             }
           </span>
         )}
-        {formatMessageTime(messageTime)}
-      </Typography>
+        <Typography variant="caption" className="message-timestamp-inline">
+          {formatMessageTime(messageTime)}
+        </Typography>
+      </Box>
       
+      {/* Action menu */}
       <Menu
         anchorEl={anchorEl}
         id={`message-menu-${message.id}`}

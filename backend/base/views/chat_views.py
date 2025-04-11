@@ -11,6 +11,9 @@ from ..serializers import (
 from django.utils.dateparse import parse_datetime
 from django.utils import timezone
 import logging
+import os
+from django.utils.text import slugify
+import uuid
 
 class ChatListView(APIView):
     """
@@ -359,166 +362,137 @@ class MessageListView(APIView):
 
     def post(self, request, chat_id):
         """
-        Create a new message in a chat
+        Creates a new message in the chat.
+        
+        This endpoint handles file uploads and creates a message with the content
+        and/or file attachment. Files are stored in an S3 bucket.
         
         Args:
-            request: The HTTP request
-            chat_id: The ID of the chat
+            request: HTTP request with message data
+            chat_id: ID of the chat to add the message to
             
         Returns:
-            The created message or error response
+            New message data or error message
         """
         try:
-            import logging
-            logger = logging.getLogger(__name__)
+            # Get the chat
+            chat = Chat.objects.get(id=chat_id)
             
-            logger.info(f"Creating message in chat {chat_id}")
-            logger.info(f"Content-Type: {request.content_type}")
-            logger.info(f"FILES: {list(request.FILES.keys()) if request.FILES else 'None'}")
-            logger.info(f"DATA: {list(request.data.keys()) if request.data else 'None'}")
-            
-            # Get the chat object
-            try:
-                chat = Chat.objects.get(id=chat_id)
-                
-                # Check if user is a participant
-                if not chat.participants.filter(id=request.user.id).exists():
-                    return Response(
-                        {'detail': 'Нямате достъп до този чат.'},
-                        status=status.HTTP_403_FORBIDDEN
-                    )
-            except Chat.DoesNotExist:
+            # Check if user is a participant
+            if request.user not in chat.participants.all():
                 return Response(
-                    {'detail': 'Този чат не съществува.'},
-                    status=status.HTTP_404_NOT_FOUND
+                    {'detail': 'You are not a participant in this chat'},
+                    status=status.HTTP_403_FORBIDDEN
                 )
             
-            # Get message content and image
-            content = request.data.get('content', '')
-            image = None 
-            if 'image' in request.FILES:
-                image = request.FILES['image']
-                logger.info(f"Image found - Name: {image.name}, Size: {image.size}, Type: {image.content_type}")
+            # Validate request data
+            content = request.data.get('content', '').strip()
+            image_file = request.FILES.get('image')
+            parent_id = request.data.get('parent')
             
-            # Get parent message if replying
-            parent = None
-            if 'parent' in request.data and request.data['parent']:
-                try:
-                    parent_id = request.data['parent']
-                    parent = Message.objects.get(id=parent_id, chat=chat)
-                except Message.DoesNotExist:
-                    return Response(
-                        {'detail': 'Съобщението, на което отговаряте, не съществува.'},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
-                except (ValueError, TypeError):
-                    return Response(
-                        {'detail': 'Невалиден идентификатор на съобщение.'},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
+            # Debug logging
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f"Creating message in chat {chat_id} for user {request.user.username}")
+            logger.info(f"Request data: content='{content[:50]}{'...' if len(content) > 50 else ''}', image={bool(image_file)}, parent_id={parent_id}")
             
-            # Validate if content or image is provided
-            if not content and not image:
+            if image_file:
+                logger.info(f"Image file: name={image_file.name}, size={image_file.size}, content_type={image_file.content_type}")
+            
+            # Check if the message has any content (text or file)
+            if not content and not image_file:
                 return Response(
                     {'detail': 'Съобщението не може да бъде празно.'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
-            # Validate image if present
-            if image:
-                # Validate file size
-                if image.size > 10 * 1024 * 1024:  # 10MB
+            # Create message
+            message = Message(
+                chat=chat,
+                sender=request.user,
+                content=content
+            )
+            
+            # Handle parent message (for replies)
+            if parent_id:
+                try:
+                    parent_message = Message.objects.get(id=parent_id)
+                    # Make sure parent is in the same chat
+                    if parent_message.chat.id != chat.id:
+                        return Response(
+                            {'detail': 'Parent message must be in the same chat'},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+                    message.parent = parent_message
+                except Message.DoesNotExist:
                     return Response(
-                        {'detail': 'File size cannot exceed 10MB'},
+                        {'detail': 'Parent message does not exist'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            
+            # Save the message first to get an ID
+            message.save()
+            
+            # Handle file upload (image or document)
+            if image_file:
+                # Check file size (10MB limit)
+                if image_file.size > 10 * 1024 * 1024:
+                    message.delete()  # Clean up the message we just created
+                    return Response(
+                        {'detail': 'File size exceeds the limit of 10MB'},
                         status=status.HTTP_400_BAD_REQUEST
                     )
                 
-                # Check content type - allow any file type but log it
-                content_type = getattr(image, 'content_type', None)
-                logger.info(f"Uploading file with content type: {content_type}")
+                # Sanitize filename to prevent path traversal
+                import os
+                from django.utils.text import slugify
+                import uuid
                 
-                # Allow all file types but warn about potentially dangerous ones
-                dangerous_types = ['application/x-msdownload', 'application/x-executable', 
-                                  'application/x-dosexec', 'application/java-archive']
-                if content_type and any(dtype in content_type.lower() for dtype in dangerous_types):
-                    logger.warning(f"Potentially dangerous file type uploaded: {content_type}")
+                # Get file extension safely
+                _, ext = os.path.splitext(image_file.name)
+                ext = ext.lower()
+                
+                # Create a unique filename with the original extension
+                filename_base = slugify(os.path.splitext(image_file.name)[0]) or 'file'
+                unique_filename = f"{filename_base}_{uuid.uuid4().hex[:8]}{ext}"
+                
+                # Set the path in the chat_files directory
+                file_path = f"chat_files/{unique_filename}"
+                
+                try:
+                    # Save file to the model field (this will use the storage backend)
+                    message.image.save(file_path, image_file, save=True)
                     
-            # Create message in two steps to prevent S3 errors from failing the entire request
-            try:
-                # First create message without image
-                message = Message.objects.create(
-                    chat=chat,
-                    sender=request.user,
-                    content=content,
-                    parent=parent,
-                    is_read=False,
-                    is_delivered=True
-                )
-                
-                # Then try to save the file/image separately
-                if image:
-                    try:
-                        logger.info(f"Saving file for message {message.id}")
-                        
-                        # Store original filename and content type - DISABLED, fields don't exist in DB
-                        # message.file_name = getattr(image, 'name', '')
-                        # message.file_type = getattr(image, 'content_type', '')
-                        
-                        # Try to save the image with error handling
-                        try:
-                            message.image = image
-                            message.save()
-                            logger.info(f"File saved successfully: {getattr(image, 'name', 'unnamed')} ({getattr(image, 'content_type', 'unknown')})")
-                        except IOError as io_error:
-                            logger.error(f"IOError saving file: {str(io_error)}")
-                            # If there's a permission error or I/O error, return a specific message
-                            return Response(
-                                {'detail': f'Error saving file: {str(io_error)}'},
-                                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                            )
-                        except Exception as save_error:
-                            logger.error(f"Error saving image to storage: {str(save_error)}")
-                            import traceback
-                            logger.error(traceback.format_exc())
-                            # Continue without file - message was created successfully
-                            return Response(
-                                {'detail': f'Message created but file could not be saved: {str(save_error)}',
-                                 'message': MessageSerializer(message, context={'request': request}).data},
-                                status=status.HTTP_201_CREATED
-                            )
-                    except Exception as file_error:
-                        logger.error(f"Error preparing file: {str(file_error)}")
-                        import traceback
-                        logger.error(traceback.format_exc())
-                        # Continue without file - message was created successfully
-                        return Response(
-                            {'detail': 'Message created but file could not be processed',
-                             'message': MessageSerializer(message, context={'request': request}).data},
-                            status=status.HTTP_201_CREATED
-                        )
-                
-                # Update chat last activity timestamp
-                chat.save()
-                
-                # Return the message with serializer
-                serializer = MessageSerializer(message, context={'request': request})
-                return Response(serializer.data, status=status.HTTP_201_CREATED)
-                
-            except Exception as msg_error:
-                logger.error(f"Error creating message: {str(msg_error)}")
-                import traceback
-                logger.error(traceback.format_exc())
-                return Response(
-                    {'detail': f'Неуспешно изпращане на съобщение: {str(msg_error)}'},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
-                
-        except Exception as e:
-            logger.error(f"Unexpected error in message creation: {str(e)}")
-            import traceback
-            logger.error(traceback.format_exc())
+                    # Log successful upload
+                    logger.info(f"File uploaded successfully to: {message.image.url}")
+                except Exception as e:
+                    logger.error(f"File upload error: {str(e)}")
+                    message.delete()  # Clean up the message
+                    return Response(
+                        {'detail': f'Error uploading file: {str(e)}'},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                    )
+            
+            # Update chat's updated_at field
+            chat.save()
+            
+            # Serialize and return the new message
+            serializer = MessageSerializer(message)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            
+        except Chat.DoesNotExist:
             return Response(
-                {'detail': str(e)},
+                {'detail': 'Chat not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            # Log the error for debugging
+            import traceback
+            logger.error(f"Unexpected error creating message: {str(e)}")
+            logger.error(traceback.format_exc())
+            
+            return Response(
+                {'detail': f'Error creating message: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 

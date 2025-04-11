@@ -98,6 +98,9 @@ const Chat = () => {
   const [userActive, setUserActive] = useState(true);
   const userActivityTimeoutRef = useRef(null);
   
+  // Inside the Chat component render function where MessageInput is used
+  const messageInputRef = useRef(null);
+  
   /**
    * Checks if the user is at the bottom of the chat messages
    * Used to auto-scroll only when appropriate
@@ -651,71 +654,43 @@ const Chat = () => {
   };
 
   /**
-   * Opens the message action menu
+   * Handles opening message action menu for various actions
    * 
    * @function handleMessageMenuOpen
-   * @param {Event} event - The triggering event
-   * @param {Object} message - The message being operated on
-   * @param {string} action - The action type (reply, edit, delete)
+   * @param {HTMLElement} anchorEl - Anchor element for the menu
+   * @param {Object} message - Message object to act on
+   * @param {string} action - Action to perform (reply, edit, delete)
    */
-  const handleMessageMenuOpen = (event, message, action) => {
-    // If we received a specific action directly from the Message component's menu
-    if (action) {
-      if (action === 'reply') {
-        handleReplyMessage(message);
-      } else if (action === 'edit') {
-        setEditingMessage(message);
-      } else if (action === 'delete') {
-        handleDeleteMessage(message.id);
-      }
-      return;
-    }
-    
-    // For backward compatibility or other use cases
-    // Prevent event propagation to avoid conflicts
-    if (event) {
-      event.stopPropagation();
-    }
-    
-    // If we already have this message selected, close the menu
-    if (selectedMessageForMenu && selectedMessageForMenu.id === message.id && messageMenuAnchorEl) {
-      setMessageMenuAnchorEl(null);
-      setSelectedMessageForMenu(null);
-      return;
-    }
-    
-    // Use the current target for menu positioning
-    if (event && event.currentTarget) {
-      const currentTarget = event.currentTarget;
-      
-      // Make sure the element is valid before setting it as anchorEl
-      if (currentTarget && document.body.contains(currentTarget)) {
-        setMessageMenuAnchorEl(currentTarget);
-        setSelectedMessageForMenu(message);
-      } else {
-        console.error('Invalid anchor element for message menu');
-      }
+  const handleMessageMenuOpen = (anchorEl, message, action) => {
+    if (action === 'reply') {
+      // Handle reply action
+      handleReplyMessage(message);
+    } else if (action === 'edit') {
+      // Handle edit action
+      setEditingMessage(message);
+    } else if (action === 'delete') {
+      // Handle delete action
+      handleDeleteMessage(message.id);
     }
   };
 
   /**
-   * Closes the message action menu
-   * 
-   * @function handleMessageMenuClose
-   */
-  const handleMessageMenuClose = () => {
-    setMessageMenuAnchorEl(null);
-    setSelectedMessageForMenu(null);
-  };
-
-  /**
-   * Sets up a reply to a message
+   * Handles selecting a message to reply to
    * 
    * @function handleReplyMessage
-   * @param {Object} message - The message being replied to
+   * @param {Object} message - The message to reply to
    */
   const handleReplyMessage = (message) => {
+    // Set the message to reply to (will be passed to MessageInput)
     setReplyTo(message);
+    
+    // Focus the message input
+    if (messageInputRef.current) {
+      messageInputRef.current.focus();
+    }
+    
+    // Close menu if open
+    setMessageMenuAnchorEl(null);
   };
 
   /**
@@ -1168,11 +1143,11 @@ const Chat = () => {
               />
             ) : (
               <MessageInput
-                selectedChat={selectedChat}
-                replyTo={replyTo}
-                setReplyTo={setReplyTo}
                 addMessage={addMessage}
-                scrollToBottom={scrollToBottom}
+                replyTo={replyTo}
+                clearReplyTo={() => setReplyTo(null)}
+                chatId={selectedChat.id}
+                disabled={messagesLoading}
               />
             )}
           </>
