@@ -85,8 +85,23 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
    * @returns {boolean} True if the attachment appears to be an image
    */
   const isImageAttachment = (url) => {
+    // Always check for SVG first and return false to ensure it's never treated as an image
+    if (message.image && typeof message.image === 'string' && message.image.toLowerCase().includes('.svg')) {
+      return false;
+    }
+    
+    // URL check for SVG
+    if (url && typeof url === 'string' && url.toLowerCase().includes('.svg')) {
+      return false;
+    }
+    
     // First check if we have file info from the server
     if (message.file_info && message.file_info.is_image !== undefined) {
+      // Ensure SVG is not considered an image even if file_info says so
+      if (message.image && typeof message.image === 'string' && 
+          message.image.toLowerCase().includes('.svg')) {
+        return false;
+      }
       return message.file_info.is_image;
     }
     
@@ -335,13 +350,31 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
           {/* Image attachments */}
           {(message.image || message.has_image) && (
             <Box mt={message.content ? 1 : 0} mb={1} sx={{ width: '100%', boxSizing: 'border-box' }}>
-              {imageLoading && (
+              {imageLoading && !message.image?.toLowerCase().includes('.svg') && (
                 <Box sx={{ display: 'flex', justifyContent: 'center', m: 2 }}>
                   <CircularProgress size={24} color="inherit" />
                 </Box>
               )}
 
-              {(isImageAttachment(formatAvatarUrl(message.image))) ? (
+              {/* Explicitly check for SVG first and force as downloadable */}
+              {message.image && typeof message.image === 'string' && message.image.toLowerCase().includes('.svg') ? (
+                <Box 
+                  className="file-attachment"
+                  onClick={() => handleFileDownload(formatAvatarUrl(message.image), getFileName(message.image))}
+                >
+                  <AttachFileIcon color="primary" />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', ml: 2, flex: 1 }}>
+                    <Typography variant="body2" noWrap sx={{ fontWeight: 'medium' }}>
+                      {getFileName(message.image)}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      SVG File • Click to download
+                    </Typography>
+                  </Box>
+                  <DownloadIcon sx={{ ml: 'auto' }} color="action" />
+                </Box>
+              ) : (isImageAttachment(formatAvatarUrl(message.image)) && 
+                !message.image?.toLowerCase().includes('.svg')) ? (
                 <>
                   <img 
                     src={formatAvatarUrl(message.image)}
