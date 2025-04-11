@@ -410,14 +410,13 @@ function ViewProfile({ user, gameStats, isFollowing, onFollowToggle, isLoggedIn,
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <Typography variant="h6">Game Statistics</Typography>
             {isOwnProfile && (
-              <Button 
-                variant="outlined" 
+              <Button
+                variant="outlined"
+                startIcon={<VideogameAssetIcon />}
                 size="small"
-                component={Link}
-                to={`/profile/${user?.username}`}
                 onClick={() => {
-                  // Set tab to Game Statistics (index 3)
-                  const event = new CustomEvent('setProfileTab', { detail: 3 });
+                  // Trigger tab change event to switch to game stats tab
+                  const event = new CustomEvent('setProfileTab', { detail: 2 });
                   window.dispatchEvent(event);
                 }}
               >

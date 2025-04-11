@@ -40,6 +40,7 @@
 .message-bubble.sent {
   background-color: var(--color-primary-light);
   border-bottom-right-radius: 4px;
+  color: #000000;
 }
 
 .message-bubble.received {
@@ -67,6 +68,7 @@
 
 .message-wrapper.sent .message-timestamp-container {
   justify-content: flex-end;
+  color: #000000;
 }
 
 .message-wrapper.received .message-timestamp-container {
@@ -243,6 +245,12 @@
 
 .message-status .sent {
   color: var(--color-text-tertiary);
+}
+
+/* Specific override for sent message timestamps */
+.message-wrapper.sent .message-timestamp,
+.message-wrapper.sent .message-timestamp-inline {
+  color: rgba(0, 0, 0, 0.7);
 }
 
 /* Responsive styles */

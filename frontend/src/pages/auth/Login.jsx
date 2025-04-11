@@ -179,7 +179,7 @@ function Login() {
       setTimeout(() => {
         const destination = location.state?.from || "/dashboard";
         navigate(destination, { replace: true });
-      }, 100);
+      }, 500); // Increased from 100ms to 500ms for better UX
       
     } catch (error) {
       console.error('Login error:', error);
@@ -191,12 +191,17 @@ function Login() {
       
       // Show error toast with longer duration and make it non-dismissible
       toast.error(errorMessage, { 
-        autoClose: 5000,
+        autoClose: 8000, // Increased from 5000ms to 8000ms
         hideProgressBar: false,
         closeOnClick: false,
         pauseOnHover: true,
         draggable: true,
         progress: undefined,
+        position: "top-center", // Changed from default to top-center for better visibility
+        style: { 
+          borderLeft: '4px solid #ff1744',
+          fontWeight: 'bold'
+        },
       });
     }
   };
@@ -371,7 +376,8 @@ function Login() {
           </div>
 
           {error && (
-            <div className="error-message" style={{ animation: 'fadeIn 0.3s ease-in', marginBottom: '15px' }}>
+            <div className="error-message" style={{ animation: 'pulsateError 2s infinite', marginBottom: '15px' }}>
+              <h4 style={{ margin: '0 0 5px 0', color: 'var(--color-error)' }}>Login Failed</h4>
               <span>{error}</span>
             </div>
           )}
