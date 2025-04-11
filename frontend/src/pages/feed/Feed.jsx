@@ -31,7 +31,6 @@ import API from '../../api/axios';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-toastify';
 import '../../styles/pages/feed/Feed.css';
-import CreatePostForm from '../../components/feed/CreatePostForm';
 
 /**
  * Feed page component that displays posts from followed users
@@ -184,11 +183,6 @@ const Feed = () => {
         <Typography variant="body1" color="text.secondary" paragraph>
           See the latest posts from people you follow
         </Typography>
-        
-        {/* Create Post Form */}
-        <CreatePostForm onPostCreated={(newPost) => {
-          setPosts(prevPosts => [newPost, ...prevPosts]);
-        }} />
       </Paper>
 
       {posts.length === 0 ? (

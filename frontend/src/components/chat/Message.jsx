@@ -85,41 +85,16 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
    * @returns {boolean} True if the attachment appears to be an image
    */
   const isImageAttachment = (url) => {
-    // Always check for SVG first and return false to ensure it's never treated as an image
-    if (message.image && typeof message.image === 'string' && message.image.toLowerCase().includes('.svg')) {
-      return false;
-    }
-    
-    // URL check for SVG
-    if (url && typeof url === 'string' && url.toLowerCase().includes('.svg')) {
-      return false;
-    }
-    
     // First check if we have file info from the server
     if (message.file_info && message.file_info.is_image !== undefined) {
-      // Ensure SVG is not considered an image even if file_info says so
-      if (message.image && typeof message.image === 'string' && 
-          message.image.toLowerCase().includes('.svg')) {
-        return false;
-      }
       return message.file_info.is_image;
     }
     
     if (!url) return false;
     
-    // Force display of WebP as image but treat SVG as a file
-    if (url.toLowerCase().includes('.webp')) {
-      return true;
-    }
-    
-    // Explicitly exclude SVG from image detection
-    if (url.toLowerCase().includes('.svg')) {
-      return false;
-    }
-    
     // Check for common image extensions in URL
     const imageExtensions = [
-      '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp',
+      '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg',
       '.tiff', '.tif', '.avif', '.heic', '.heif', '.jfif', '.pjpeg', '.pjp'
     ];
     const hasImageExtension = imageExtensions.some(ext => {
@@ -131,7 +106,7 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
     
     // Also check for image content types in URL (from backend API responses)
     const imageContentTypes = [
-      'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp',
+      'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp', 'image/svg+xml',
       'image/tiff', 'image/avif', 'image/heic', 'image/heif'
     ];
     const containsImageContentType = imageContentTypes.some(type => url.toLowerCase().includes(type));
@@ -256,12 +231,10 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
     return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
   };
 
-  // Properly handle loading state and remove infinite spinner
+  // Handle image loading
   const handleImageLoad = () => {
-    setTimeout(() => {
-      setImageLoading(false);
-      setImageError(false);
-    }, 100);
+    setImageLoading(false);
+    setImageError(false);
   };
 
   const handleImageError = (e) => {
@@ -275,11 +248,6 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
   useEffect(() => {
     if (message.image || message.has_image) {
       setImageLoading(true);
-      // Add a timeout to prevent infinite loading
-      const timer = setTimeout(() => {
-        setImageLoading(false);
-      }, 5000); // 5 second maximum loading time
-      return () => clearTimeout(timer);
     }
   }, [message.image, message.has_image]);
 
@@ -319,9 +287,6 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
         <div 
           className={`message-bubble ${isOwnMessage ? 'sent' : 'received'} ${isHighlighted ? 'highlighted-message' : ''}`}
           id={`message-${message.id}`}
-          style={{ 
-            color: isOwnMessage ? '#121212' : 'white' // Dark text for sent messages, white for received
-          }}
         >
           {/* Reply reference */}
           {message.parent && (
@@ -350,31 +315,13 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
           {/* Image attachments */}
           {(message.image || message.has_image) && (
             <Box mt={message.content ? 1 : 0} mb={1} sx={{ width: '100%', boxSizing: 'border-box' }}>
-              {imageLoading && !message.image?.toLowerCase().includes('.svg') && (
+              {imageLoading && (
                 <Box sx={{ display: 'flex', justifyContent: 'center', m: 2 }}>
                   <CircularProgress size={24} color="inherit" />
                 </Box>
               )}
 
-              {/* Explicitly check for SVG first and force as downloadable */}
-              {message.image && typeof message.image === 'string' && message.image.toLowerCase().includes('.svg') ? (
-                <Box 
-                  className="file-attachment"
-                  onClick={() => handleFileDownload(formatAvatarUrl(message.image), getFileName(message.image))}
-                >
-                  <AttachFileIcon color="primary" />
-                  <Box sx={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', ml: 2, flex: 1 }}>
-                    <Typography variant="body2" noWrap sx={{ fontWeight: 'medium' }}>
-                      {getFileName(message.image)}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      SVG File • Click to download
-                    </Typography>
-                  </Box>
-                  <DownloadIcon sx={{ ml: 'auto' }} color="action" />
-                </Box>
-              ) : (isImageAttachment(formatAvatarUrl(message.image)) && 
-                !message.image?.toLowerCase().includes('.svg')) ? (
+              {isImageAttachment(formatAvatarUrl(message.image)) ? (
                 <>
                   <img 
                     src={formatAvatarUrl(message.image)}
@@ -383,11 +330,7 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
                     onLoad={handleImageLoad}
                     onError={handleImageError}
                     style={{ 
-                      display: imageLoading || imageError ? 'none' : 'block',
-                      maxWidth: '100%',
-                      maxHeight: '350px',
-                      objectFit: 'cover',
-                      borderRadius: '8px'
+                      display: imageLoading || imageError ? 'none' : 'block'
                     }}
                   />
                   {imageError && (

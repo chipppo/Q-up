@@ -601,82 +601,82 @@ function SearchProfiles() {
             <button className="clear-filters-btn" onClick={clearFilters}>Clear All</button>
           </div>
           
-          {/* Platform filters */}
-          {renderFilterSection("Platforms", "platforms", availableFilters.platforms)}
-          
-          {/* Language filters */}
-          {renderFilterSection("Languages", "languages", availableFilters.languages)}
-          
-          {/* Active hours filters */}
-          <div className="filter-section">
-            <h3>Active Hours</h3>
-            <p className="filter-description">Times are automatically adjusted for each user's timezone</p>
-            <div className="filter-options">
-              {availableFilters.activeHours.map((option, index) => {
-                const value = option.id;
-                const label = option.name;
-                
-                return (
-                  <div key={index} className="filter-option">
-                    <div className="filter-option-header">
-                      <input
-                        type="checkbox"
-                        id={`activeHours-${value}`}
-                        checked={filters.activeHours.includes(value)}
-                        onChange={() => handleFilterChange("activeHours", value)}
-                      />
-                      <label htmlFor={`activeHours-${value}`}>{label}</label>
+          {/* Mobile-optimized filter layout */}
+          <div className="filter-sections-container">
+            {/* Platform filters */}
+            {renderFilterSection("Platforms", "platforms", availableFilters.platforms)}
+            
+            {/* Language filters */}
+            {renderFilterSection("Languages", "languages", availableFilters.languages)}
+            
+            {/* Active hours filters */}
+            <div className="filter-section">
+              <h3>Active Hours</h3>
+              <p className="filter-description">Times are automatically adjusted for each user's timezone</p>
+              <div className="filter-options">
+                {availableFilters.activeHours.map((option, index) => {
+                  const value = option.id;
+                  const label = option.name;
+                  
+                  return (
+                    <div key={index} className="filter-option">
+                      <div className="filter-option-header">
+                        <input
+                          type="checkbox"
+                          id={`activeHours-${value}`}
+                          checked={filters.activeHours.includes(value)}
+                          onChange={() => handleFilterChange("activeHours", value)}
+                        />
+                        <label htmlFor={`activeHours-${value}`}>{label}</label>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
-          </div>
-          
-          {/* Games filters with per-game hour sliders and goals */}
-          {renderFilterSection("Games", "games", availableFilters.games)}
-          
-          {/* Mic availability filter */}
-          <div className="filter-section">
-            <h3>Mic Availability</h3>
-            <div className="filter-options">
-              <div className="filter-option">
-                <div className="filter-option-header">
-                  <input
-                    type="radio"
-                    id="mic-yes"
-                    name="mic-availability"
-                    checked={filters.hasMic === true}
-                    onChange={() => handleFilterChange("hasMic", true)}
-                    onClick={() => handleFilterChange("hasMic", true)}
-                  />
-                  <label htmlFor="mic-yes" onClick={() => handleFilterChange("hasMic", true)}>Has Mic</label>
+            
+            {/* Games filters with per-game hour sliders and goals */}
+            {renderFilterSection("Games", "games", availableFilters.games)}
+            
+            {/* Mic availability filter - optimized for mobile */}
+            <div className="filter-section mic-filter-section">
+              <h3>Mic Availability</h3>
+              <div className="filter-options mic-filter-options">
+                <div className="filter-option mic-option">
+                  <div className="filter-option-header">
+                    <input
+                      type="radio"
+                      id="mic-yes"
+                      name="mic-availability"
+                      checked={filters.hasMic === true}
+                      onChange={() => handleFilterChange("hasMic", true)}
+                    />
+                    <label htmlFor="mic-yes">Has Mic</label>
+                  </div>
                 </div>
-              </div>
-              <div className="filter-option">
-                <div className="filter-option-header">
-                  <input
-                    type="radio"
-                    id="mic-no"
-                    name="mic-availability"
-                    checked={filters.hasMic === false}
-                    onChange={() => handleFilterChange("hasMic", false)}
-                    onClick={() => handleFilterChange("hasMic", false)}
-                  />
-                  <label htmlFor="mic-no" onClick={() => handleFilterChange("hasMic", false)}>No Mic</label>
+                <div className="filter-option mic-option">
+                  <div className="filter-option-header">
+                    <input
+                      type="radio"
+                      id="mic-no"
+                      name="mic-availability"
+                      checked={filters.hasMic === false}
+                      onChange={() => handleFilterChange("hasMic", false)}
+                    />
+                    <label htmlFor="mic-no">No Mic</label>
+                  </div>
                 </div>
-              </div>
-              <div className="filter-option">
-                <div className="filter-option-header">
-                  <input
-                    type="radio"
-                    id="mic-any" 
-                    name="mic-availability"
-                    checked={filters.hasMic === null}
-                    onChange={() => handleFilterChange("hasMic", null)}
-                    onClick={() => handleFilterChange("hasMic", null)}
-                  />
-                  <label htmlFor="mic-any" onClick={() => handleFilterChange("hasMic", null)}>Any</label>
+                <div className="filter-option mic-option">
+                  <div className="filter-option-header">
+                    <input
+                      type="radio"
+                      id="mic-any" 
+                      name="mic-availability"
+                      checked={filters.hasMic === null}
+                      onChange={() => handleFilterChange("hasMic", null)}
+                    />
+                    <label htmlFor="mic-any">Any</label>
+                  </div>
                 </div>
               </div>
             </div>

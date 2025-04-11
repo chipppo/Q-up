@@ -181,18 +181,34 @@ function ViewProfile({ user, gameStats, isFollowing, onFollowToggle, isLoggedIn,
     <Paper elevation={3} sx={{ p: 4, maxWidth: 800, mx: 'auto', my: 4 }}>
       <Grid container spacing={3}>
         {/* Profile Header */}
-        <Grid item xs={12} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+        <Grid item xs={12} sx={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'space-between',
+          flexDirection: { xs: 'column', sm: 'row' } 
+        }}>
+          <Box sx={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: 2,
+            flexDirection: { xs: 'column', sm: 'row' },
+            textAlign: { xs: 'center', sm: 'left' },
+            width: '100%'
+          }}>
             <Avatar
               src={formatAvatarUrl(user?.avatar, user?.username)}
-              sx={{ width: 100, height: 100 }}
+              sx={{ 
+                width: 100, 
+                height: 100,
+                mb: { xs: 2, sm: 0 }
+              }}
             >
               {user?.username?.[0]?.toUpperCase()}
             </Avatar>
             <Box>
               <Typography variant="h4">{user?.display_name || user?.username}</Typography>
               <Typography variant="subtitle1">@{user?.username}</Typography>
-              <Box sx={{ display: 'flex', gap: 2, mt: 1 }}>
+              <Box sx={{ display: 'flex', gap: 2, mt: 1, justifyContent: { xs: 'center', sm: 'flex-start' } }}>
                 <Typography 
                   onClick={openFollowersModal}
                   sx={{ 
@@ -231,22 +247,38 @@ function ViewProfile({ user, gameStats, isFollowing, onFollowToggle, isLoggedIn,
             </Box>
           </Box>
 
-          <Box>
+          <Box sx={{ mt: { xs: 2, sm: 0 }, width: { xs: '100%', sm: 'auto' } }}>
             {isOwnProfile ? (
               <Button
                 variant="contained"
                 startIcon={<EditIcon />}
                 component={Link}
                 to={`/profile/${user?.username}/edit`}
+                sx={{ 
+                  width: { xs: '100%', sm: 'auto' },
+                  maxWidth: { xs: '200px', sm: 'none' },
+                  mx: { xs: 'auto', sm: 0 },
+                  display: { xs: 'flex', sm: 'inline-flex' }
+                }}
               >
                 Edit Profile
               </Button>
             ) : isLoggedIn && (
-              <Box sx={{ display: 'flex', gap: 1 }}>
+              <Box sx={{ 
+                display: 'flex', 
+                gap: 1,
+                flexDirection: { xs: 'column', sm: 'row' },
+                width: '100%',
+                alignItems: 'center'
+              }}>
                 <Button
                   variant="contained"
                   onClick={onFollowToggle}
                   startIcon={isFollowing ? <PersonRemoveIcon /> : <PersonAddIcon />}
+                  sx={{ 
+                    width: { xs: '100%', sm: 'auto' },
+                    maxWidth: { xs: '200px', sm: 'none' }
+                  }}
                 >
                   {isFollowing ? 'Unfollow' : 'Follow'}
                 </Button>
@@ -254,6 +286,10 @@ function ViewProfile({ user, gameStats, isFollowing, onFollowToggle, isLoggedIn,
                   variant="outlined"
                   onClick={handleSendMessage}
                   startIcon={<MessageIcon />}
+                  sx={{ 
+                    width: { xs: '100%', sm: 'auto' },
+                    maxWidth: { xs: '200px', sm: 'none' }
+                  }}
                 >
                   Message
                 </Button>

@@ -167,7 +167,7 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # URL на фронтенд частта за възстановяване на пароли
-FRONTEND_URL = 'http://localhost:5173'
+FRONTEND_URL = 'https://q-up.fun'
 
 # Настройки на имейл за Gmail
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
@@ -288,4 +288,5 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:5173",
     "http://localhost:8000",
     "http://16.171.182.216",
+    "https://q-up.fun",
 ]

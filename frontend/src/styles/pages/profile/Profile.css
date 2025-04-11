@@ -311,10 +311,39 @@
   .posts-grid {
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   }
+  
+  /* Fix for edit profile button positioning on mobile */
+  .MuiGrid-root > .MuiBox-root button[variant="contained"][startIcon],
+  .MuiGrid-root > .MuiBox-root > button[variant="contained"] {
+    position: relative;
+    display: block;
+    margin: 15px auto 5px;
+    width: 100%;
+    max-width: 200px;
+  }
 }
 
 @media (max-width: 480px) {
   .posts-grid {
     grid-template-columns: 1fr;
+  }
+  
+  /* Smaller screens need more compact UI */
+  .MuiGrid-root > .MuiBox-root > .MuiBox-root {
+    width: 100%;
+  }
+  
+  /* Fix mobile view profile actions layout */
+  .MuiGrid-item .MuiBox-root:has(button) {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    align-items: center;
+  }
+  
+  .MuiGrid-item .MuiBox-root:has(button) button {
+    margin-top: 10px;
+    width: 100%;
+    max-width: 200px;
   }
 }

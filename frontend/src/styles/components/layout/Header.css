@@ -1,13 +1,14 @@
 /* src/styles/components/Header.css - Styles for the header component */
 
 .header {
-  background-color: var(--color-primary);
+  background-color: var(--color-bg-secondary);
   padding: 0.5rem 1rem;
   color: white;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   position: sticky;
   top: 0;
   z-index: 1000;
+  border-bottom: 2px solid var(--color-primary);
 }
 
 .header-container {
@@ -45,24 +46,25 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  color: white;
+  color: var(--color-text-primary);
   text-decoration: none;
   font-weight: 500;
   padding: 0.5rem 0.75rem;
   border-radius: 4px;
-  transition: background-color 0.2s;
+  transition: background-color 0.2s, color 0.2s;
 }
 
 .nav-button:hover {
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-primary);
 }
 
 .nav-button-outline {
-  border: 1px solid white;
+  border: 1px solid var(--color-primary);
 }
 
 .nav-button-outline:hover {
-  background-color: rgba(255, 255, 255, 0.2);
+  background-color: rgba(0, 255, 170, 0.1);
 }
 
 .nav-icon {
@@ -96,7 +98,7 @@
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  border: 2px solid white;
+  border: 2px solid var(--color-primary);
   object-fit: cover;
 }
 
@@ -108,7 +110,7 @@
 }
 
 .mobile-nav-button {
-  color: white;
+  color: var(--color-text-primary);
   padding: 0.5rem;
   display: flex;
   align-items: center;
@@ -137,14 +139,14 @@
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  border: 2px solid white;
+  border: 2px solid var(--color-primary);
   object-fit: cover;
 }
 
 .mobile-menu-button {
   background: none;
   border: none;
-  color: white;
+  color: var(--color-text-primary);
   padding: 0.5rem;
   display: flex;
   align-items: center;

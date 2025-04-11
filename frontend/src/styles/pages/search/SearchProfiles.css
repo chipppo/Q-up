@@ -42,6 +42,9 @@
   overflow-y: auto;
   box-shadow: var(--box-shadow-md);
   border-left: 4px solid var(--color-primary);
+  overflow-x: hidden; /* Always prevent horizontal scroll */
+  box-sizing: border-box; /* Include padding in width calculation */
+  width: 100%; /* Ensure it's 100% of container */
 }
 
 .filter-header {
@@ -118,18 +121,36 @@
 
 /* Make radio buttons more visible and ensure they're clickable */
 .filter-option input[type="radio"] {
-  appearance: radio !important;
-  -webkit-appearance: radio !important;
-  opacity: 1;
+  appearance: radio;
+  -webkit-appearance: radio;
+  width: 16px;
+  height: 16px;
   cursor: pointer;
   margin-right: 8px;
+  position: relative;
+  top: 2px;
 }
 
-/* Ensure label is clickable for radio buttons */
+/* Add specific styles for the mic availability radio options */
 .filter-option label[for^="mic-"] {
   cursor: pointer;
-  display: inline-flex;
-  align-items: center;
+  display: inline-block;
+  font-size: 0.95rem;
+  padding: 2px 0;
+  color: var(--color-text-primary);
+  transition: color 0.2s ease;
+}
+
+/* Style for the entire mic option to provide better click area */
+.filter-section:has(label[for^="mic-"]) .filter-option {
+  padding: 6px 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+  margin-bottom: 4px;
+}
+
+.filter-section:has(label[for^="mic-"]) .filter-option:hover {
+  background-color: rgba(0, 255, 170, 0.05);
 }
 
 /* Add better visual cues for game-specific filters */
@@ -140,6 +161,8 @@
   background-color: var(--color-bg-tertiary);
   border-radius: var(--border-radius);
   border: 1px solid #444;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .game-hours-slider-container {
@@ -502,10 +525,128 @@
     position: static;
     max-height: none;
     margin-bottom: 30px;
+    overflow-x: hidden; /* Prevent horizontal scroll */
   }
   
   .filter-options {
     max-height: 150px;
+  }
+}
+
+@media (max-width: 768px) {
+  /* Convert the filter options to a more mobile-friendly grid layout */
+  .filter-section {
+    margin-bottom: 20px;
+  }
+  
+  .filter-sidebar {
+    padding: 15px;
+    width: 100%;
+  }
+  
+  .filter-options {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    max-height: none;
+    overflow-y: visible;
+    padding-right: 0;
+  }
+  
+  /* Make platforms section show in a grid for better space utilization */
+  .filter-section:nth-of-type(1) .filter-options {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  /* Make languages section more compact */
+  .filter-section:nth-of-type(2) .filter-options {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  
+  /* Make active hours section stack vertically again */
+  .filter-section:nth-of-type(3) .filter-options {
+    grid-template-columns: 1fr;
+  }
+  
+  /* Fix for mic availability filter to be more touch-friendly */
+  .filter-section:has(label[for^="mic-"]) .filter-options {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-around;
+    max-height: none;
+    overflow-y: visible;
+    gap: 5px;
+  }
+  
+  .filter-section:has(label[for^="mic-"]) .filter-option {
+    flex: 1;
+    text-align: center;
+    min-width: 0;
+    padding: 10px 5px;
+    border: 1px solid #444;
+    border-radius: var(--border-radius);
+    margin: 0;
+  }
+  
+  .filter-section:has(label[for^="mic-"]) .filter-option:hover {
+    background-color: rgba(0, 255, 170, 0.1);
+  }
+  
+  .filter-section:has(label[for^="mic-"]) .filter-option-header {
+    justify-content: center;
+  }
+  
+  /* Make radio buttons more mobile-friendly */
+  .filter-option input[type="radio"] {
+    width: 18px;
+    height: 18px;
+  }
+  
+  /* Improve game filter layout */
+  .filter-section:nth-of-type(4) .filter-options {
+    grid-template-columns: 1fr;
+    max-height: none;
+  }
+  
+  .game-filter-container {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 10px;
+  }
+  
+  .hours-slider-container {
+    flex-direction: column;
+  }
+  
+  .hours-input-container {
+    margin-bottom: 8px;
+    width: 100%;
+  }
+  
+  .filter-option-header {
+    flex-wrap: wrap;
+  }
+  
+  /* Custom styling for mic filter on mobile */
+  .mic-filter-options {
+    margin-top: 10px;
+  }
+  
+  .mic-option {
+    margin: 0;
+  }
+  
+  /* Override previous styles for mic filters */
+  .filter-section.mic-filter-section .filter-options {
+    display: flex;
+    flex-direction: row;
+    max-height: none;
+    overflow-y: visible;
+  }
+  
+  .filter-section.mic-filter-section .filter-option {
+    flex: 1;
+    min-width: 0;
   }
 }
 
@@ -526,6 +667,83 @@
   .user-cards {
     grid-template-columns: 1fr;
   }
+  
+  /* Stack filter options on very small screens */
+  .filter-options,
+  .filter-section:nth-of-type(1) .filter-options,
+  .filter-section:nth-of-type(2) .filter-options {
+    grid-template-columns: 1fr;
+  }
+  
+  /* Keep the mic options in row format */
+  .filter-section:has(label[for^="mic-"]) .filter-options {
+    display: flex;
+  }
+  
+  /* Further improve game filter container for very small screens */
+  .game-filter-container {
+    width: 100%;
+    padding: 10px;
+    margin-left: 0;
+    margin-right: 0;
+  }
+  
+  .game-filter-container .filter-description {
+    font-size: 0.85rem;
+  }
+
+  /* Make hour slider more touch-friendly */
+  .hours-slider {
+    height: 6px;
+  }
+  
+  .hours-slider::-webkit-slider-thumb {
+    width: 22px;
+    height: 22px;
+  }
+  
+  .hours-slider::-moz-range-thumb {
+    width: 22px;
+    height: 22px;
+  }
+  
+  /* Better spacing for active hours section on mobile */
+  .filter-section:nth-of-type(3) .filter-option {
+    padding: 6px 0;
+  }
+  
+  /* Ensure mic options always stay in a row */
+  .mic-filter-options {
+    display: flex !important;
+    flex-direction: row !important;
+  }
+  
+  /* Adjust padding on very small screens */
+  .search-profiles-container {
+    padding: 15px 10px;
+  }
+}
+
+/* Adjustments for game goals container when it has selections */
+.game-goals-container.has-selections {
+  position: relative;
+}
+
+.game-goals-container.has-selections::after {
+  content: attr(data-selection-count);
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: var(--color-secondary);
+  color: white;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
 }
 
 .user-active-hours {
@@ -626,4 +844,58 @@
   color: var(--color-primary);
   font-weight: 500;
   text-align: center;
+}
+
+/* Improve scrolling behavior on mobile */
+.filter-options::-webkit-scrollbar {
+  width: 4px;
+}
+
+.filter-options::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.filter-options::-webkit-scrollbar-thumb {
+  background: rgba(0, 255, 170, 0.3);
+  border-radius: 4px;
+}
+
+.filter-sections-container {
+  width: 100%;
+}
+
+/* Specific styling for mic filter section */
+.mic-filter-section {
+  margin-bottom: 25px;
+}
+
+.mic-filter-options {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  gap: 10px;
+  max-height: none !important; /* Override the default max-height */
+}
+
+.mic-option {
+  flex: 1;
+  text-align: center;
+  padding: 8px 5px;
+  border: 1px solid #444;
+  border-radius: var(--border-radius);
+  transition: all var(--transition-fast);
+}
+
+.mic-option:hover {
+  background-color: rgba(0, 255, 170, 0.1);
+  border-color: var(--color-primary);
+}
+
+.mic-option input[type="radio"]:checked + label {
+  color: var(--color-primary);
+  font-weight: 500;
+}
+
+.mic-option input[type="radio"]:checked ~ .filter-option-header {
+  background-color: rgba(0, 255, 170, 0.05);
 } 

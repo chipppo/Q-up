@@ -28,6 +28,8 @@ import Contacts from "./pages/info/Contacts";
 import { CssBaseline } from '@mui/material';
 import { Box, CircularProgress } from '@mui/material';
 import { Suspense } from 'react';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 /**
  * Our custom gaming neon theme for Material UI
@@ -340,6 +342,26 @@ function App() {
           }}
         >
           <AppContent />
+          <ToastContainer 
+            position="top-center"
+            autoClose={4000}
+            hideProgressBar={false}
+            newestOnTop
+            closeOnClick={false}
+            rtl={false}
+            pauseOnFocusLoss
+            draggable
+            pauseOnHover
+            theme="dark"
+            toastStyle={{
+              background: '#1E1E1E',
+              color: '#FFFFFF',
+              borderRadius: '8px',
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.5)',
+              fontSize: '14px',
+              fontWeight: '500'
+            }}
+          />
         </Router>
       </AuthProvider>
     </ThemeProvider>

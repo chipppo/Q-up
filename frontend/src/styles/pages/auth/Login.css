@@ -223,11 +223,45 @@
 .error-message {
   background-color: rgba(255, 23, 68, 0.1);
   color: var(--color-error);
-  padding: 10px;
+  padding: 12px 15px;
   border-radius: var(--border-radius);
-  margin-top: 20px;
+  margin-top: 15px;
+  margin-bottom: 15px;
   text-align: center;
   border-left: 3px solid var(--color-error);
+  font-weight: 500;
+  animation: fadeInError 0.5s ease;
+  box-shadow: 0 2px 8px rgba(255, 23, 68, 0.15);
+  opacity: 1;
+  transition: opacity 0.5s ease;
+}
+
+@keyframes fadeInError {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Add a pulsing animation to draw attention to the error message */
+.error-message span {
+  display: inline-block;
+  position: relative;
+}
+
+.error-message span::after {
+  content: "";
+  position: absolute;
+  bottom: -3px;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background-color: var(--color-error);
+  opacity: 0.6;
 }
 
 .success-message {

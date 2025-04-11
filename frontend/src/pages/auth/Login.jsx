@@ -176,9 +176,20 @@ function Login() {
       navigate(destination, { replace: true });
     } catch (error) {
       console.error('Login error:', error);
-      setError(error.response?.data?.detail || 'Login failed. Please try again.');
-      toast.error('Login failed. Please check your credentials.');
-    } finally {
+      // Set error message
+      const errorMessage = error.response?.data?.detail || 'Login failed. Please check your credentials.';
+      setError(errorMessage);
+      
+      // Show error toast with longer duration (5 seconds instead of default)
+      toast.error(errorMessage, { 
+        autoClose: 5000,
+        hideProgressBar: false,
+        closeOnClick: false,
+        pauseOnHover: true,
+        draggable: true,
+      });
+      
+      // Keep loading state off
       setIsLoading(false);
     }
   };
@@ -353,7 +364,7 @@ function Login() {
           </div>
 
           {error && (
-            <div className="error-message">
+            <div className="error-message" style={{ animation: 'fadeIn 0.3s ease-in', marginBottom: '15px' }}>
               <span>{error}</span>
             </div>
           )}

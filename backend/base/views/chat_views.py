@@ -452,12 +452,6 @@ class MessageListView(APIView):
                 _, ext = os.path.splitext(image_file.name)
                 ext = ext.lower()
                 
-                # Set correct content type for special file types
-                if ext == '.svg':
-                    image_file.content_type = 'image/svg+xml'
-                elif ext == '.webp':
-                    image_file.content_type = 'image/webp'
-                
                 # Create a unique filename with the original extension
                 filename_base = slugify(os.path.splitext(image_file.name)[0]) or 'file'
                 unique_filename = f"{filename_base}_{uuid.uuid4().hex[:8]}{ext}"
