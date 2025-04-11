@@ -142,7 +142,7 @@ function ViewProfile({ user, gameStats, isFollowing, onFollowToggle, isLoggedIn,
       const [hourStr, minuteStr] = hour.split(':');
       let hourNum = parseInt(hourStr, 10);
       
-      // Apply timezone offset
+      // Apply timezone offset - converting UTC to local time
       hourNum = (hourNum + timezoneOffset + 24) % 24;
       
       // Format back to string with leading zeros

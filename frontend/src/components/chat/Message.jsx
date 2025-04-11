@@ -31,6 +31,7 @@ import {
   AttachFile as AttachFileIcon,
   Download as DownloadIcon,
   Error as ErrorIcon,
+  InsertDriveFile as FileIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import API, { formatAvatarUrl } from '../../api/axios';
@@ -251,6 +252,11 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
     }
   }, [message.image, message.has_image]);
 
+  const isImage = (filename) => {
+    const extension = filename.split('.').pop().toLowerCase();
+    return ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(extension);
+  };
+
   return (
     <Box className={`message-wrapper ${isOwnMessage ? 'sent' : 'received'}`} 
       sx={{ opacity: isDeleting ? 0.5 : 1 }}>
@@ -358,6 +364,28 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
                 </Box>
               )}
             </Box>
+          )}
+        
+          {/* File attachments */}
+          {message.file && (
+            <div className="message-file">
+              {isImage(message.file) ? (
+                <img 
+                  src={`${API.defaults.baseURL}${message.file}`} 
+                  alt="Shared file" 
+                  onClick={() => window.open(`${API.defaults.baseURL}${message.file}`, "_blank")}
+                />
+              ) : (
+                <a 
+                  href={`${API.defaults.baseURL}${message.file}`} 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="file-download"
+                >
+                  <FileIcon /> {message.file.split('/').pop()}
+                </a>
+              )}
+            </div>
           )}
         </div>
         

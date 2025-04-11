@@ -364,85 +364,73 @@ function SearchProfiles() {
     }
   };
   
-  // Handle filter changes
+  /**
+   * Handles changes to any of the filter options
+   * 
+   * @function handleFilterChange
+   * @param {string} filterType - Type of filter being changed
+   * @param {string|number|boolean|null} value - New value for the filter
+   */
   const handleFilterChange = (filterType, value) => {
-    setFilters(prevFilters => {
-      // Special handling for gameHoursPlayed
-      if (filterType === "gameHoursPlayed") {
-        const [gameId, hours] = value;
-        return {
-          ...prevFilters,
-          gameHoursPlayed: {
-            ...prevFilters.gameHoursPlayed,
-            [gameId]: hours
-          }
-        };
-      }
-      
-      // Special handling for gameGoals
-      if (filterType === "gameGoals") {
-        const [gameId, goalId] = value;
-        
-        // Initialize the array if it doesn't exist
-        const currentGoals = prevFilters.gameGoals[gameId] || [];
-        
-        // Toggle the goal
-        let updatedGoals;
-        if (currentGoals.includes(goalId)) {
-          updatedGoals = currentGoals.filter(g => g !== goalId);
+    let updatedFilters = { ...filters };
+    
+    // Handle different filter types
+    switch (filterType) {
+      case "platforms":
+      case "languages":
+      case "activeHours":
+      case "games":
+        // If value is in array, remove it. If not, add it.
+        if (filters[filterType].includes(value)) {
+          updatedFilters[filterType] = filters[filterType].filter(item => item !== value);
         } else {
-          updatedGoals = [...currentGoals, goalId];
+          updatedFilters[filterType] = [...filters[filterType], value];
+        }
+        break;
+        
+      case "hasMic":
+        // Direct assignment for boolean/null values
+        updatedFilters.hasMic = value;
+        break;
+        
+      case "gameHoursPlayed":
+        // Update game hours in the nested object. value[0] is gameId, value[1] is hours
+        updatedFilters.gameHoursPlayed = {
+          ...updatedFilters.gameHoursPlayed,
+          [value[0]]: value[1]
+        };
+        break;
+        
+      case "gameGoals":
+        // Update game goals in the nested object. value[0] is gameId, value[1] is goalId
+        // First make sure the game has an array in the gameGoals object
+        if (!updatedFilters.gameGoals[value[0]]) {
+          updatedFilters.gameGoals[value[0]] = [];
         }
         
-        return {
-          ...prevFilters,
-          gameGoals: {
-            ...prevFilters.gameGoals,
-            [gameId]: updatedGoals
-          }
-        };
-      }
-      
-      // Ensure the filter array exists
-      if (!prevFilters[filterType]) {
-        prevFilters[filterType] = [];
-      }
-      
-      // For array filters (multi-select)
-      if (Array.isArray(prevFilters[filterType])) {
-        if (prevFilters[filterType].includes(value)) {
-          // Remove if already selected
-          const updatedFilters = {
-            ...prevFilters,
-            [filterType]: prevFilters[filterType].filter(item => item !== value)
-          };
-          
-          // If it's a game being removed, also clean up the hours filter and goals for that game
-          if (filterType === "games") {
-            const { [value]: _, ...restGameHours } = updatedFilters.gameHoursPlayed;
-            updatedFilters.gameHoursPlayed = restGameHours;
-            
-            const { [value]: __, ...restGameGoals } = updatedFilters.gameGoals;
-            updatedFilters.gameGoals = restGameGoals;
-          }
-          
-          return updatedFilters;
+        // Then toggle the goal in that array
+        if (updatedFilters.gameGoals[value[0]].includes(value[1])) {
+          updatedFilters.gameGoals[value[0]] = updatedFilters.gameGoals[value[0]]
+            .filter(goal => goal !== value[1]);
         } else {
-          // Add if not selected
-          return {
-            ...prevFilters,
-            [filterType]: [...prevFilters[filterType], value]
-          };
+          updatedFilters.gameGoals[value[0]] = [
+            ...updatedFilters.gameGoals[value[0]],
+            value[1]
+          ];
         }
-      } 
-      // For single value filters
-      else {
-        return {
-          ...prevFilters,
-          [filterType]: value
-        };
-      }
-    });
+        
+        // If no goals are selected for this game, remove the empty array
+        if (updatedFilters.gameGoals[value[0]].length === 0) {
+          delete updatedFilters.gameGoals[value[0]];
+        }
+        break;
+        
+      default:
+        console.warn(`Unknown filter type: ${filterType}`);
+        return;
+    }
+    
+    setFilters(updatedFilters);
   };
   
   // Clear all filters

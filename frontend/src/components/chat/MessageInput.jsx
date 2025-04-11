@@ -245,6 +245,17 @@ const MessageInput = ({
     }
   };
   
+  // Handle removing a file before sending
+  const handleRemoveFile = () => {
+    setAttachment(null);
+    setAttachmentPreview('');
+    
+    // Clear the file input so the same file can be reselected if needed
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+  
   return (
     <Box className="message-input-container">
       {/* Reply preview */}
@@ -295,7 +306,7 @@ const MessageInput = ({
           )}
           <IconButton 
             size="small" 
-            onClick={handleRemoveAttachment} 
+            onClick={handleRemoveFile} 
             className="attachment-remove-button"
           >
             <CloseIcon fontSize="small" />
