@@ -37,11 +37,9 @@ import CreatePostForm from '../../components/feed/CreatePostForm';
  * Feed page component that displays posts from followed users
  * 
  * @function Feed
- * @param {Object} props - Component props
- * @param {boolean} props.createPostMode - Whether to focus on creating a post
  * @returns {JSX.Element} The feed page
  */
-const Feed = ({ createPostMode = false }) => {
+const Feed = () => {
   const { isLoggedIn, username } = useAuth();
   const navigate = useNavigate();
   const [posts, setPosts] = useState([]);
@@ -156,22 +154,6 @@ const Feed = ({ createPostMode = false }) => {
     fetchPosts(true);
   };
 
-  // Focus on create post form when in createPostMode
-  useEffect(() => {
-    if (createPostMode) {
-      // Scroll to create post form
-      const createPostElement = document.getElementById('create-post-form');
-      if (createPostElement) {
-        createPostElement.scrollIntoView({ behavior: 'smooth' });
-        // Find the first input or textarea and focus it
-        const firstInput = createPostElement.querySelector('input, textarea');
-        if (firstInput) {
-          firstInput.focus();
-        }
-      }
-    }
-  }, [createPostMode]);
-
   if (loading) {
     return (
       <Container className="feed-container" sx={{ textAlign: 'center' }}>
@@ -195,14 +177,6 @@ const Feed = ({ createPostMode = false }) => {
 
   return (
     <Container className="feed-container">
-      {/* Create Post Form */}
-      <div id="create-post-form">
-        <CreatePostForm onPostCreated={(newPost) => {
-          setPosts(prevPosts => [newPost, ...prevPosts]);
-        }} />
-      </div>
-      
-      {/* Posts list with loading and empty states */}
       <Paper elevation={0} sx={{ p: 3, mb: 4, borderRadius: 2 }} className="feed-header">
         <Typography variant="h4" component="h1" gutterBottom>
           Your Feed
@@ -210,6 +184,11 @@ const Feed = ({ createPostMode = false }) => {
         <Typography variant="body1" color="text.secondary" paragraph>
           See the latest posts from people you follow
         </Typography>
+        
+        {/* Create Post Form */}
+        <CreatePostForm onPostCreated={(newPost) => {
+          setPosts(prevPosts => [newPost, ...prevPosts]);
+        }} />
       </Paper>
 
       {posts.length === 0 ? (

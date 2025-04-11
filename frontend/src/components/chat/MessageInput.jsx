@@ -355,12 +355,11 @@ const MessageInput = ({
       {/* Image Upload */}
       <Box sx={{ my: 2 }}>
         <input
+          ref={fileInputRef}
+          type="file"
           accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml,.jpg,.jpeg,.png,.gif,.webp,.svg"
           style={{ display: 'none' }}
-          id="icon-button-file"
-          type="file"
           onChange={handleFileChange}
-          ref={fileInputRef}
         />
       </Box>
     </Box>
