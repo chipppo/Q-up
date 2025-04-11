@@ -6,6 +6,7 @@
  * - Post interactions (like, comment)
  * - Empty state when no posts are available
  * - Authentication checking and redirection
+ * - Post creation functionality
  * 
  * @module Feed
  * @requires React
@@ -52,8 +53,18 @@ const Feed = () => {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [feedType, setFeedType] = useState('following'); // 'following' or 'all'
-  const [showCreatePost, setShowCreatePost] = useState(location.state?.createPost || false);
+  const [showCreateForm, setShowCreateForm] = useState(false);
   const postsPerPage = 20;
+
+  // Check if user was redirected from the dashboard "Create First Post" button
+  useEffect(() => {
+    // Check if we came from dashboard
+    const fromDashboard = location.state?.from === '/dashboard' || 
+                          document.referrer.includes('/dashboard');
+    if (fromDashboard) {
+      setShowCreateForm(true);
+    }
+  }, [location]);
 
   /**
    * Redirects unauthenticated users to the login page
@@ -82,6 +93,17 @@ const Feed = () => {
     setPage(1);
     setHasMore(true);
     setFeedType(newValue);
+  };
+
+  /**
+   * Handles successfully created posts by adding them to the feed
+   * 
+   * @function handlePostCreated
+   * @param {Object} newPost - The newly created post data
+   */
+  const handlePostCreated = (newPost) => {
+    setPosts(prevPosts => [newPost, ...prevPosts]);
+    setShowCreateForm(false);
   };
 
   /**
@@ -172,22 +194,6 @@ const Feed = () => {
     fetchPosts(true);
   };
 
-  /**
-   * Handles successful post creation
-   * 
-   * @param {Object} newPost - The newly created post
-   */
-  const handlePostCreated = (newPost) => {
-    // Add new post to the beginning of the list
-    setPosts(prevPosts => [newPost, ...prevPosts]);
-    
-    // Hide the create post form
-    setShowCreatePost(false);
-    
-    // Clear location state
-    window.history.replaceState({}, document.title);
-  };
-
   if (loading) {
     return (
       <Container className="feed-container" sx={{ textAlign: 'center' }}>
@@ -236,23 +242,21 @@ const Feed = () => {
       </Paper>
 
       {/* Create Post Form */}
-      {showCreatePost && (
-        <Box mb={4}>
-          <CreatePostForm 
-            onPostCreated={handlePostCreated} 
-          />
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
+      {isLoggedIn && (
+        <Box sx={{ mb: 4 }}>
+          {showCreateForm ? (
+            <CreatePostForm onPostCreated={handlePostCreated} />
+          ) : (
             <Button 
-              variant="text" 
-              color="inherit" 
-              onClick={() => {
-                setShowCreatePost(false);
-                window.history.replaceState({}, document.title);
-              }}
+              fullWidth 
+              variant="outlined" 
+              color="primary" 
+              sx={{ p: 2, borderRadius: 2 }}
+              onClick={() => setShowCreateForm(true)}
             >
-              Cancel
+              Create a new post...
             </Button>
-          </Box>
+          )}
         </Box>
       )}
 
@@ -261,19 +265,11 @@ const Feed = () => {
           <Typography variant="h6" color="text.secondary" gutterBottom>
             No posts to display
           </Typography>
-          <Typography variant="body1" color="text.secondary" paragraph>
+          <Typography variant="body1" color="text.secondary">
             {feedType === 'following' 
               ? 'Follow more users to see their posts in your feed' 
               : 'Be the first to create a post!'}
           </Typography>
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={() => navigate('/feed', { state: { createPost: true } })}
-            sx={{ mt: 2 }}
-          >
-            Create Post
-          </Button>
         </Box>
       ) : (
         <>
