@@ -168,29 +168,36 @@ function Login() {
       const response = await API.post("/login/", { username, password });
       const { access, refresh } = response.data;
       
+      // On success, login and navigate
       login(access, refresh, username);
       console.log("Successful login for:", username);
       
-      const destination = location.state?.from || "/dashboard";
+      // Delay navigation to allow success toast to be seen
       toast.success(`Welcome back, ${username}!`);
-      navigate(destination, { replace: true });
+      
+      // Use a timeout to ensure the error has time to display if needed
+      setTimeout(() => {
+        const destination = location.state?.from || "/dashboard";
+        navigate(destination, { replace: true });
+      }, 100);
+      
     } catch (error) {
       console.error('Login error:', error);
-      // Set error message
+      setIsLoading(false);
+      
+      // Set error message based on response
       const errorMessage = error.response?.data?.detail || 'Login failed. Please check your credentials.';
       setError(errorMessage);
       
-      // Show error toast with longer duration (5 seconds instead of default)
+      // Show error toast with longer duration and make it non-dismissible
       toast.error(errorMessage, { 
         autoClose: 5000,
         hideProgressBar: false,
         closeOnClick: false,
         pauseOnHover: true,
         draggable: true,
+        progress: undefined,
       });
-      
-      // Keep loading state off
-      setIsLoading(false);
     }
   };
 

@@ -285,16 +285,16 @@ const EditProfileForm = () => {
       let updatedHours;
       
       if (allHoursActive) {
-        // If all hours are active, remove ALL hours from this period
+        // If all hours are active, remove ONLY the hours from this specific period
         updatedHours = currentHours.filter(hour => !periodHours.includes(hour));
       } else {
-        // Otherwise, add ALL hours from this period (no partial selections)
+        // Otherwise, add ONLY the hours from this specific period that aren't already selected
         
-        // First, remove any existing hours from this period to ensure clean state
-        const hoursWithoutPeriod = currentHours.filter(hour => !periodHours.includes(hour));
-        
-        // Then add all hours from this period
-        updatedHours = [...hoursWithoutPeriod, ...periodHours];
+        // Create a new set to avoid duplicate hours
+        updatedHours = [...new Set([
+          ...currentHours,
+          ...periodHours
+        ])];
       }
       
       // Sort hours for consistent display and storage
@@ -459,25 +459,45 @@ const EditProfileForm = () => {
     <Grid item xs={12}>
       <Typography variant="h6" gutterBottom>Active Hours</Typography>
       <Typography variant="body2" sx={{ mb: 2, color: 'text.secondary' }}>
-        Select the time periods when you're typically available to play. Times are adjusted to your timezone.
+        Select the time periods when you're typically available to play. Click a period to select/deselect all hours in that time range.
       </Typography>
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-        {TIME_PERIODS.map(period => {
-          // Check if all hours in this period are active
-          const isActive = Array.isArray(formData.active_hours) && 
-            period.hours.every(hour => formData.active_hours.includes(hour));
-          
-          return (
-            <Chip
-              key={period.id}
-              label={period.name}
-              onClick={() => handleActiveHoursChange(period.id)}
-              color={isActive ? "primary" : "default"}
-              sx={{ m: 0.5 }}
-            />
-          );
-        })}
-      </Box>
+      
+      <Paper sx={{ p: 2, mb: 2, bgcolor: 'background.paper' }}>
+        <Typography variant="body2" sx={{ mb: 1 }}>
+          Currently selected: <strong>{formData.active_hours ? formData.active_hours.length : 0} hours</strong>
+        </Typography>
+        
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 1 }}>
+          {TIME_PERIODS.map(period => {
+            // Check if all hours in this period are active
+            const isActive = Array.isArray(formData.active_hours) && 
+              period.hours.every(hour => formData.active_hours.includes(hour));
+            
+            // Check if some but not all hours are active (partial selection)
+            const hasPartial = Array.isArray(formData.active_hours) && 
+              period.hours.some(hour => formData.active_hours.includes(hour)) &&
+              !period.hours.every(hour => formData.active_hours.includes(hour));
+            
+            return (
+              <Chip
+                key={period.id}
+                label={`${period.name} (${period.hours[0]}-${period.hours[period.hours.length-1]})`}
+                onClick={() => handleActiveHoursChange(period.id)}
+                color={isActive ? "primary" : hasPartial ? "secondary" : "default"}
+                variant={isActive ? "filled" : hasPartial ? "outlined" : "filled"}
+                sx={{ 
+                  m: 0.5,
+                  fontWeight: isActive ? 'bold' : 'normal',
+                  position: 'relative',
+                }}
+              />
+            );
+          })}
+        </Box>
+        <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary' }}>
+          Note: Time periods may overlap. Selecting a period adds all hours in that range.
+        </Typography>
+      </Paper>
     </Grid>
   );
 

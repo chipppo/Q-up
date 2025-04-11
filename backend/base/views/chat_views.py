@@ -25,6 +25,7 @@ def is_image_file(filename, content_type=None):
     """
     Determines if a file is an image based on its filename and content type.
     Specifically handles WebP files which might be misidentified.
+    SVGs are intentionally not treated as images for better compatibility.
     
     Args:
         filename: The filename including extension
@@ -35,27 +36,27 @@ def is_image_file(filename, content_type=None):
     """
     # Set up known image extensions and content types
     image_extensions = {
-        '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg',
+        '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp',
         '.tiff', '.tif', '.avif', '.heic', '.heif', '.jfif'
     }
     
     image_content_types = {
         'image/jpeg', 'image/png', 'image/gif', 'image/webp', 
-        'image/bmp', 'image/svg+xml', 'image/tiff', 'image/avif'
+        'image/bmp', 'image/tiff', 'image/avif'
     }
+    
+    # Check if file is SVG - treat as downloadable file, not an image
+    if filename.lower().endswith('.svg'):
+        return False
+    
+    if content_type and ('svg' in content_type.lower() or content_type == 'image/svg+xml'):
+        return False
     
     # Direct checks for WebP files
     if filename.lower().endswith('.webp'):
         return True
     
     if content_type and ('webp' in content_type.lower() or content_type == 'image/webp'):
-        return True
-    
-    # Direct checks for SVG files
-    if filename.lower().endswith('.svg'):
-        return True
-    
-    if content_type and ('svg' in content_type.lower() or content_type == 'image/svg+xml'):
         return True
     
     # Check file extension
@@ -69,7 +70,7 @@ def is_image_file(filename, content_type=None):
     
     # Fall back to mimetypes guess
     guessed_type = mimetypes.guess_type(filename)[0]
-    return guessed_type and guessed_type.startswith('image/')
+    return guessed_type and guessed_type.startswith('image/') and 'svg' not in guessed_type
 
 
 class ChatListView(APIView):

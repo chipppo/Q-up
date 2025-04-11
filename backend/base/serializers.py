@@ -506,17 +506,21 @@ class MessageSerializer(serializers.ModelSerializer):
                 if hasattr(obj, 'file_info') and obj.file_info and 'is_image' in obj.file_info:
                     is_image = obj.file_info['is_image']
                 else:
+                    # Check for SVG - always treat as downloadable file, not an image
+                    if filename.lower().endswith('.svg') or (file_type and 'svg' in file_type.lower()):
+                        is_image = False
                     # File type check
-                    if file_type and (file_type.startswith('image/') or 
-                                    'svg' in file_type or 
-                                    'webp' in file_type):
+                    elif file_type and file_type.startswith('image/') and 'svg' not in file_type:
+                        is_image = True
+                    elif file_type and 'webp' in file_type:
                         is_image = True
                     
-                    # File extension check as backup
-                    ext = os.path.splitext(filename.lower())[1]
-                    if ext in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg',
-                              '.tiff', '.tif', '.avif', '.heic', '.heif', '.jfif']:
-                        is_image = True
+                    # File extension check as backup (not for SVG)
+                    else:
+                        ext = os.path.splitext(filename.lower())[1]
+                        if ext in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp',
+                                '.tiff', '.tif', '.avif', '.heic', '.heif', '.jfif']:
+                            is_image = True
                 
                 return {
                     'name': filename,

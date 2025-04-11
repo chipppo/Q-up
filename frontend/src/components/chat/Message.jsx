@@ -88,34 +88,38 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
   const isImageAttachment = (url) => {
     // First check if we have file info from the server - this is the most reliable method
     if (message.file_info && message.file_info.is_image !== undefined) {
+      // Don't treat SVGs as images - display them as downloadable files instead
+      if (message.file_info.type && (
+        message.file_info.type.includes('svg') || 
+        message.file_info.name?.toLowerCase().endsWith('.svg')
+      )) {
+        return false;
+      }
       return message.file_info.is_image;
     }
     
     if (!url) return false;
     
-    // WebP-specific detection (highest priority checks)
-    if (url.toLowerCase().includes('.webp') || 
-        (message.file_info && message.file_info.type && message.file_info.type.includes('webp'))) {
-      return true;
+    // Don't treat SVGs as images anymore
+    if (url.toLowerCase().includes('.svg')) {
+      return false;
     }
     
-    // SVG-specific detection
-    if (url.toLowerCase().includes('.svg') || 
-        (message.file_info && message.file_info.type && message.file_info.type.includes('svg'))) {
-      return true;
+    // Check for image content types, excluding SVG
+    if (message.file_info && message.file_info.type) {
+      if (message.file_info.type.includes('svg')) {
+        return false;
+      }
+      
+      if (message.file_info.type.startsWith('image/') || 
+          message.file_info.type.includes('webp')) {
+        return true;
+      }
     }
     
-    // Check for image content types
-    if (message.file_info && message.file_info.type && 
-        (message.file_info.type.startsWith('image/') || 
-        message.file_info.type.includes('svg') || 
-        message.file_info.type.includes('webp'))) {
-      return true;
-    }
-    
-    // Check for common image extensions in URL
+    // Check for common image extensions in URL, excluding SVG
     const imageExtensions = [
-      '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg',
+      '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp',
       '.tiff', '.tif', '.avif', '.heic', '.heif', '.jfif', '.pjpeg', '.pjp'
     ];
     
@@ -126,9 +130,9 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
     
     if (hasImageExtension) return true;
     
-    // Also check for image content types in URL (from backend API responses)
+    // Also check for image content types in URL (from backend API responses), excluding SVG
     const imageContentTypes = [
-      'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp', 'image/svg+xml',
+      'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp',
       'image/tiff', 'image/avif', 'image/heic', 'image/heif'
     ];
     const containsImageContentType = imageContentTypes.some(type => url.toLowerCase().includes(type));

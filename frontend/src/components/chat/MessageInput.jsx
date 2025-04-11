@@ -137,14 +137,12 @@ const MessageInput = forwardRef(({
     
     setAttachment(file);
     
-    // Create preview for images - include SVG and WebP explicitly
+    // Create preview for images - exclude SVGs which will be treated as downloadable files
     const isImage = 
-      file.type.startsWith('image/') || 
-      file.type.includes('webp') || 
-      file.type.includes('svg') ||
-      file.name.toLowerCase().endsWith('.webp') ||
-      file.name.toLowerCase().endsWith('.svg');
-      
+      file.type.startsWith('image/') && !file.type.includes('svg') ||
+      file.type.includes('webp') ||
+      file.name.toLowerCase().endsWith('.webp');
+
     if (isImage) {
       const reader = new FileReader();
       reader.onload = (event) => {
@@ -152,7 +150,7 @@ const MessageInput = forwardRef(({
       };
       reader.readAsDataURL(file);
     } else {
-      // For non-image files, just display the file name
+      // For non-image files and SVGs, just display the file name
       setAttachmentPreview(`File: ${file.name}`);
     }
     

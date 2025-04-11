@@ -224,6 +224,53 @@ const theme = createTheme({
         },
       },
     },
+    MuiTabs: {
+      styleOverrides: {
+        root: {
+          '& .MuiTabs-indicator': {
+            backgroundColor: '#00FFAA',
+            height: 3,
+          },
+          '& .MuiTabs-flexContainer': {
+            '@media (max-width: 600px)': {
+              overflowX: 'auto',
+            },
+          },
+        },
+        scrollButtons: {
+          '&.Mui-disabled': {
+            opacity: 0.3,
+          },
+          '&': {
+            color: '#AAAAAA',
+          },
+          '&:hover': {
+            color: '#00FFAA',
+          },
+        },
+      },
+    },
+    MuiTab: {
+      styleOverrides: {
+        root: {
+          color: '#AAAAAA',
+          '&:hover': {
+            color: '#00FFAA',
+            backgroundColor: 'rgba(0, 255, 170, 0.05)',
+          },
+          '&.Mui-selected': {
+            color: '#00FFAA',
+            fontWeight: 600,
+          },
+          textTransform: 'none',
+          padding: '12px 16px',
+          '@media (max-width: 600px)': {
+            minWidth: 'auto',
+            padding: '12px 12px',
+          },
+        },
+      },
+    },
     MuiDialog: {
       styleOverrides: {
         paper: {

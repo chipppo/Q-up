@@ -151,9 +151,38 @@
   transition: all var(--transition-fast);
 }
 
+.tab-button:hover {
+  color: var(--color-primary);
+  background-color: rgba(0, 255, 170, 0.05);
+}
+
 .tab-button.active {
   color: var(--color-primary);
   border-bottom: 3px solid var(--color-primary);
+  font-weight: 600;
+}
+
+/* Override MUI Tab styles for better visibility */
+.MuiTabs-root .MuiTab-root {
+  color: var(--color-text-secondary);
+  font-weight: 500;
+  opacity: 1;
+  transition: all var(--transition-fast);
+}
+
+.MuiTabs-root .MuiTab-root:hover {
+  color: var(--color-primary);
+  background-color: rgba(0, 255, 170, 0.05);
+}
+
+.MuiTabs-root .MuiTab-root.Mui-selected {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.MuiTabs-indicator {
+  background-color: var(--color-primary);
+  height: 3px;
 }
 
 .profile-content {
@@ -312,6 +341,21 @@
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   }
   
+  /* Improved mobile tab styles */
+  .MuiTabs-root {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+  
+  .MuiTabs-root .MuiTabs-scroller {
+    overflow-x: auto !important;
+  }
+  
+  .MuiTabs-root .MuiTab-root {
+    padding: 12px 16px;
+    min-width: auto;
+  }
+
   /* Fix for edit profile button positioning on mobile */
   .MuiGrid-root > .MuiBox-root button[variant="contained"][startIcon],
   .MuiGrid-root > .MuiBox-root > button[variant="contained"] {
