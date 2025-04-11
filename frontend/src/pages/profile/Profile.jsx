@@ -60,14 +60,14 @@ import FollowSuggestions from '../../components/feed/FollowSuggestions';
 
 // Define time periods with their corresponding hours
 const TIME_PERIODS = [
-  { id: "earlyMorning", name: "Early Morning (5-8 AM)", hours: ["05:00", "06:00", "07:00", "08:00"] },
-  { id: "morning", name: "Morning (8-11 AM)", hours: ["08:00", "09:00", "10:00", "11:00"] },
-  { id: "noon", name: "Noon (11 AM-2 PM)", hours: ["11:00", "12:00", "13:00", "14:00"] },
-  { id: "afternoon", name: "Afternoon (2-5 PM)", hours: ["14:00", "15:00", "16:00", "17:00"] },
-  { id: "evening", name: "Evening (5-8 PM)", hours: ["17:00", "18:00", "19:00", "20:00"] },
-  { id: "night", name: "Night (8-11 PM)", hours: ["20:00", "21:00", "22:00", "23:00"] },
-  { id: "lateNight", name: "Late Night (11 PM-2 AM)", hours: ["23:00", "00:00", "01:00", "02:00"] },
-  { id: "overnight", name: "Overnight (2-5 AM)", hours: ["02:00", "03:00", "04:00", "05:00"] }
+  { id: "earlyMorning", name: "Early Morning (5-7 AM)", hours: ["05:00", "06:00", "07:00"] },
+  { id: "morning", name: "Morning (8-10 AM)", hours: ["08:00", "09:00", "10:00"] },
+  { id: "noon", name: "Noon (11-13 PM)", hours: ["11:00", "12:00", "13:00"] },
+  { id: "afternoon", name: "Afternoon (14-16 PM)", hours: ["14:00", "15:00", "16:00"] },
+  { id: "evening", name: "Evening (17-19 PM)", hours: ["17:00", "18:00", "19:00"] },
+  { id: "night", name: "Night (20-22 PM)", hours: ["20:00", "21:00", "22:00"] },
+  { id: "lateNight", name: "Late Night (23-1 AM)", hours: ["23:00", "00:00", "01:00"] },
+  { id: "overnight", name: "Overnight (2-4 AM)", hours: ["02:00", "03:00", "04:00"] }
 ];
 
 /**
@@ -824,33 +824,49 @@ function Profile() {
                   ))}
                 </Grid>
               ) : (
-                <Alert severity="info">
-                  You haven't added any game statistics yet. Click "Add New Game" to get started.
-                </Alert>
+                <Typography>No game statistics available</Typography>
               )}
             </Box>
           )}
           {tabValue === 3 && (
             <Box>
-              <CreatePostForm onPostCreated={handlePostCreated} />
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                <Typography variant="h5">Posts</Typography>
+                <Button 
+                  variant="contained" 
+                  color="primary"
+                  onClick={() => setIsEditing(true)}
+                >
+                  Create Post
+                </Button>
+              </Box>
               
-              {loadingPosts ? (
-                <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-                  <CircularProgress />
+              {isEditing && (
+                <Box sx={{ mb: 4 }}>
+                  <Paper elevation={3} sx={{ p: 3 }}>
+                    <Typography variant="h6" gutterBottom>Create Post</Typography>
+                    <CreatePostForm
+                      onPostCreated={handlePostCreated}
+                      onCancel={() => setIsEditing(false)}
+                    />
+                  </Paper>
                 </Box>
-              ) : posts.length > 0 ? (
-                posts.map(post => (
-                  <PostCard 
-                    key={post.id} 
-                    post={post} 
-                    onPostUpdate={handlePostUpdate}
-                    onPostDelete={handlePostDelete}
-                  />
-                ))
+              )}
+              
+              {posts?.length > 0 ? (
+                <Grid container spacing={3}>
+                  {posts.map((post, index) => (
+                    <Grid item xs={12} key={`${post.id}-${index}`}>
+                      <PostCard
+                        post={post}
+                        onUpdate={handlePostUpdate}
+                        onDelete={handlePostDelete}
+                      />
+                    </Grid>
+                  ))}
+                </Grid>
               ) : (
-                <Alert severity="info">
-                  You haven't created any posts yet. Use the form above to create your first post!
-                </Alert>
+                <Typography>No posts available</Typography>
               )}
             </Box>
           )}
@@ -865,16 +881,6 @@ function Profile() {
           loggedInUsername={loggedInUsername}
           followersCount={followersCount}
           posts={posts}
-        />
-      )}
-      
-      {/* Followers/Following Modal for own profile tabs */}
-      {userData && tabValue !== 0 && (
-        <FollowersModal
-          open={followModal.open}
-          onClose={closeFollowModal}
-          username={userData.username}
-          initialTab={followModal.tab}
         />
       )}
     </Container>
