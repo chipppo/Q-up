@@ -41,6 +41,8 @@ ALLOWED_HOSTS = [
     '16.171.182.216',
     'localhost',
     '127.0.0.1',
+    'q-up.fun',
+    'www.q-up.fun',
 ]
 
 #модел за потребители вместо стандартния
@@ -289,4 +291,14 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:8000",
     "http://16.171.182.216",
     "https://q-up.fun",
+    "https://www.q-up.fun",
+]
+
+# CSRF trusted origins for secure forms
+CSRF_TRUSTED_ORIGINS = [
+    "https://q-up.fun",
+    "http://q-up.fun",
+    "https://www.q-up.fun",
+    "http://www.q-up.fun",
+    "http://16.171.182.216",
 ]
