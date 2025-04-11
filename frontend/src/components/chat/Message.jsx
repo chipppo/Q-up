@@ -92,14 +92,19 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
     
     if (!url) return false;
     
-    // Force display of WebP and SVG as images
-    if (url.toLowerCase().includes('.webp') || url.toLowerCase().includes('.svg')) {
+    // Force display of WebP as image but treat SVG as a file
+    if (url.toLowerCase().includes('.webp')) {
       return true;
+    }
+    
+    // Explicitly exclude SVG from image detection
+    if (url.toLowerCase().includes('.svg')) {
+      return false;
     }
     
     // Check for common image extensions in URL
     const imageExtensions = [
-      '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg',
+      '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp',
       '.tiff', '.tif', '.avif', '.heic', '.heif', '.jfif', '.pjpeg', '.pjp'
     ];
     const hasImageExtension = imageExtensions.some(ext => {
@@ -111,7 +116,7 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
     
     // Also check for image content types in URL (from backend API responses)
     const imageContentTypes = [
-      'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp', 'image/svg+xml',
+      'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp',
       'image/tiff', 'image/avif', 'image/heic', 'image/heif'
     ];
     const containsImageContentType = imageContentTypes.some(type => url.toLowerCase().includes(type));
@@ -336,48 +341,22 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
                 </Box>
               )}
 
-              {(isImageAttachment(formatAvatarUrl(message.image)) || 
-                (message.image && 
-                  (message.image.toLowerCase().includes('.webp') || 
-                   message.image.toLowerCase().includes('.svg')))) ? (
+              {(isImageAttachment(formatAvatarUrl(message.image))) ? (
                 <>
-                  {message.image && message.image.toLowerCase().includes('.svg') ? (
-                    // Special handling for SVG files using object tag for better compatibility
-                    <object
-                      data={formatAvatarUrl(message.image)}
-                      type="image/svg+xml"
-                      className="message-image"
-                      onLoad={handleImageLoad}
-                      style={{ 
-                        display: imageLoading || imageError ? 'none' : 'block',
-                        maxWidth: '100%',
-                        maxHeight: '350px',
-                        borderRadius: '8px',
-                        backgroundColor: 'rgba(255, 255, 255, 0.1)'
-                      }}
-                    >
-                      <Box className="image-error-message">
-                        <ErrorIcon fontSize="small" sx={{ mr: 1, verticalAlign: 'middle' }} />
-                        SVG could not be loaded
-                      </Box>
-                    </object>
-                  ) : (
-                    // Regular image handling for other formats
-                    <img 
-                      src={formatAvatarUrl(message.image)}
-                      alt="Message attachment" 
-                      className="message-image"
-                      onLoad={handleImageLoad}
-                      onError={handleImageError}
-                      style={{ 
-                        display: imageLoading || imageError ? 'none' : 'block',
-                        maxWidth: '100%',
-                        maxHeight: '350px',
-                        objectFit: 'cover',
-                        borderRadius: '8px'
-                      }}
-                    />
-                  )}
+                  <img 
+                    src={formatAvatarUrl(message.image)}
+                    alt="Message attachment" 
+                    className="message-image"
+                    onLoad={handleImageLoad}
+                    onError={handleImageError}
+                    style={{ 
+                      display: imageLoading || imageError ? 'none' : 'block',
+                      maxWidth: '100%',
+                      maxHeight: '350px',
+                      objectFit: 'cover',
+                      borderRadius: '8px'
+                    }}
+                  />
                   {imageError && (
                     <Box className="image-error-message">
                       <ErrorIcon fontSize="small" sx={{ mr: 1, verticalAlign: 'middle' }} />
