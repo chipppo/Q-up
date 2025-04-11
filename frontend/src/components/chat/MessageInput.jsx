@@ -352,16 +352,14 @@ const MessageInput = ({
         </IconButton>
       </Box>
       
-      {/* Image Upload */}
-      <Box sx={{ my: 2 }}>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml,.jpg,.jpeg,.png,.gif,.webp,.svg"
-          style={{ display: 'none' }}
-          onChange={handleFileChange}
-        />
-      </Box>
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml,.jpg,.jpeg,.png,.gif,.webp,.svg"
+        style={{ display: 'none' }}
+        onChange={handleFileChange}
+      />
     </Box>
   );
 };

@@ -40,11 +40,14 @@
 .message-bubble.sent {
   background-color: var(--color-primary-light);
   border-bottom-right-radius: 4px;
+  color: #121212; /* Dark text on green background for better readability */
+  font-weight: 500;
 }
 
 .message-bubble.received {
   background-color: var(--color-bg-paper);
   border-bottom-left-radius: 4px;
+  color: white; /* White text for received messages */
 }
 
 /* Message content */
@@ -115,8 +118,35 @@
 .message-image {
   max-width: 100%;
   border-radius: 8px;
-  margin-top: 8px;
+  margin-top: 4px;
   cursor: pointer;
+  max-height: 350px;
+  object-fit: cover;
+  display: block;
+}
+
+.message-image[src$=".svg"], 
+.message-image[src*=".svg?"] {
+  object-fit: contain;
+  background-color: rgba(255, 255, 255, 0.1);
+  padding: 4px;
+}
+
+.message-image[src$=".webp"], 
+.message-image[src*=".webp?"] {
+  object-fit: cover;
+}
+
+.image-error-message {
+  padding: 10px;
+  background-color: rgba(255, 0, 0, 0.05);
+  border-radius: 8px;
+  color: #ff5252;
+  font-style: italic;
+  margin-top: 8px;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
 }
 
 /* File attachments */
@@ -124,15 +154,19 @@
   display: flex;
   align-items: center;
   padding: 10px 14px;
-  background-color: rgba(0, 0, 0, 0.05);
+  background-color: rgba(0, 0, 0, 0.1);
   border-radius: 8px;
   margin-top: 8px;
   cursor: pointer;
   transition: background-color 0.2s;
+  max-width: 100%;
+  box-sizing: border-box;
+  position: relative;
+  overflow: hidden;
 }
 
 .file-attachment:hover {
-  background-color: rgba(0, 0, 0, 0.08);
+  background-color: rgba(0, 0, 0, 0.15);
 }
 
 .file-name {
@@ -142,16 +176,6 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   margin-left: 10px;
-}
-
-.image-error-message {
-  padding: 10px;
-  background-color: rgba(0, 0, 0, 0.05);
-  border-radius: 8px;
-  color: #ff5252;
-  font-style: italic;
-  margin-top: 8px;
-  font-size: 0.85rem;
 }
 
 /* Menu buttons */

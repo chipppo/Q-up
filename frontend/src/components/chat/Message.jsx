@@ -92,6 +92,11 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
     
     if (!url) return false;
     
+    // Force display of WebP and SVG as images
+    if (url.toLowerCase().includes('.webp') || url.toLowerCase().includes('.svg')) {
+      return true;
+    }
+    
     // Check for common image extensions in URL
     const imageExtensions = [
       '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg',
@@ -231,10 +236,12 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
     return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
   };
 
-  // Handle image loading
+  // Properly handle loading state and remove infinite spinner
   const handleImageLoad = () => {
-    setImageLoading(false);
-    setImageError(false);
+    setTimeout(() => {
+      setImageLoading(false);
+      setImageError(false);
+    }, 100);
   };
 
   const handleImageError = (e) => {
@@ -248,6 +255,11 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
   useEffect(() => {
     if (message.image || message.has_image) {
       setImageLoading(true);
+      // Add a timeout to prevent infinite loading
+      const timer = setTimeout(() => {
+        setImageLoading(false);
+      }, 5000); // 5 second maximum loading time
+      return () => clearTimeout(timer);
     }
   }, [message.image, message.has_image]);
 
@@ -287,6 +299,9 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
         <div 
           className={`message-bubble ${isOwnMessage ? 'sent' : 'received'} ${isHighlighted ? 'highlighted-message' : ''}`}
           id={`message-${message.id}`}
+          style={{ 
+            color: isOwnMessage ? '#121212' : 'white' // Dark text for sent messages, white for received
+          }}
         >
           {/* Reply reference */}
           {message.parent && (
@@ -321,7 +336,10 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
                 </Box>
               )}
 
-              {isImageAttachment(formatAvatarUrl(message.image)) ? (
+              {(isImageAttachment(formatAvatarUrl(message.image)) || 
+                (message.image && 
+                  (message.image.toLowerCase().includes('.webp') || 
+                   message.image.toLowerCase().includes('.svg')))) ? (
                 <>
                   <img 
                     src={formatAvatarUrl(message.image)}
@@ -333,7 +351,8 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
                       display: imageLoading || imageError ? 'none' : 'block',
                       maxWidth: '100%',
                       maxHeight: '350px',
-                      objectFit: message.image?.toLowerCase().endsWith('.svg') ? 'contain' : 'cover'
+                      objectFit: message.image?.toLowerCase().endsWith('.svg') ? 'contain' : 'cover',
+                      borderRadius: '8px'
                     }}
                   />
                   {imageError && (
