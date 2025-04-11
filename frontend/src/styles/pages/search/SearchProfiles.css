@@ -116,6 +116,22 @@
   transition: color var(--transition-fast);
 }
 
+/* Make radio buttons more visible and ensure they're clickable */
+.filter-option input[type="radio"] {
+  appearance: radio !important;
+  -webkit-appearance: radio !important;
+  opacity: 1;
+  cursor: pointer;
+  margin-right: 8px;
+}
+
+/* Ensure label is clickable for radio buttons */
+.filter-option label[for^="mic-"] {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+}
+
 /* Add better visual cues for game-specific filters */
 .game-filter-container {
   position: relative;

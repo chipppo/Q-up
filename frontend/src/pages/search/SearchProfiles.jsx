@@ -169,7 +169,7 @@ function SearchProfiles() {
     languages: [],
     activeHours: [],
     games: [],
-    hasMic: null,
+    hasMic: null,  // null means "Any" is selected
     gameHoursPlayed: {}, // Object with game ids as keys and min hours as values
     gameGoals: {}, // Object with game ids as keys and arrays of selected goals as values
   });
@@ -648,8 +648,9 @@ function SearchProfiles() {
                     name="mic-availability"
                     checked={filters.hasMic === true}
                     onChange={() => handleFilterChange("hasMic", true)}
+                    onClick={() => handleFilterChange("hasMic", true)}
                   />
-                  <label htmlFor="mic-yes">Has Mic</label>
+                  <label htmlFor="mic-yes" onClick={() => handleFilterChange("hasMic", true)}>Has Mic</label>
                 </div>
               </div>
               <div className="filter-option">
@@ -660,20 +661,22 @@ function SearchProfiles() {
                     name="mic-availability"
                     checked={filters.hasMic === false}
                     onChange={() => handleFilterChange("hasMic", false)}
+                    onClick={() => handleFilterChange("hasMic", false)}
                   />
-                  <label htmlFor="mic-no">No Mic</label>
+                  <label htmlFor="mic-no" onClick={() => handleFilterChange("hasMic", false)}>No Mic</label>
                 </div>
               </div>
               <div className="filter-option">
                 <div className="filter-option-header">
                   <input
                     type="radio"
-                    id="mic-any"
+                    id="mic-any" 
                     name="mic-availability"
                     checked={filters.hasMic === null}
                     onChange={() => handleFilterChange("hasMic", null)}
+                    onClick={() => handleFilterChange("hasMic", null)}
                   />
-                  <label htmlFor="mic-any">Any</label>
+                  <label htmlFor="mic-any" onClick={() => handleFilterChange("hasMic", null)}>Any</label>
                 </div>
               </div>
             </div>

@@ -315,13 +315,15 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
           {message.parent && (
             <Box className="reply-bubble">
               <Typography variant="caption" fontWeight="medium" sx={{ display: 'block', mb: 0.5 }}>
-                {message.parent_sender || (message.parent?.sender?.username 
-                  ? message.parent.sender.username 
-                  : 'User')}
+                {typeof message.parent_sender === 'object' 
+                  ? message.parent_sender?.display_name || message.parent_sender?.username || 'User'
+                  : message.parent_sender || (message.parent?.sender?.username 
+                    ? message.parent.sender.username 
+                    : 'User')}
               </Typography>
               <Typography variant="body2" sx={{ opacity: 0.9 }}>
                 {message.parent_message?.content || message.parent?.content || 
-                  (message.parent?.has_image ? 'Image' : 'File')}
+                  (message.parent?.has_image || message.parent?.image ? 'Image' : 'File')}
               </Typography>
             </Box>
           )}

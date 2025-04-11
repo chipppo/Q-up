@@ -90,7 +90,7 @@ const Chat = () => {
 
   // Add a state to track which messages are being deleted
   const [deletingMessages, setDeletingMessages] = useState({});
-  
+
   // Refs for tracking scroll and polling state
   const lastScrollTop = useRef(0);
   const isLoadingMore = useRef(false);
@@ -117,7 +117,7 @@ const Chat = () => {
     const position = container.scrollHeight - container.scrollTop - container.clientHeight;
     return position < threshold;
   };
-  
+
   /**
    * Scrolls to the bottom of the chat messages
    * 
@@ -133,7 +133,7 @@ const Chat = () => {
       });
     }
   }, []);
-  
+
   /**
    * Marks a chat as read by the current user
    * 
@@ -159,7 +159,7 @@ const Chat = () => {
       // Don't show error to user, just log it - this is a background operation
     }
   };
-  
+
   /**
    * Fetches the list of chats for the current user
    * Uses a retry mechanism and fallback endpoints for reliability
@@ -466,7 +466,7 @@ const Chat = () => {
       });
     }
   };
-  
+
   /**
    * Periodically checks for new messages in all chats
    * Updates unread counts and fetches new messages for active chat
@@ -614,7 +614,7 @@ const Chat = () => {
       setShowChatList(false);
     }
   };
-  
+
   /**
    * Starts a new chat with a specific user
    * 
@@ -662,15 +662,15 @@ const Chat = () => {
    * @param {string} action - Action to perform (reply, edit, delete)
    */
   const handleMessageMenuOpen = (anchorEl, message, action) => {
-    if (action === 'reply') {
+      if (action === 'reply') {
       // Handle reply action
-      handleReplyMessage(message);
-    } else if (action === 'edit') {
+        handleReplyMessage(message);
+      } else if (action === 'edit') {
       // Handle edit action
-      setEditingMessage(message);
-    } else if (action === 'delete') {
+        setEditingMessage(message);
+      } else if (action === 'delete') {
       // Handle delete action
-      handleDeleteMessage(message.id);
+        handleDeleteMessage(message.id);
     }
   };
 
@@ -847,7 +847,7 @@ const Chat = () => {
             });
             
             // Update the messages state
-            setMessages(prevMessages => {
+      setMessages(prevMessages => {
               const updatedMessages = [...prevMessages, ...sortedMessages];
               return updatedMessages.sort((a, b) => 
                 new Date(a.created_at) - new Date(b.created_at)
