@@ -106,7 +106,10 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
     }
     
     // Check for image content types
-    if (message.file_info && message.file_info.type && message.file_info.type.startsWith('image/')) {
+    if (message.file_info && message.file_info.type && 
+        (message.file_info.type.startsWith('image/') || 
+        message.file_info.type.includes('svg') || 
+        message.file_info.type.includes('webp'))) {
       return true;
     }
     
@@ -289,24 +292,6 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
     return () => clearTimeout(timer);
   }, [message.image, message.has_image]);
 
-  const isImage = (filename) => {
-    if (!filename) return false;
-    
-    // Special checks for known image types that might be missed
-    const urlLower = filename.toLowerCase();
-    if (urlLower.includes('.webp') || urlLower.includes('image/webp')) {
-      return true;
-    }
-    if (urlLower.includes('.svg') || urlLower.includes('image/svg')) {
-      return true;
-    }
-    
-    // Extract file extension from the path
-    const extension = filename.split('.').pop().toLowerCase();
-    return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 
-            'tiff', 'tif', 'avif', 'heic', 'heif'].includes(extension);
-  };
-
   return (
     <Box className={`message-wrapper ${isOwnMessage ? 'sent' : 'received'}`} 
       sx={{ opacity: isDeleting ? 0.5 : 1 }}>
@@ -385,7 +370,9 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
                     onLoad={handleImageLoad}
                     onError={handleImageError}
                     style={{ 
-                      display: imageLoading || imageError ? 'none' : 'block'
+                      display: imageLoading || imageError ? 'none' : 'block',
+                      maxWidth: '100%',
+                      height: 'auto'
                     }}
                   />
                   {imageError && (
@@ -418,7 +405,7 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
           {/* File attachments */}
           {message.file && (
             <div className="message-file">
-              {isImage(message.file) ? (
+              {isImageAttachment(message.file) ? (
                 <img 
                   src={`${API.defaults.baseURL}${message.file}`} 
                   alt="Shared file" 

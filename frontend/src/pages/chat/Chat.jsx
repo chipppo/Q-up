@@ -792,34 +792,15 @@ const Chat = () => {
    * @param {Object} newMessage - The new message to add
    */
   const addMessage = (newMessage) => {
-    setMessages(prevMessages => {
-      // Ensure the message isn't already in the list
-      const exists = prevMessages.some(msg => msg.id === newMessage.id);
-      if (exists) return prevMessages;
-      
-      // Generate a predictable key for stable rendering
-      const messageWithKey = {
-        ...newMessage,
-        key: `msg-${newMessage.id}`
-      };
-      
-      // Add new message and sort by timestamp
-      const updatedMessages = [...prevMessages, messageWithKey];
-      const sortedMessages = updatedMessages.sort((a, b) => 
-        new Date(a.created_at) - new Date(b.created_at)
-      );
-      
-      // Update the last message timestamp
-      const lastMessage = sortedMessages[sortedMessages.length - 1];
-      if (lastMessage && lastMessage.created_at) {
-        setLastMessageTimestamp(lastMessage.created_at);
-      }
-      
-      return sortedMessages;
-    });
+    if (!newMessage) return;
     
-    // Force reset user activity when sending a message
-    resetUserActivityTimeout();
+    // Generate a consistent key for this message
+    if (!newMessage.key) {
+      newMessage.key = `msg-${newMessage.id}`;
+    }
+    
+    // Add message to local state
+    setMessages(prevMessages => [...prevMessages, newMessage]);
   };
 
   // Track user activity to optimize polling

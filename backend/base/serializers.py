@@ -499,14 +499,36 @@ class MessageSerializer(serializers.ModelSerializer):
                 # Get size if available
                 file_size = getattr(obj.image, 'size', 0)
                 
+                # Check if file is an image using a more comprehensive method
+                is_image = False
+                
+                # Store the existing file_info if available (from upload time)
+                if hasattr(obj, 'file_info') and obj.file_info and 'is_image' in obj.file_info:
+                    is_image = obj.file_info['is_image']
+                else:
+                    # File type check
+                    if file_type and (file_type.startswith('image/') or 
+                                    'svg' in file_type or 
+                                    'webp' in file_type):
+                        is_image = True
+                    
+                    # File extension check as backup
+                    ext = os.path.splitext(filename.lower())[1]
+                    if ext in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg',
+                              '.tiff', '.tif', '.avif', '.heic', '.heif', '.jfif']:
+                        is_image = True
+                
                 return {
                     'name': filename,
                     'type': file_type,
                     'size': file_size,
-                    'is_image': file_type.startswith('image/')
+                    'is_image': is_image
                 }
             return None
-        except Exception:
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error in get_file_info: {str(e)}")
             return None
 
     def validate(self, data):

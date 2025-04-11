@@ -44,12 +44,18 @@ def is_image_file(filename, content_type=None):
         'image/bmp', 'image/svg+xml', 'image/tiff', 'image/avif'
     }
     
-    # Special handling for WebP
-    if filename.lower().endswith('.webp') or (content_type and 'webp' in content_type.lower()):
+    # Direct checks for WebP files
+    if filename.lower().endswith('.webp'):
         return True
     
-    # Special handling for SVG
-    if filename.lower().endswith('.svg') or (content_type and 'svg' in content_type.lower()):
+    if content_type and ('webp' in content_type.lower() or content_type == 'image/webp'):
+        return True
+    
+    # Direct checks for SVG files
+    if filename.lower().endswith('.svg'):
+        return True
+    
+    if content_type and ('svg' in content_type.lower() or content_type == 'image/svg+xml'):
         return True
     
     # Check file extension

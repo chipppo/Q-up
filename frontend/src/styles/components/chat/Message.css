@@ -117,6 +117,25 @@
   border-radius: 8px;
   margin-top: 8px;
   cursor: pointer;
+  object-fit: contain; /* Ensure image maintains aspect ratio */
+  display: block; /* Ensure consistent display behavior */
+  max-height: 300px; /* Limit extremely tall images */
+  width: auto; /* Keep natural width */
+  height: auto; /* Keep natural height */
+}
+
+/* SVG-specific styles to ensure they display correctly */
+.message-image[src$=".svg"],
+.message-image[src*=".svg?"] {
+  background-color: transparent;
+  min-width: 100px; /* Ensure tiny SVGs are visible */
+  min-height: 100px; /* Ensure tiny SVGs are visible */
+}
+
+/* WebP-specific styles if needed */
+.message-image[src$=".webp"],
+.message-image[src*=".webp?"] {
+  object-fit: contain;
 }
 
 /* File attachments */
@@ -171,6 +190,8 @@
   max-height: 300px;
   border-radius: 8px;
   margin-top: 4px;
+  object-fit: contain;
+  display: block;
 }
 
 .file-attachment {

@@ -137,8 +137,15 @@ const MessageInput = forwardRef(({
     
     setAttachment(file);
     
-    // Create preview for images
-    if (file.type.startsWith('image/')) {
+    // Create preview for images - include SVG and WebP explicitly
+    const isImage = 
+      file.type.startsWith('image/') || 
+      file.type.includes('webp') || 
+      file.type.includes('svg') ||
+      file.name.toLowerCase().endsWith('.webp') ||
+      file.name.toLowerCase().endsWith('.svg');
+      
+    if (isImage) {
       const reader = new FileReader();
       reader.onload = (event) => {
         setAttachmentPreview(event.target.result);
