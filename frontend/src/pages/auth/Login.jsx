@@ -42,28 +42,52 @@ function Login() {
     }
   }, [isLoggedIn, navigate, location]);
 
-  // Add an effect to prevent navigation when in error state
+  // Add a global page navigation prevention for errors
   useEffect(() => {
     if (error) {
-      // This function prevents the page from reloading or navigating away
-      const handleBeforeUnload = (e) => {
-        // Cancel the event and show a message
+      console.log("Error is active, preventing navigation");
+      
+      // 1. Add history state to prevent back button from causing reload
+      const initialHistoryLength = window.history.length;
+      window.history.pushState({ noReload: true }, '');
+      
+      // 2. Handle popstate (back/forward) to prevent reload
+      const handlePopState = (e) => {
+        // If there's an error and someone clicks back, prevent it
         e.preventDefault();
-        // Chrome requires returnValue to be set
-        e.returnValue = '';
-        return '';
+        window.history.pushState({ noReload: true }, '');
+        // Flash the error message
+        const errorEl = document.querySelector('.error-message');
+        if (errorEl) {
+          errorEl.style.animation = 'none';
+          setTimeout(() => {
+            errorEl.style.animation = 'pulsateError 2s infinite';
+          }, 10);
+        }
+        return false;
       };
       
-      // Block navigation attempts when in error state
-      window.addEventListener('beforeunload', handleBeforeUnload);
+      // 3. Prevent form submissions globally
+      const preventForms = (e) => {
+        if (e.target.tagName === 'FORM') {
+          e.preventDefault();
+          e.stopPropagation();
+          return false;
+        }
+      };
       
-      // Cleanup the listener
+      // Add listeners
+      window.addEventListener('popstate', handlePopState);
+      document.addEventListener('submit', preventForms, true);
+      
+      // Remove listeners when error is cleared
       return () => {
-        window.removeEventListener('beforeunload', handleBeforeUnload);
+        window.removeEventListener('popstate', handlePopState);
+        document.removeEventListener('submit', preventForms, true);
       };
     }
   }, [error]);
-  
+
   // Prevent accidental form submission with Enter key
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -93,6 +117,28 @@ function Login() {
       window.removeEventListener('keydown', handleKeyDown, true);
     };
   }, [error]);
+
+  // Add Enter key handling for form submission
+  useEffect(() => {
+    const handleKeyPress = (e) => {
+      // Only process if not already loading and no error is showing
+      if (!isLoading && !error && e.key === 'Enter') {
+        // Check if we're on the login form (not password reset)
+        if (!showForgotPassword) {
+          // Trigger the handleSubmit function directly
+          handleSubmit();
+        }
+      }
+    };
+    
+    // Add the event listener
+    window.addEventListener('keydown', handleKeyPress);
+    
+    // Cleanup
+    return () => {
+      window.removeEventListener('keydown', handleKeyPress);
+    };
+  }, [isLoading, error, showForgotPassword]);
 
   /**
    * Validates the username field
@@ -192,19 +238,11 @@ function Login() {
   };
 
   /**
-   * Handles the login form submission
-   * Validates the form, sends login request, and handles the response
-   * 
-   * @param {React.FormEvent} e - Form submit event
+   * Handles the login button click
+   * Validates inputs, sends login request, and handles the response
+   * This is now a simple function that doesn't use form submission
    */
-  const handleSubmit = async (e) => {
-    // Ensure we prevent any default browser submission behavior
-    e.preventDefault();
-    e.stopPropagation();
-    
-    // Pause briefly - this helps ensure the preventDefault takes effect
-    await new Promise(resolve => setTimeout(resolve, 10));
-    
+  const handleSubmit = async () => {
     setError("");
     
     // Form field validation
@@ -233,11 +271,11 @@ function Login() {
       // Delay navigation to allow success toast to be seen
       toast.success(`Welcome back, ${username}!`);
       
-      // Use a timeout to ensure the error has time to display if needed
+      // Use a timeout to ensure the success message has time to display
       setTimeout(() => {
         const destination = location.state?.from || "/dashboard";
         navigate(destination, { replace: true });
-      }, 500); // Increased from 100ms to 500ms for better UX
+      }, 500);
       
     } catch (error) {
       console.error('Login error:', error);
@@ -249,28 +287,25 @@ function Login() {
       const errorMessage = error.response?.data?.detail || 'Login failed. Please check your credentials.';
       setError(errorMessage);
       
-      // Clear the password field on error - this helps prevent resubmission
-      // but keeps the username so the user doesn't have to retype it
+      // Clear the password field on error
       setPassword("");
       
-      // Reset the form state but keep the error visible
-      // This prevents browsers from thinking the form is still submitting
-      const form = document.querySelector('form.login-form');
-      if (form) {
-        // Reset all form fields except username 
-        const passwordInput = form.querySelector('input[type="password"]');
-        if (passwordInput) {
-          passwordInput.value = '';
-        }
-        
-        // Remove any browser-specific form validation UI
-        form.classList.remove('was-validated');
-      }
+      // Block page reloads - this is a drastic measure but necessary
+      const blockReloads = (e) => {
+        // Cancel the event
+        e.preventDefault();
+        // Chrome requires returnValue to be set
+        e.returnValue = '';
+        return '';
+      };
       
-      // Clear focus from all elements
-      if (document.activeElement instanceof HTMLElement) {
-        document.activeElement.blur();
-      }
+      // Add the event listener
+      window.addEventListener('beforeunload', blockReloads);
+      
+      // Remove it after a safe period (5 seconds)
+      setTimeout(() => {
+        window.removeEventListener('beforeunload', blockReloads);
+      }, 5000);
       
       // Display a permanent error toast (no auto-close)
       toast.error(errorMessage, { 
@@ -286,21 +321,7 @@ function Login() {
           fontWeight: 'bold'
         },
       });
-      
-      // Scroll to the error message
-      setTimeout(() => {
-        const errorElement = document.querySelector('.error-message');
-        if (errorElement) {
-          errorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-      }, 100);
-      
-      // Return false to prevent any default form behavior
-      return false;
     }
-    
-    // This should never execute in case of an error
-    return true;
   };
 
   /**
@@ -428,11 +449,16 @@ function Login() {
       )}
 
       <form 
-        onSubmit={handleSubmit} 
         className="login-form"
         noValidate 
         autoComplete="off"
         action="javascript:void(0);"
+        onSubmit={(e) => {
+          // Completely prevent any form submission behavior
+          e.preventDefault();
+          e.stopPropagation();
+          return false;
+        }}
       >
           <div className="form-group">
             <input
@@ -496,17 +522,10 @@ function Login() {
           )}
 
           <button 
-            type="submit" 
+            type="button" // Changed from "submit" to "button"
             className={`login-button ${isLoading ? 'loading' : ''}`}
             disabled={isLoading}
-            onClick={(e) => {
-              // Extra safeguard to prevent default form submission
-              if (error) {
-                e.preventDefault();
-                e.stopPropagation();
-                return false;
-              }
-            }}
+            onClick={handleSubmit} // Direct call to handleSubmit
           >
             {isLoading ? 'Signing In...' : 'Sign In'}
           </button>
