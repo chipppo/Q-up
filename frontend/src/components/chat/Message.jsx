@@ -393,14 +393,30 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
                   WebkitBoxOrient: 'vertical',
                 }}
               >
-                {message.parent_message?.content || message.parent?.content || 
-                  (message.parent?.has_image 
-                    ? 'Image' 
-                    : message.parent?.image 
-                      ? 'Image' 
-                      : message.parent?.file 
-                        ? 'File' 
-                        : 'Message')}
+                {(() => {
+                  // Debug the parent message structure
+                  if (process.env.NODE_ENV !== 'production') {
+                    console.log("Parent message in reply:", message.parent);
+                  }
+                  
+                  // Try to extract content from various properties
+                  const content = 
+                    message.parent_content || 
+                    message.parent?.parent_content || 
+                    message.parent_message?.content || 
+                    message.parent?.content || 
+                    null;
+                  
+                  if (content) {
+                    return content;
+                  } else if (message.parent?.has_image || message.parent?.image) {
+                    return 'Image';
+                  } else if (message.parent?.file) {
+                    return 'File';
+                  } else {
+                    return 'Message';
+                  }
+                })()}
               </Typography>
             </Box>
           )}

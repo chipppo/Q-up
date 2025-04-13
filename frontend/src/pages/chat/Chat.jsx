@@ -737,8 +737,28 @@ const Chat = () => {
    * @param {Object} message - The message to reply to
    */
   const handleReplyMessage = (message) => {
+    // Log the message being replied to for debugging
+    console.log("Replying to message:", message);
+    
+    // Create a complete representation of the parent message for proper display
+    const replyMessage = {
+      ...message,
+      // Make sure the content is accessible and preserved
+      content: message.content || '',
+      // Include parent content specifically to preserve it in the data structure
+      parent_content: message.content || '',
+      // Ensure all required message identifiers are present
+      id: message.id,
+      sender: message.sender,
+      sender_username: message.sender_username || (typeof message.sender === 'object' ? message.sender.username : message.sender),
+      // Ensure we preserve image/file information
+      has_image: message.has_image || false,
+      image: message.image || null,
+      file: message.file || null
+    };
+    
     // Set the message to reply to (will be passed to MessageInput)
-    setReplyTo(message);
+    setReplyTo(replyMessage);
     
     // Focus the message input
     if (messageInputRef.current) {

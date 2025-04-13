@@ -214,6 +214,15 @@ const MessageInput = forwardRef(({
       // Add parent message ID if replying
       if (replyTo) {
         formData.append('parent', replyTo.id);
+        
+        // Also store the parent content in a custom field
+        // This won't be used by the server but will help with debugging
+        if (replyTo.content) {
+          formData.append('parent_content', replyTo.content);
+        }
+        
+        // Log the message being replied to
+        console.log('Replying to message:', replyTo.id, 'with content:', replyTo.content);
       }
       
       // Log FormData keys for debugging
@@ -229,6 +238,15 @@ const MessageInput = forwardRef(({
           'Content-Type': 'multipart/form-data',
         },
       });
+      
+      // Log the response for debugging
+      console.log('Message sent successfully, response:', response.data);
+      
+      // If this is a reply, ensure the parent message content is preserved
+      if (response.data && replyTo && replyTo.content) {
+        response.data.parent_content = replyTo.content;
+        console.log('Added parent_content to response:', response.data);
+      }
       
       // Add message to UI
       if (response.data && addMessage) {
@@ -282,6 +300,7 @@ const MessageInput = forwardRef(({
       {/* Reply preview */}
       {replyTo && (
         <Box className="reply-preview-container">
+          {console.log("Reply preview data:", replyTo)}
           <Box className="reply-preview">
             <Typography variant="caption" fontWeight="medium" sx={{ display: 'block', mb: 0.5 }}>
               Replying to {replyTo.sender_username || replyTo.sender?.username || 'User'}
@@ -296,7 +315,14 @@ const MessageInput = forwardRef(({
                 maxWidth: '80%'
               }}
             >
-              {replyTo.content || (replyTo.has_image ? 'Image' : 'File')}
+              {replyTo.content || 
+                (replyTo.has_image 
+                  ? 'Image' 
+                  : replyTo.image 
+                    ? 'Image' 
+                    : replyTo.file 
+                      ? 'File' 
+                      : 'Message')}
             </Typography>
           </Box>
           <IconButton size="small" onClick={clearReplyTo} className="reply-close-button">
