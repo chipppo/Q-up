@@ -42,6 +42,58 @@ function Login() {
     }
   }, [isLoggedIn, navigate, location]);
 
+  // Add an effect to prevent navigation when in error state
+  useEffect(() => {
+    if (error) {
+      // This function prevents the page from reloading or navigating away
+      const handleBeforeUnload = (e) => {
+        // Cancel the event and show a message
+        e.preventDefault();
+        // Chrome requires returnValue to be set
+        e.returnValue = '';
+        return '';
+      };
+      
+      // Block navigation attempts when in error state
+      window.addEventListener('beforeunload', handleBeforeUnload);
+      
+      // Cleanup the listener
+      return () => {
+        window.removeEventListener('beforeunload', handleBeforeUnload);
+      };
+    }
+  }, [error]);
+  
+  // Prevent accidental form submission with Enter key
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // If there was a previous error and Enter is pressed, prevent default
+      if (error && e.key === 'Enter') {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Flash the error message to draw attention
+        const errorElement = document.querySelector('.error-message');
+        if (errorElement) {
+          errorElement.style.animation = 'none';
+          setTimeout(() => {
+            errorElement.style.animation = 'pulsateError 2s infinite';
+          }, 10);
+        }
+        
+        return false;
+      }
+    };
+    
+    // Add the listener
+    window.addEventListener('keydown', handleKeyDown, true);
+    
+    // Cleanup
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown, true);
+    };
+  }, [error]);
+
   /**
    * Validates the username field
    * 
@@ -146,7 +198,13 @@ function Login() {
    * @param {React.FormEvent} e - Form submit event
    */
   const handleSubmit = async (e) => {
+    // Ensure we prevent any default browser submission behavior
     e.preventDefault();
+    e.stopPropagation();
+    
+    // Pause briefly - this helps ensure the preventDefault takes effect
+    await new Promise(resolve => setTimeout(resolve, 10));
+    
     setError("");
     
     // Form field validation
@@ -183,15 +241,40 @@ function Login() {
       
     } catch (error) {
       console.error('Login error:', error);
+      
+      // Completely stop the loading state immediately
       setIsLoading(false);
       
       // Set error message based on response
       const errorMessage = error.response?.data?.detail || 'Login failed. Please check your credentials.';
       setError(errorMessage);
       
-      // Show error toast with longer duration and make it non-dismissible
+      // Clear the password field on error - this helps prevent resubmission
+      // but keeps the username so the user doesn't have to retype it
+      setPassword("");
+      
+      // Reset the form state but keep the error visible
+      // This prevents browsers from thinking the form is still submitting
+      const form = document.querySelector('form.login-form');
+      if (form) {
+        // Reset all form fields except username 
+        const passwordInput = form.querySelector('input[type="password"]');
+        if (passwordInput) {
+          passwordInput.value = '';
+        }
+        
+        // Remove any browser-specific form validation UI
+        form.classList.remove('was-validated');
+      }
+      
+      // Clear focus from all elements
+      if (document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+      }
+      
+      // Display a permanent error toast (no auto-close)
       toast.error(errorMessage, { 
-        autoClose: 15000, // Increased to 15 seconds
+        autoClose: false, // Never auto-close
         hideProgressBar: false,
         closeOnClick: false,
         pauseOnHover: true,
@@ -204,9 +287,20 @@ function Login() {
         },
       });
       
-      // Do not automatically reload or redirect the page
-      // This ensures error messages remain visible until the user takes action
+      // Scroll to the error message
+      setTimeout(() => {
+        const errorElement = document.querySelector('.error-message');
+        if (errorElement) {
+          errorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 100);
+      
+      // Return false to prevent any default form behavior
+      return false;
     }
+    
+    // This should never execute in case of an error
+    return true;
   };
 
   /**
@@ -333,7 +427,13 @@ function Login() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="login-form">
+      <form 
+        onSubmit={handleSubmit} 
+        className="login-form"
+        noValidate 
+        autoComplete="off"
+        action="javascript:void(0);"
+      >
           <div className="form-group">
             <input
               type="text"
@@ -399,6 +499,14 @@ function Login() {
             type="submit" 
             className={`login-button ${isLoading ? 'loading' : ''}`}
             disabled={isLoading}
+            onClick={(e) => {
+              // Extra safeguard to prevent default form submission
+              if (error) {
+                e.preventDefault();
+                e.stopPropagation();
+                return false;
+              }
+            }}
           >
             {isLoading ? 'Signing In...' : 'Sign In'}
           </button>
