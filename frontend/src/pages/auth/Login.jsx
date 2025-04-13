@@ -191,13 +191,13 @@ function Login() {
       
       // Show error toast with longer duration and make it non-dismissible
       toast.error(errorMessage, { 
-        autoClose: 8000, // Increased from 5000ms to 8000ms
+        autoClose: 10000, // Increased to 10 seconds
         hideProgressBar: false,
         closeOnClick: false,
         pauseOnHover: true,
         draggable: true,
         progress: undefined,
-        position: "top-center", // Changed from default to top-center for better visibility
+        position: "top-center",
         style: { 
           borderLeft: '4px solid #ff1744',
           fontWeight: 'bold'
@@ -376,7 +376,14 @@ function Login() {
           </div>
 
           {error && (
-            <div className="error-message" style={{ animation: 'pulsateError 2s infinite', marginBottom: '15px' }}>
+            <div className="error-message" style={{ 
+              animation: 'pulsateError 2s infinite', 
+              marginBottom: '15px',
+              padding: '10px',
+              backgroundColor: 'rgba(255, 0, 0, 0.1)',
+              border: '1px solid var(--color-error)',
+              borderRadius: '4px'
+            }}>
               <h4 style={{ margin: '0 0 5px 0', color: 'var(--color-error)' }}>Login Failed</h4>
               <span>{error}</span>
             </div>

@@ -394,7 +394,13 @@ const Message = ({ message, highlightedId, onMenuOpen, deletingMessages = {} }) 
                 }}
               >
                 {message.parent_message?.content || message.parent?.content || 
-                  (message.parent?.has_image || message.parent?.image ? 'Image' : 'File')}
+                  (message.parent?.has_image 
+                    ? 'Image' 
+                    : message.parent?.image 
+                      ? 'Image' 
+                      : message.parent?.file 
+                        ? 'File' 
+                        : 'Message')}
               </Typography>
             </Box>
           )}

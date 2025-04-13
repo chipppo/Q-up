@@ -236,17 +236,11 @@
   transition: opacity 0.5s ease;
 }
 
-/* Add a subtle pulsating animation to make the error message more noticeable */
+/* Animation for error message pulsing */
 @keyframes pulsateError {
-  0% {
-    box-shadow: 0 2px 8px rgba(255, 23, 68, 0.15);
-  }
-  50% {
-    box-shadow: 0 2px 12px rgba(255, 23, 68, 0.3);
-  }
-  100% {
-    box-shadow: 0 2px 8px rgba(255, 23, 68, 0.15);
-  }
+  0% { opacity: 1; }
+  50% { opacity: 0.7; }
+  100% { opacity: 1; }
 }
 
 /* Add a pulsing animation to draw attention to the error message */
