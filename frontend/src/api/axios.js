@@ -131,7 +131,12 @@ API.interceptors.response.use(
         localStorage.removeItem('access');
         localStorage.removeItem('refresh');
         localStorage.removeItem('username');
-        window.location.href = '/login';
+        
+        // Only redirect to login if we're not already on a login page
+        // This prevents unnecessary page reloads when login fails
+        if (!window.location.pathname.includes('/login')) {
+          window.location.href = '/login';
+        }
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
